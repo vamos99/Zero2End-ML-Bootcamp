@@ -1,0 +1,27 @@
+# Data
+data/
+olist-intelligence/data/
+*.csv
+*.parquet
+*.zip
+
+# Secrets
+.env
+olist-intelligence/.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Models & Logs
+*.pkl
+*.cbm
+mlruns/
+olist-intelligence/mlruns/
+models/
+olist-intelligence/models/
+
+# OS
+.DS_Store
