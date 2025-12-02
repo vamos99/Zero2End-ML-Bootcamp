@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+
+# Data (Volume ile bağlanacak)
+data/
+olist-intelligence/data/
+
+# Secrets
+.env
+olist-intelligence/.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.egg-info/
+
+# Models & Logs (Volume ile bağlanacak)
+mlruns/
+olist-intelligence/mlruns/
+models/
+olist-intelligence/models/
+
+# Docs
+*.pdf
+*.md

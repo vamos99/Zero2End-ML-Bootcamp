@@ -1,0 +1,17 @@
+polars
+sqlalchemy
+psycopg2-binary
+python-dotenv
+catboost
+xgboost
+mlflow
+fastapi
+uvicorn
+pydantic
+streamlit
+plotly
+optuna
+shap
+scikit-learn
+pytest
+requests
