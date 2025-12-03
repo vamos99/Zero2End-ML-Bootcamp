@@ -15,3 +15,5 @@ shap
 scikit-learn
 pytest
 requests
+notebook
+connectorx
