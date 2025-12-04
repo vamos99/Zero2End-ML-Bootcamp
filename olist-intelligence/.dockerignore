@@ -1,0 +1,31 @@
+# Ignore git files
+.git
+.gitignore
+
+# Ignore virtual environment
+venv/
+env/
+
+# Ignore python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore data (mounted via volume)
+data/
+
+# Ignore environment variables (passed via docker-compose)
+.env
+
+# Ignore IDE files
+.vscode/
+.idea/
+
+# Ignore OS files
+.DS_Store
+
+# Ignore artifacts
+mlruns/
+store/
+catboost_info/

@@ -45,3 +45,4 @@ models/*.pkl
 models/*.joblib
 *.log
 catboost_info/
+store/

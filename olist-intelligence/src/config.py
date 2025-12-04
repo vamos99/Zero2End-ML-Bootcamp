@@ -15,6 +15,15 @@ MODELS_PATH = PROJECT_ROOT / "models"
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+
+# Fallback for local execution if 'db' is not resolvable
+import socket
+try:
+    if POSTGRES_HOST == "db":
+        socket.gethostbyname("db")
+except socket.error:
+    print("⚠️ Host 'db' not found, falling back to 'localhost'")
+    POSTGRES_HOST = "localhost"
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "olist")
 
