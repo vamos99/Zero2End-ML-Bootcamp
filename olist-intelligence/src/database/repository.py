@@ -86,10 +86,13 @@ def get_target_audience(cluster_id=None, limit=500):
     FROM customer_segments
     """
     if cluster_id is not None:
-        query = f"{base_query} WHERE \"Cluster\" = {cluster_id} ORDER BY \"Monetary\" DESC LIMIT {limit}"
+        query = f"{base_query} WHERE \"Cluster\" = :cluster_id ORDER BY \"Monetary\" DESC LIMIT :limit"
+        params = {"cluster_id": cluster_id, "limit": limit}
     else:
-        query = f"{base_query} ORDER BY \"Monetary\" DESC LIMIT {limit}"
-    return pd.read_sql(query, engine)
+        query = f"{base_query} ORDER BY \"Monetary\" DESC LIMIT :limit"
+        params = {"limit": limit}
+    
+    return pd.read_sql(text(query), engine, params=params)
 
 def log_action_to_db(action_type, description, impact_value):
     # Fix for numpy types
