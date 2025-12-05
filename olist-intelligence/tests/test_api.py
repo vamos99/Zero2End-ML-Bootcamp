@@ -54,14 +54,84 @@ def test_get_customer_segment():
     assert data["segment"] == "Loyal"
     assert data["recency"] == 120
 
-def test_predict_delivery_mock():
-    # Test the mock endpoint
-    response = client.post("/predict/delivery")
-    assert response.status_code == 200
-    assert "predicted_days" in response.json()
+from unittest.mock import patch
 
-def test_predict_churn_mock():
-    # Test the mock endpoint
-    response = client.post("/predict/churn")
-    assert response.status_code == 200
-    assert "churn_probability" in response.json()
+def test_predict_delivery_real():
+    # Mock the loaded models in app.models
+    with patch("src.app.models") as mock_models:
+        # Setup Mock Model
+        mock_logistics = MagicMock()
+        mock_logistics.predict.return_value = [7.5] # Return list as model does
+        mock_models.__getitem__.side_effect = lambda k: mock_logistics if k == "logistics" else None
+        mock_models.__contains__.side_effect = lambda k: k == "logistics"
+        
+        payload = {
+            "freight_value": 15.5,
+            "price": 100.0,
+            "product_weight_g": 500.0,
+            "product_description_lenght": 100.0
+        }
+        
+        response = client.post("/predict/delivery", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["predicted_days"] == 7.5
+        assert data["risk_level"] == "Low"
+
+def test_predict_churn_real():
+    with patch("src.app.models") as mock_models:
+        # Setup Mock Model
+        mock_churn = MagicMock()
+        mock_churn.predict.return_value = [1]
+        mock_churn.predict_proba.return_value = [[0.2, 0.8]] # 80% True
+        
+        mock_models.__getitem__.side_effect = lambda k: mock_churn if k == "churn" else None
+        mock_models.__contains__.side_effect = lambda k: k == "churn"
+        
+        payload = {
+            "Recency": 10,
+            "Frequency": 5,
+            "Monetary": 1000
+        }
+        
+        response = client.post("/predict/churn", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_churn_risk"] is True
+import numpy as np
+
+def test_recommend_products():
+    with patch("src.app.models") as mock_models:
+        # Setup Mock Recommender Artifact
+        mock_artifact = {
+            "user_map": {"USER_1": 0},
+            "reverse_product_map": {0: "PROD_A", 1: "PROD_B", 2: "PROD_C"},
+            "matrix_reduced": np.array([[1.0, 0.1]]), # User 0 vector (2 dims)
+            "product_components": np.array([
+                [1.0, 0.0, 0.5], # Feature 1 weights for 3 products
+                [0.0, 1.0, 0.5]  # Feature 2 weights for 3 products
+            ])
+        }
+        # Math: User [1, 0.1]
+        # Prod A: [1, 0] -> Score 1.0
+        # Prod B: [0, 1] -> Score 0.1
+        # Prod C: [0.5, 0.5] -> Score 0.55
+        # Expected Order: A, C, B
+        
+        mock_models.__getitem__.side_effect = lambda k: mock_artifact if k == "recommender" else None
+        mock_models.__contains__.side_effect = lambda k: k == "recommender"
+        
+        # Test Case 1: Known User
+        payload = {"customer_id": "USER_1", "top_k": 2}
+        response = client.post("/recommend", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["method"] == "personalized_svd"
+        assert data["recommendations"] == ["PROD_A", "PROD_C"]
+        
+        # Test Case 2: Unknown User (Cold Start)
+        payload = {"customer_id": "UNKNOWN_USER", "top_k": 5}
+        response = client.post("/recommend", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert "popularity_fallback" in data["method"]

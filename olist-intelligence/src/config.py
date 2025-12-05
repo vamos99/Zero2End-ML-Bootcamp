@@ -31,3 +31,7 @@ DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST
 
 # MLflow Configuration
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+
+# API Configuration
+# Dashboard -> API connection
+API_URL = os.getenv("API_URL", "http://api:8000")

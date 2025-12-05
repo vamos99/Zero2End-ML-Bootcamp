@@ -53,3 +53,33 @@ def render_customer_view(risk_churn):
         
     except Exception as e:
         st.warning(f"Veri yüklenemedi: {e}")
+
+    st.markdown("---")
+    
+    # NEW: Recommender System UI
+    st.markdown("### 🔮 Kişiselleştirilmiş Ürün Önerileri (Smart Recommender)")
+    
+    with st.expander("🛍️ Müşteri Öneri Motoru", expanded=True):
+        st.info("Bu modül, SVD (Singular Value Decomposition) algoritması kullanarak müşteriye özel ürün önerileri sunar.")
+        
+        c_input = st.text_input("Müşteri ID:", value="871766c5855e863f6eccc05f988b23")
+        
+        if st.button("Önerileri Getir 🧠", key="rec_btn"):
+            with st.spinner("Yapay Zeka düşünüyor..."):
+                rec_result = action_service.get_recommendations(c_input)
+            
+            if "error" in rec_result:
+                st.error(rec_result["error"])
+            else:
+                st.success(f"Yöntem: {rec_result.get('method', 'Bilinmiyor')}")
+                st.write("**Önerilen Ürünler:**")
+                
+                # Cards layout for products
+                cols = st.columns(5)
+                products = rec_result.get("recommendations", [])
+                
+                for i, prod in enumerate(products):
+                    if i < 5:
+                        with cols[i]:
+                            st.image("https://placehold.co/150x150?text=Product", caption=prod[:15]+"...")
+                            st.caption(prod)

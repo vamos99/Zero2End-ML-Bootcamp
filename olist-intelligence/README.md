@@ -1,113 +1,145 @@
-# Olist Intelligence Suite 🚀
+# Olist Intelligence Suite
 
-**Olist Intelligence Suite**, Brezilya'nın en büyük e-ticaret platformlarından biri olan Olist'in verilerini kullanarak geliştirilmiş, uçtan uca (End-to-End) bir Veri Bilimi ve İş Zekası çözümüdür.
-
-Bu proje, sadece model eğitmekle kalmayıp, bu modelleri **canlı bir ürüne** dönüştürerek iş birimlerinin (Operasyon, Pazarlama) aksiyon almasını sağlar.
+Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geliştirilmiş uçtan uca Veri Bilimi ve İş Zekası çözümü.
 
 ---
 
-## 🌟 Özellikler
+## Problem & Çözüm
 
-### 1. 📦 Operasyon Merkezi (Logistics Engine)
-*   **Sorun:** Siparişlerin gecikip gecikmeyeceğini önceden tahmin eder.
-*   **Çözüm:** Makine Öğrenmesi (CatBoost) ile teslimat süresi tahmini.
-*   **Aksiyon:** Gecikme riski olan siparişler için otomatik uyarı sistemi ve e-posta simülasyonu.
-*   **KPI:** Zamanında Teslimat Oranı, Ortalama Teslimat Süresi, Şikayet Riski.
+### Problem 1: Teslimat Gecikmesi
+**Sorun:** Müşteriler siparişlerin ne zaman geleceğini bilemiyor, gecikmeler şikayete dönüşüyor.
 
-### 2. 🤝 Müşteri Sadakati (Customer Retention)
-*   **Sorun:** Müşterilerin platformu terk etmesini (Churn) önlemek.
-*   **Çözüm:** RFM analizi ve Churn tahminlemesi.
-*   **Aksiyon:** Riskli müşteriler için "İndirim Tanımla" veya "Puan Yükle" gibi senaryoların ROI (Yatırım Getirisi) simülasyonu.
+**Çözüm:** RandomForest modeli ile teslimat süresi tahmini (RMSE: 7.60 gün)
 
-### 3. 📊 Segmentasyon Analizi (Growth Engine)
-*   **Sorun:** Müşterileri tek tip görmek yerine davranışlarına göre gruplamak.
-*   **Çözüm:** K-Means Kümeleme ile müşteri segmentasyonu (Şampiyonlar, Sadıklar, Uyuyanlar).
-*   **Aksiyon:** Her segmente özel pazarlama stratejisi önerileri.
+**Neden Bu Yaklaşım?**
+- Haversine mesafe (satıcı-müşteri arası) en önemli faktör
+- Satıcı puanı (review verisi) teslimat performansıyla ilişkili
+- Aynı eyalet = daha hızlı teslimat
 
----
+### Problem 2: Müşteri Kaybı (Churn)
+**Sorun:** Hangi müşterilerin platformu terk edeceğini önceden tahmin edemiyoruz.
 
-## 🏗️ Mimari (Architecture)
+**Çözüm:** Zaman bazlı Churn tanımı (90 gün inaktif = Churn)
 
-Proje, modern yazılım geliştirme prensiplerine (**Clean Architecture**, **MVC**) uygun olarak tasarlanmıştır:
+**Neden Bu Yaklaşım?**
+- İlk yaklaşımda AUC %100 çıkıyordu - bu data leakage'dı
+- Cluster'dan türetilen target gerçekçi değildi
+- Gerçek tanım: %80.3 Churn Rate (anlamlı)
 
-*   **Data Layer (`src/database/`):** PostgreSQL ile konuşan, ham SQL sorgularını barındıran katman.
-*   **Service Layer (`src/services/`):** İş mantığını (Business Logic), hesaplamaları ve veri maskelemeyi yöneten katman.
-*   **View Layer (`src/views/`):** Streamlit ile kullanıcı arayüzünü oluşturan katman.
-*   **Controller (`src/dashboard.py`):** Tüm akışı yöneten ana kontrolcü.
+### Problem 3: Müşteri Tek Tip Görülüyor
+**Sorun:** Tüm müşterilere aynı pazarlama yapılıyor.
 
-### Teknoloji Yığını (Tech Stack)
-*   **Backend:** Python 3.10, FastAPI
-*   **Frontend:** Streamlit
-*   **Database:** PostgreSQL 15
-*   **MLops:** MLflow, Docker, Docker Compose
-*   **Data Processing:** Polars (ETL), Pandas (Dashboard)
+**Çözüm:** RFM + K-Means ile segmentasyon (5 segment)
 
 ---
 
-## 🧠 Neden Bu Teknolojileri Seçtik? (Design Decisions)
+## Teknoloji Tercihleri
 
-Projede kullanılan her teknolojinin belirli bir amacı vardır:
-
-### 1. Polars vs Pandas 🐼 vs 🐻‍❄️
-*   **Polars:** Büyük veri setlerini (ETL aşaması) işlemek için kullanıldı. Pandas'a göre çok daha hızlıdır ve bellek dostudur. `src/ingest.py` ve Notebook'larda ana işleyicidir.
-*   **Pandas:** Dashboard tarafında kullanıldı. Streamlit ve Plotly kütüphaneleri Pandas ile %100 uyumlu çalıştığı için, sunum katmanında Pandas'ın esnekliğinden faydalandık.
-
-### 2. Neden PostgreSQL? 🐘
-*   SQLite gibi dosya tabanlı sistemler "Production" ortamında (özellikle Docker içinde) kilitlenme (lock) ve izin sorunları yaşatır.
-*   PostgreSQL, çoklu kullanıcı desteği ve veri bütünlüğü ile gerçek bir kurumsal çözümdür.
-
-### 3. Neden Streamlit? 🎈
-*   React veya Vue gibi frontend framework'leri ile aylar sürecek geliştirme sürecini günlere indirmek için.
-*   Veri Bilimcilerin kendi araçlarını (Python) kullanarak hızlıca prototip ve ürün geliştirmesini sağlar.
-
-### 4. Neden Docker? 🐳
-*   "Benim bilgisayarımda çalışıyordu" sorununu tarihe gömmek için.
-*   Tüm bağımlılıkları (Python, DB, MLflow) tek bir paket halinde sunarak kurulumu standartlaştırmak için.
+| Teknoloji | Neden? |
+|-----------|--------|
+| PostgreSQL | SQLite çoklu kullanıcıda kilitlenir, production için uygun değil |
+| Streamlit | React ile aylar sürecek işi günlere indirir |
+| Docker | "Benim bilgisayarımda çalışıyordu" problemini çözer |
+| Polars | ETL'de Pandas'tan 10x hızlı |
+| FastAPI | Modern, async, otomatik dokümantasyon |
 
 ---
 
-## 🚀 Kurulum (Installation)
+## Özellikler
 
-Proje tamamen **Docker** üzerinde çalışacak şekilde yapılandırılmıştır. Bilgisayarınızda Docker ve Docker Compose yüklü olması yeterlidir.
+### Lojistik Tahmin
+- RMSE: 7.60 gün
+- Özellikler: mesafe, kargo, fiyat, ağırlık, satıcı puanı
 
-### 1. Repoyu Klonlayın
+### Churn Tahmini
+- Rate: %80.3
+- Tanım: 90 gün sipariş yok = Churn
+
+### Müşteri Segmentasyonu
+- 5 segment: Şampiyonlar, Sadıklar, Potansiyeller, Riskli, Uyuyanlar
+
+### Dashboard
+- 5 sayfa: Ana Sayfa, Operasyon, Müşteri, Segmentasyon, Ranking
+- ROI simülasyonu
+
+### API
+- 4 endpoint: /predict/delivery, /predict/churn, /recommend, /segments
+- X-API-KEY koruması
+
+---
+
+## Kurulum
+
 ```bash
+# Klonla
 git clone https://github.com/kullaniciadi/olist-intelligence.git
 cd olist-intelligence
-```
 
-### 2. Sistemi Başlatın
-Tek bir komutla tüm servisleri (API, Dashboard, DB, MLflow) ayağa kaldırın:
-```bash
+# Başlat
 docker-compose up --build
-```
-*(İlk kurulumda imajların indirilmesi ve veritabanının hazırlanması birkaç dakika sürebilir.)*
 
-### 3. Uygulamaya Erişin
-*   **Dashboard:** [http://localhost:8501](http://localhost:8501)
-*   **API Dokümantasyonu:** [http://localhost:8000/docs](http://localhost:8000/docs)
-*   **MLflow UI:** [http://localhost:5000](http://localhost:5000)
-
----
-
-## 📂 Dosya Yapısı
-
-```
-olist-intelligence/
-├── docker-compose.yml      # Servis orkestrasyonu
-├── Dockerfile              # Python ortamı
-├── requirements.txt        # Kütüphane bağımlılıkları
-├── src/
-│   ├── app.py              # FastAPI uygulaması
-│   ├── dashboard.py        # Ana Dashboard (Controller)
-│   ├── config.py           # Ayarlar
-│   ├── database/           # Veritabanı kodları
-│   ├── services/           # İş mantığı
-│   └── views/              # Ekran tasarımları
-└── notebooks/              # Model eğitim not defterleri
+# Erişim
+# Dashboard: http://localhost:8501
+# API Docs: http://localhost:8000/docs
 ```
 
 ---
 
-## 🛡️ Lisans
-Bu proje Zero2End ML Bootcamp kapsamında eğitim amaçlı hazırlanmıştır.
+## Dosya Yapısı
+
+```
+src/
+├── views/           # Ekranlar (MVC - View)
+├── services/        # İş mantığı (MVC - Controller)
+├── database/        # Veri erişimi (MVC - Model)
+├── app.py           # FastAPI
+├── dashboard.py     # Streamlit
+└── benchmark_models.py  # Model karşılaştırma
+
+notebooks/
+├── 1_eda.ipynb      # Veri keşfi
+├── 2_logistics.ipynb # Teslimat modeli
+├── 3_customer.ipynb  # Churn analizi
+├── 4_growth.ipynb    # Segmentasyon
+├── 5_evaluation.ipynb # Sonuçlar
+└── 6_executive.ipynb # Sunum için
+```
+
+---
+
+## Model Performansı
+
+| Model | Metrik | Değer |
+|-------|--------|-------|
+| Lojistik (RandomForest) | RMSE | 7.60 gün |
+| Churn | Rate | %80.3 |
+| Recommender (SVD) | Coverage | 99K user |
+
+**Feature Importance (Lojistik):**
+1. distance_km (Haversine)
+2. freight_value
+3. price
+4. seller_avg_rating
+5. product_weight_g
+6. same_state
+
+---
+
+## Veritabanı Optimizasyonu
+
+11 index eklendi:
+- orders: customer_id, status, purchase_date
+- order_items: order_id, product_id, seller_id
+- geolocation: zip_code_prefix
+
+---
+
+## CI/CD
+
+GitHub Actions ile:
+- Push/PR'da otomatik test
+- Syntax kontrolü (flake8)
+
+---
+
+**Versiyon:** 3.0 | **Güncelleme:** Aralık 2024

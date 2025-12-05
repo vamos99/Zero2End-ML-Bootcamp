@@ -42,7 +42,6 @@ ENV/
 data/
 mlruns/
 mlflow.db
-models/*.pkl
 models/*.joblib
 *.log
 catboost_info/

@@ -121,3 +121,63 @@ def init_bi_tables():
             )
         """))
         conn.commit()
+
+# ============== NEW: RANKING FUNCTIONS ==============
+
+def get_top_products(limit=20):
+    """Get top selling products by category with revenue."""
+    query = """
+    SELECT 
+        COALESCE(t.product_category_name_english, p.product_category_name) as product_category,
+        COUNT(DISTINCT oi.order_id) as order_count,
+        SUM(oi.price) as total_sales
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.product_id
+    LEFT JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
+    GROUP BY COALESCE(t.product_category_name_english, p.product_category_name)
+    ORDER BY total_sales DESC
+    LIMIT :limit
+    """
+    return pd.read_sql(text(query), engine, params={"limit": limit})
+
+def get_top_sellers(limit=20):
+    """Get top sellers with performance metrics."""
+    query = """
+    SELECT 
+        s.seller_id,
+        COUNT(DISTINCT oi.order_id) as order_count,
+        SUM(oi.price) as total_revenue,
+        AVG(r.review_score) as avg_rating,
+        COUNT(*) FILTER (WHERE o.order_delivered_customer_date <= o.order_estimated_delivery_date) * 100.0 / NULLIF(COUNT(*), 0) as on_time_rate
+    FROM sellers s
+    JOIN order_items oi ON s.seller_id = oi.seller_id
+    JOIN orders o ON oi.order_id = o.order_id
+    LEFT JOIN order_reviews r ON o.order_id = r.order_id
+    WHERE o.order_status = 'delivered'
+    GROUP BY s.seller_id
+    HAVING COUNT(DISTINCT oi.order_id) >= 10
+    ORDER BY total_revenue DESC
+    LIMIT :limit
+    """
+    return pd.read_sql(text(query), engine, params={"limit": limit})
+
+def get_category_performance():
+    """Get category performance with revenue and ratings."""
+    query = """
+    SELECT 
+        COALESCE(t.product_category_name_english, p.product_category_name) as category,
+        SUM(oi.price) as revenue,
+        AVG(r.review_score) as avg_review,
+        COUNT(DISTINCT oi.order_id) as order_count
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.product_id
+    JOIN orders o ON oi.order_id = o.order_id
+    LEFT JOIN order_reviews r ON o.order_id = r.order_id
+    LEFT JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
+    WHERE o.order_status = 'delivered'
+    GROUP BY COALESCE(t.product_category_name_english, p.product_category_name)
+    HAVING SUM(oi.price) > 10000
+    ORDER BY revenue DESC
+    LIMIT 30
+    """
+    return pd.read_sql(text(query), engine)

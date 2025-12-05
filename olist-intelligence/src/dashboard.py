@@ -8,7 +8,7 @@ project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
 from src.services import analytics_service, action_service
-from src.views import home_view, logistics_view, customer_view, growth_view
+from src.views import home_view, logistics_view, customer_view, growth_view, ranking_view
 from src.database import repository
 
 # Page Config
@@ -24,7 +24,7 @@ action_service.init_system()
 
 # Sidebar Navigation
 st.sidebar.title("Olist Intelligence 🚀")
-page = st.sidebar.radio("Modüller", ["Ana Sayfa", "📦 Operasyon Merkezi", "🤝 Müşteri Sadakati", "📊 Segmentasyon Analizi"])
+page = st.sidebar.radio("Modüller", ["Ana Sayfa", "📦 Operasyon Merkezi", "🤝 Müşteri Sadakati", "📊 Segmentasyon Analizi", "📈 Ranking & Trends"])
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📅 Tarih Aralığı")
@@ -44,7 +44,7 @@ start_date = st.sidebar.date_input("Başlangıç", min_date, min_value=min_date,
 end_date = st.sidebar.date_input("Bitiş", max_date, min_value=min_date, max_value=max_date)
 
 st.sidebar.markdown("---")
-st.sidebar.info("v2.0.0 - MVC Architecture")
+st.sidebar.info("v3.0.0 - Full Audit Update")
 
 # --- CONTROLLER LOGIC ---
 
@@ -64,6 +64,9 @@ elif page == "🤝 Müşteri Sadakati":
 elif page == "📊 Segmentasyon Analizi":
     df_growth = analytics_service.get_segmentation_data()
     growth_view.render_growth_view(df_growth)
+
+elif page == "📈 Ranking & Trends":
+    ranking_view.render_ranking_view()
 
 # --- ACTION LOGS SIDEBAR ---
 st.sidebar.markdown("---")
