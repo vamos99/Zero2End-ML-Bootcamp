@@ -7,17 +7,17 @@ def render_home_view(metrics):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("📦 Toplam Sipariş", f"{metrics['total_orders']:,}")
+        st.metric("📦 Toplam Sipariş", f"{metrics['total_orders']:,}", help="Seçili tarih aralığındaki toplam sipariş sayısı.")
     
     with col2:
         if metrics['risk_logistics'] > 0:
-            st.metric("🚨 Lojistik Riski", f"{metrics['risk_logistics']} Sipariş", delta="Müdahale Et", delta_color="inverse")
+            st.metric("🚨 Lojistik Riski", f"{metrics['risk_logistics']} Sipariş", delta="Müdahale Et", delta_color="inverse", help="Teslimatı gecikmesi muhtemel sipariş sayısı.")
         else:
-            st.metric("✅ Lojistik Durumu", "Stabil")
+            st.metric("✅ Lojistik Durumu", "Stabil", help="Şu an gecikme riski taşıyan sipariş yok.")
             
     with col3:
         if metrics['risk_churn'] > 0:
-            st.metric("🔥 Churn Riski", f"{metrics['risk_churn']} Müşteri", delta="Kampanya Başlat", delta_color="inverse")
+            st.metric("🔥 Churn Riski", f"{metrics['risk_churn']} Müşteri", delta="Kampanya Başlat", delta_color="inverse", help="Bizi terk etme riski yüksek müşteri sayısı.")
         else:
             st.metric("✅ Müşteri Durumu", "Stabil")
 

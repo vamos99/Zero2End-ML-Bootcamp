@@ -7,9 +7,9 @@ def render_customer_view(risk_churn):
     # KPI
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("🔥 Churn Riski (Yüksek)", f"{risk_churn} Müşteri")
+        st.metric("🔥 Churn Riski (Yüksek)", f"{risk_churn} Müşteri", help="Bizi terk etme olasılığı (Churn Score) yüksek olan müşteriler.")
     with col2:
-        st.metric("💰 Risk Altındaki Ciro", "450.000 BRL")
+        st.metric("💰 Risk Altındaki Ciro", "450.000 BRL", help="Riskli müşterilerin toplam yıllık harcama potansiyeli.")
         
     st.markdown("---")
     

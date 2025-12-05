@@ -4,6 +4,7 @@ import polars as pl
 from sqlalchemy import create_engine
 from typing import List
 import logging
+from tenacity import retry, stop_after_attempt, wait_exponential, before_log
 
 # Import configuration
 try:
@@ -42,6 +43,7 @@ class OlistIngestor:
         clean_name = file_name.replace("olist_", "").replace("_dataset.csv", "").replace(".csv", "")
         return clean_name
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), before=before_log(logger, logging.INFO))
     def ingest_file(self, file_path: str):
         """Reads a single CSV and writes it to the database."""
         table_name = self._extract_table_name(file_path)
@@ -59,6 +61,8 @@ class OlistIngestor:
                 if_table_exists="replace",
                 engine="sqlalchemy"
             )
+            logger.info(f"✅ Successfully wrote {df.shape[0]} rows to '{table_name}'")
+
             logger.info(f"✅ Successfully wrote {df.shape[0]} rows to '{table_name}'")
 
         except Exception as e:

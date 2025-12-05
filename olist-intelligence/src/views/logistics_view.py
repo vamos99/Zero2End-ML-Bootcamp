@@ -8,11 +8,11 @@ def render_logistics_view(risk_count, metrics, df_details):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("🚨 Gecikme Riski Olanlar", f"{risk_count} Sipariş")
+        st.metric("🚨 Gecikme Riski Olanlar", f"{risk_count} Sipariş", help="Tahmini teslimat süresi, söz verilen süreyi geçen sipariş sayısı.")
     with col2:
-        st.metric("✅ Zamanında Teslimat Oranı", f"%{metrics['on_time_rate']:.1f}")
+        st.metric("✅ Zamanında Teslimat Oranı", f"%{metrics['on_time_rate']:.1f}", help="Söz verilen tarihte veya öncesinde teslim edilen siparişlerin oranı.")
     with col3:
-        st.metric("⏱️ Ort. Teslimat Süresi", f"{metrics['avg_time']:.1f} Gün")
+        st.metric("⏱️ Ort. Teslimat Süresi", f"{metrics['avg_time']:.1f} Gün", help="Sipariş veriliş tarihinden teslimat tarihine kadar geçen ortalama süre.")
 
     st.markdown("---")
 
