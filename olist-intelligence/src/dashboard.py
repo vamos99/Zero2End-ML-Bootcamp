@@ -32,7 +32,7 @@ st.sidebar.subheader("📅 Tarih Aralığı")
 # Dynamic Date Range
 try:
     min_date, max_date = repository.get_date_range()
-    # Fallback if DB is empty
+    # Fallback if DB is empty or returns None
     if pd.isnull(min_date):
         min_date = pd.to_datetime("2016-01-01")
         max_date = pd.to_datetime("2018-12-31")
@@ -40,11 +40,19 @@ except:
     min_date = pd.to_datetime("2016-01-01")
     max_date = pd.to_datetime("2018-12-31")
 
+# Ensure dates are valid
+if min_date > max_date:
+    min_date, max_date = max_date, min_date
+
 start_date = st.sidebar.date_input("Başlangıç", min_date, min_value=min_date, max_value=max_date)
 end_date = st.sidebar.date_input("Bitiş", max_date, min_value=min_date, max_value=max_date)
 
+if start_date > end_date:
+    st.sidebar.error("Hata: Başlangıç tarihi bitiş tarihinden sonra olamaz.")
+    # Auto-correct logic could go here, but warning is safer for now.
+
 st.sidebar.markdown("---")
-st.sidebar.info("v3.0.0 - Full Audit Update")
+st.sidebar.info("v3.1.0 - Enhanced Analytics")
 
 # --- CONTROLLER LOGIC ---
 
@@ -58,6 +66,7 @@ elif page == "📦 Operasyon Merkezi":
 
 elif page == "🤝 Müşteri Sadakati":
     # Churn risk is currently a snapshot, passing total count
+    # Ideally should filter by date if prediction dates were available
     risk_churn = analytics_service.get_daily_pulse(start_date, end_date)["risk_churn"]
     customer_view.render_customer_view(risk_churn)
 
@@ -66,7 +75,8 @@ elif page == "📊 Segmentasyon Analizi":
     growth_view.render_growth_view(df_growth)
 
 elif page == "📈 Ranking & Trends":
-    ranking_view.render_ranking_view()
+    # Pass date filters to ranking view
+    ranking_view.render_ranking_view(start_date, end_date)
 
 # --- ACTION LOGS SIDEBAR ---
 st.sidebar.markdown("---")

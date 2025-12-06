@@ -48,7 +48,7 @@ class TestFeatureEngineering:
     
     def test_distance_feature_is_positive(self):
         """Distance should always be non-negative."""
-        from src.features import haversine_distance
+        from src.ml.features import haversine_distance
         
         distances = haversine_distance(
             np.array([-23.5, -22.9, -25.0]),
@@ -61,7 +61,7 @@ class TestFeatureEngineering:
     
     def test_sentiment_categories(self):
         """Sentiment should only have 3 values."""
-        from src.features import review_score_to_sentiment
+        from src.ml.features import review_score_to_sentiment
         
         sentiments = [review_score_to_sentiment(i) for i in range(1, 6)]
         unique_sentiments = set(sentiments)

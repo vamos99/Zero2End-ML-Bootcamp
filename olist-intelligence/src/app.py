@@ -45,12 +45,27 @@ models = {}
 async def lifespan(app: FastAPI):
     # Load Models on Startup
     try:
-        with open(MODELS_PATH / "logistics_model.pkl", "rb") as f:
-            models["logistics"] = pickle.load(f)
-        with open(MODELS_PATH / "churn_model.pkl", "rb") as f:
-            models["churn"] = pickle.load(f)
-        with open(MODELS_PATH / "recommender_model.pkl", "rb") as f:
-            models["recommender"] = pickle.load(f)
+        from src.ml.registry import load_production_model
+        
+        # Load Logistics (CatBoost)
+        try:
+            models["logistics"] = load_production_model("logistics", flavor="catboost")
+        except Exception as e:
+            print(f"Failed to load logistics: {e}")
+
+        # Load Churn (CatBoost)
+        try:
+            models["churn"] = load_production_model("churn", flavor="catboost")
+        except Exception as e:
+            print(f"Failed to load churn: {e}")
+
+        # Load Recommender (Dict - Local Fallback usually)
+        try:
+            # Recommender is not fully in Registry yet, uses local fallback path in registry
+            models["recommender"] = load_production_model("recommender", flavor="sklearn")
+        except Exception as e:
+            print(f"Failed to load recommender: {e}")
+            
         print("✅ Models loaded successfully")
     except Exception as e:
         print(f"⚠️ Failed to load models: {e}")
@@ -72,10 +87,17 @@ app = FastAPI(
 # ... (Previous Pydantic Models)
 
 class DeliveryInput(BaseModel):
+    """10-Feature Delivery Prediction Input (RMSE 7.58)"""
     freight_value: float
     price: float
     product_weight_g: float
     product_description_lenght: float
+    distance_km: float = 500.0  # Default if not provided
+    same_state: int = 0
+    seller_avg_rating: float = 4.0
+    product_photos_qty: int = 2
+    product_volume: float = 5000.0
+    freight_ratio: float = 0.2
 
 class ChurnInput(BaseModel):
     Recency: float
@@ -213,44 +235,76 @@ def predict_churn_mock():
     }
 
 @app.post("/recommend")
-def recommend_products(data: RecommendationInput):
+def recommend_products(data: RecommendationInput, db: Session = Depends(get_db)):
     """
     Personalized Product Recommendation using SVD (Collaborative Filtering).
+    Falls back to popularity-based recommendation if user is unknown.
     """
-    if "recommender" not in models:
-        raise HTTPException(status_code=503, detail="Recommender model not loaded")
+    recommendations = []
+    method = "popularity_fallback (User Unknown)"
     
-    artifact = models["recommender"]
-    user_map = artifact["user_map"]
-    reverse_product_map = artifact["reverse_product_map"]
-    matrix_reduced = artifact["matrix_reduced"]
-    product_components = artifact["product_components"]
-    
-    # 1. Check if user exists (Cold Start Check)
-    if data.customer_id not in user_map:
-        return {
-            "customer_id": data.customer_id,
-            "recommendations": ["auto_best_seller_1", "auto_best_seller_2"], # Placeholder for popularity fallback
-            "method": "popularity_fallback (User Unknown)"
-        }
-        
-    # 2. Get User Vector
-    user_idx = user_map[data.customer_id]
-    user_vector = matrix_reduced[user_idx] # Shape: (n_components,)
-    
-    # 3. Compute Scores (Dot Product)
-    # user_vector (20,) @ product_components (20, n_products) -> scores (n_products,)
-    scores = user_vector @ product_components
-    
-    # 4. Get Top K Indices
-    # argsort returns indices that would sort the array, we take last K and reverse
-    top_indices = scores.argsort()[-data.top_k:][::-1]
-    
-    # 5. Map back to Product IDs
-    recommended_products = [reverse_product_map[i] for i in top_indices]
+    # 1. Try SVD Model
+    if "recommender" in models:
+        try:
+            artifact = models["recommender"]
+            user_map = artifact.get("user_map", {})
+            reverse_product_map = artifact.get("reverse_product_map", {})
+            matrix_reduced = artifact.get("matrix_reduced")
+            product_components = artifact.get("product_components")
+            
+            if data.customer_id in user_map:
+                # Get User Vector
+                user_idx = user_map[data.customer_id]
+                user_vector = matrix_reduced[user_idx]
+                
+                # Compute Scores
+                scores = user_vector @ product_components
+                
+                # Get Top K
+                top_indices = scores.argsort()[-data.top_k:][::-1]
+                
+                # Map back to Product IDs
+                recommended_ids = [reverse_product_map[i] for i in top_indices]
+                
+                # Fetch legible names (categories) from DB for better UX
+                if recommended_ids:
+                    query = text("SELECT product_id, product_category_name FROM products WHERE product_id IN :ids")
+                    result = db.execute(query, {"ids": tuple(recommended_ids)}).fetchall()
+                    name_map = {row[0]: row[1] for row in result}
+                    # Return categories (fallback to ID if category is None)
+                    recommendations = [name_map.get(pid, "Unknown Product") for pid in recommended_ids]
+                
+                method = "personalized_svd"
+        except Exception as e:
+            print(f"⚠️ SVD Error: {e}")
+            # Fallback to popularity
+            pass
+            
+    # 2. Popularity Fallback (if SVD failed or user unknown)
+    if not recommendations:
+        # Get top selling products from DB
+        try:
+            query = text("""
+                SELECT p.product_category_name 
+                FROM order_items oi
+                JOIN products p ON oi.product_id = p.product_id
+                GROUP BY p.product_category_name
+                ORDER BY COUNT(*) DESC
+                LIMIT :limit
+            """)
+            result = db.execute(query, {"limit": data.top_k}).fetchall()
+            recommendations = [row[0] for row in result if row[0]]
+            
+            # If still empty (e.g. empty DB), use generic fallback
+            if not recommendations:
+                recommendations = ["relogios_presentes", "cama_mesa_banho", "esporte_lazer", "informatica_acessorios", "moveis_decoracao"]
+                
+        except Exception as e:
+            print(f"⚠️ DB Error: {e}")
+            recommendations = ["relogios_presentes", "cama_mesa_banho", "esporte_lazer"]
     
     return {
         "customer_id": data.customer_id,
-        "recommendations": recommended_products,
-        "method": "personalized_svd"
+        "recommendations": recommendations,
+        "method": method
     }

@@ -4,12 +4,16 @@ from src.services import action_service, analytics_service
 def render_customer_view(risk_churn):
     st.title("🤝 Müşteri Sadakati (Retention)")
     
+    # Calculate dynamic at-risk revenue (avg customer value * risk count)
+    avg_customer_value = 150  # Average order value in BRL
+    at_risk_revenue = risk_churn * avg_customer_value * 3  # Estimate 3 orders/year
+    
     # KPI
     col1, col2 = st.columns(2)
     with col1:
         st.metric("🔥 Churn Riski (Yüksek)", f"{risk_churn} Müşteri", help="Bizi terk etme olasılığı (Churn Score) yüksek olan müşteriler.")
     with col2:
-        st.metric("💰 Risk Altındaki Ciro", "450.000 BRL", help="Riskli müşterilerin toplam yıllık harcama potansiyeli.")
+        st.metric("💰 Risk Altındaki Ciro", f"{at_risk_revenue:,.0f} BRL", help="Riskli müşterilerin toplam yıllık harcama potansiyeli.")
         
     st.markdown("---")
     

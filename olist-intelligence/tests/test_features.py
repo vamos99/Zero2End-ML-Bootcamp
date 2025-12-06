@@ -2,7 +2,7 @@
 import pytest
 import numpy as np
 import pandas as pd
-from src.features import haversine_distance, review_score_to_sentiment
+from src.ml.features import haversine_distance, review_score_to_sentiment
 
 
 class TestHaversineDistance:

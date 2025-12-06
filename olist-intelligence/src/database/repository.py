@@ -122,52 +122,79 @@ def init_bi_tables():
         """))
         conn.commit()
 
-# ============== NEW: RANKING FUNCTIONS ==============
+# ============== NEW: RANKING FUNCTIONS WITH DATE FILTERS ==============
 
-def get_top_products(limit=20):
+def get_top_products(limit=20, start_date=None, end_date=None):
     """Get top selling products by category with revenue."""
-    query = """
+    date_filter = ""
+    params = {"limit": limit}
+    
+    if start_date and end_date:
+        date_filter = "WHERE o.order_purchase_timestamp::timestamp BETWEEN :start AND :end"
+        params["start"] = start_date
+        params["end"] = end_date
+    
+    query = f"""
     SELECT 
-        COALESCE(t.product_category_name_english, p.product_category_name) as product_category,
+        COALESCE(t.product_category_name_english, p.product_category_name, 'Diğer') as product_category,
         COUNT(DISTINCT oi.order_id) as order_count,
         SUM(oi.price) as total_sales
     FROM order_items oi
     JOIN products p ON oi.product_id = p.product_id
+    JOIN orders o ON oi.order_id = o.order_id
     LEFT JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
-    GROUP BY COALESCE(t.product_category_name_english, p.product_category_name)
+    {date_filter}
+    GROUP BY COALESCE(t.product_category_name_english, p.product_category_name, 'Diğer')
     ORDER BY total_sales DESC
     LIMIT :limit
     """
-    return pd.read_sql(text(query), engine, params={"limit": limit})
+    return pd.read_sql(text(query), engine, params=params)
 
-def get_top_sellers(limit=20):
+def get_top_sellers(limit=20, start_date=None, end_date=None):
     """Get top sellers with performance metrics."""
-    query = """
+    date_filter = ""
+    params = {"limit": limit}
+    
+    if start_date and end_date:
+        date_filter = "AND o.order_purchase_timestamp::timestamp BETWEEN :start AND :end"
+        params["start"] = start_date
+        params["end"] = end_date
+    
+    query = f"""
     SELECT 
         s.seller_id,
         COUNT(DISTINCT oi.order_id) as order_count,
         SUM(oi.price) as total_revenue,
-        AVG(r.review_score) as avg_rating,
-        COUNT(*) FILTER (WHERE o.order_delivered_customer_date <= o.order_estimated_delivery_date) * 100.0 / NULLIF(COUNT(*), 0) as on_time_rate
+        COALESCE(AVG(r.review_score), 0) as avg_rating,
+        COALESCE(COUNT(*) FILTER (WHERE o.order_delivered_customer_date <= o.order_estimated_delivery_date) * 100.0 / NULLIF(COUNT(*), 0), 0) as on_time_rate
     FROM sellers s
     JOIN order_items oi ON s.seller_id = oi.seller_id
     JOIN orders o ON oi.order_id = o.order_id
     LEFT JOIN order_reviews r ON o.order_id = r.order_id
     WHERE o.order_status = 'delivered'
+    {date_filter}
     GROUP BY s.seller_id
-    HAVING COUNT(DISTINCT oi.order_id) >= 10
+    HAVING COUNT(DISTINCT oi.order_id) >= 5
     ORDER BY total_revenue DESC
     LIMIT :limit
     """
-    return pd.read_sql(text(query), engine, params={"limit": limit})
+    return pd.read_sql(text(query), engine, params=params)
 
-def get_category_performance():
+def get_category_performance(start_date=None, end_date=None):
     """Get category performance with revenue and ratings."""
-    query = """
+    date_filter = ""
+    params = {}
+    
+    if start_date and end_date:
+        date_filter = "AND o.order_purchase_timestamp::timestamp BETWEEN :start AND :end"
+        params["start"] = start_date
+        params["end"] = end_date
+    
+    query = f"""
     SELECT 
-        COALESCE(t.product_category_name_english, p.product_category_name) as category,
+        COALESCE(t.product_category_name_english, p.product_category_name, 'Diğer') as category,
         SUM(oi.price) as revenue,
-        AVG(r.review_score) as avg_review,
+        COALESCE(AVG(r.review_score), 0) as avg_review,
         COUNT(DISTINCT oi.order_id) as order_count
     FROM order_items oi
     JOIN products p ON oi.product_id = p.product_id
@@ -175,9 +202,10 @@ def get_category_performance():
     LEFT JOIN order_reviews r ON o.order_id = r.order_id
     LEFT JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
     WHERE o.order_status = 'delivered'
-    GROUP BY COALESCE(t.product_category_name_english, p.product_category_name)
-    HAVING SUM(oi.price) > 10000
+    {date_filter}
+    GROUP BY COALESCE(t.product_category_name_english, p.product_category_name, 'Diğer')
+    HAVING SUM(oi.price) > 1000
     ORDER BY revenue DESC
     LIMIT 30
     """
-    return pd.read_sql(text(query), engine)
+    return pd.read_sql(text(query), engine, params=params)

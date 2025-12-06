@@ -89,12 +89,16 @@ docker-compose up --build
 
 ```
 src/
-├── views/           # Ekranlar (MVC - View)
-├── services/        # İş mantığı (MVC - Controller)
-├── database/        # Veri erişimi (MVC - Model)
-├── app.py           # FastAPI
-├── dashboard.py     # Streamlit
-└── benchmark_models.py  # Model karşılaştırma
+├── app.py          # FastAPI
+├── dashboard.py    # Streamlit
+├── ml/             # ML Core
+│   ├── data.py     # Central Data Access
+│   ├── features.py # Feature Engineering
+│   ├── train.py    # Training Scripts
+│   └── benchmark.py# Model Experiments
+├── services/       # Services (Business Logic)
+├── views/          # Dashboard Views
+└── database/       # DB Connection & Queries
 
 notebooks/
 ├── 1_eda.ipynb      # Veri keşfi
