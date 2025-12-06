@@ -32,8 +32,19 @@ except Exception as e:
 
 def get_logistics_data():
     """
-    Best performing feature set: 7 features, RMSE ~7.6
-    Features: freight, price, weight, description_length, distance_km, same_state, seller_rating
+    10-feature model with derived features. RMSE ~7.58
+    
+    Features:
+    1. freight_value - Kargo ücreti
+    2. price - Ürün fiyatı
+    3. product_weight_g - Ürün ağırlığı
+    4. product_description_lenght - Ürün açıklama uzunluğu
+    5. distance_km - Haversine mesafe (satıcı-müşteri)
+    6. same_state - Aynı eyalet mi?
+    7. seller_avg_rating - Satıcı ortalama puanı
+    8. product_photos_qty - Ürün fotoğraf sayısı
+    9. product_volume - Ürün hacmi (cm³)
+    10. freight_ratio - Kargo/Fiyat oranı
     """
     query = """
     WITH seller_geo AS (
@@ -61,6 +72,8 @@ def get_logistics_data():
         oi.price,
         p.product_weight_g,
         p.product_description_lenght,
+        COALESCE(p.product_photos_qty, 1) as product_photos_qty,
+        COALESCE(p.product_length_cm * p.product_height_cm * p.product_width_cm, 5000) as product_volume,
         sg.lat as seller_lat,
         sg.lng as seller_lng,
         cg.lat as cust_lat,
@@ -90,10 +103,25 @@ def get_logistics_data():
         df['cust_lat'], df['cust_lng']
     )
     
-    feature_cols = ['freight_value', 'price', 'product_weight_g', 'product_description_lenght', 
-                    'distance_km', 'same_state', 'seller_avg_rating']
+    # Derived feature: freight_ratio
+    df['freight_ratio'] = df['freight_value'] / df['price'].replace(0, 1)
     
-    print(f"Logistics Data: {len(df)} orders, Avg Distance: {df['distance_km'].mean():.1f} km")
+    # 10 Features
+    feature_cols = [
+        'freight_value',           # 1
+        'price',                   # 2
+        'product_weight_g',        # 3
+        'product_description_lenght',  # 4
+        'distance_km',             # 5
+        'same_state',              # 6
+        'seller_avg_rating',       # 7
+        'product_photos_qty',      # 8
+        'product_volume',          # 9
+        'freight_ratio'            # 10
+    ]
+    
+    print(f"Logistics Data: {len(df)} orders, {len(feature_cols)} features")
+    print(f"  Avg Distance: {df['distance_km'].mean():.1f} km")
     
     return df[feature_cols], df['target_days']
 
@@ -198,6 +226,11 @@ def benchmark_logistics():
     # Train final model
     final_model = RandomForestRegressor(**study.best_params, random_state=42, n_jobs=-1)
     final_model.fit(X_train, y_train)
+    
+    # Final RMSE
+    final_pred = final_model.predict(X_test)
+    final_rmse = np.sqrt(mean_squared_error(y_test, final_pred))
+    print(f"📊 Final RMSE: {final_rmse:.4f}")
     
     # Save model
     with open(MODELS_PATH / "logistics_model.pkl", "wb") as f:
