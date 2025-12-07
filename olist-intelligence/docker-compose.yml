@@ -3,6 +3,7 @@ services:
     image: postgres:15-alpine
     container_name: olist_db
     restart: always
+    shm_size: 1gb  # PostgreSQL shared memory için - büyük sorgular için gerekli
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
