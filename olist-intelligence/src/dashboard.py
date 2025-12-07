@@ -19,6 +19,32 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- AUTO INGESTION (For Streamlit Cloud / SQLite) ---
+# Checks if DB exists on startup, if not, triggers ingest (Kaggle Download -> SQLite)
+import os
+from src.config import DATABASE_URL, DATA_RAW_PATH
+from src.ml.ingest import OlistIngestor
+
+if "sqlite" in DATABASE_URL:
+    db_path = DATABASE_URL.replace("sqlite:///", "")
+    # Check if DB missing or too small (empty)
+    if not os.path.exists(db_path) or os.path.getsize(db_path) < 1000:
+        placeholder = st.empty()
+        with placeholder.container():
+            st.info("🚀 İlk kurulum yapılıyor (Veri indiriliyor & Veritabanı oluşturuluyor)...")
+            st.warning("⚠️ Bu işlem internet hızına bağlı olarak 1-2 dakika sürebilir. Lütfen bekleyin.")
+            
+            try:
+                ingestor = OlistIngestor(DATABASE_URL, str(DATA_RAW_PATH))
+                ingestor.run()
+                st.success('✅ Kurulum tamamlandı! Uygulama başlatılıyor...')
+            except Exception as e:
+                st.error(f"❌ Kurulum hatası: {e}")
+                st.stop()
+                
+        placeholder.empty()
+        st.rerun()
+
 # Initialize System
 action_service.init_system()
 

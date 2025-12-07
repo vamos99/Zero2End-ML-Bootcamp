@@ -100,9 +100,9 @@ class DeliveryInput(BaseModel):
     freight_ratio: float = 0.2
 
 class ChurnInput(BaseModel):
-    Recency: float
-    Frequency: float
-    Monetary: float
+    days_since_last_order: float
+    frequency: float
+    monetary: float
 
 # ... (Previous Endpoints)
 
@@ -133,18 +133,29 @@ def predict_churn(data: ChurnInput):
     if "churn" not in models:
         raise HTTPException(status_code=503, detail="Model not loaded")
     
-    # Prepare DataFrame
-    df = pd.DataFrame([data.model_dump()])
-    
-    # Predict Class (1 = Risk)
-    prediction = models["churn"].predict(df)[0]
-    prob = models["churn"].predict_proba(df)[0][1]
-    
-    return {
-        "is_churn_risk": bool(prediction),
-        "churn_probability": float(prob),
-        "risk_level": "Critical" if prob > 0.7 else "Medium" if prob > 0.4 else "Low"
-    }
+    try:
+        # Prepare DataFrame with correct Feature Names and ORDER (LOWERCASE based on error)
+        df = pd.DataFrame([{
+            "recency": data.days_since_last_order,
+            "frequency": data.frequency,
+            "monetary": data.monetary
+        }])
+        
+        # Ensure column order matches training (recency, frequency, monetary)
+        df = df[['recency', 'frequency', 'monetary']]
+        
+        # Predict Class (1 = Risk)
+        prediction = models["churn"].predict(df)[0]
+        prob = models["churn"].predict_proba(df)[0][1]
+        
+        return {
+            "is_churn_risk": bool(prediction),
+            "churn_probability": float(prob),
+            "risk_level": "Critical" if prob > 0.7 else "Medium" if prob > 0.4 else "Low"
+        }
+    except Exception as e:
+        print(f"⚠️ Churn Prediction Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Prediction Error: {str(e)}")
 
 # Pydantic Models
 class LogisticsPrediction(BaseModel):
@@ -210,29 +221,7 @@ def get_customer_segment(customer_unique_id: str, db: Session = Depends(get_db))
         segment=result[5]
     )
 
-@app.post("/predict/delivery")
-def predict_delivery_mock():
-    """
-    Mock endpoint for real-time delivery prediction.
-    In a real scenario, this would load the CatBoost model.
-    """
-    return {
-        "predicted_days": 5.4,
-        "risk_level": "Low",
-        "note": "This is a mock prediction for demonstration."
-    }
 
-@app.post("/predict/churn")
-def predict_churn_mock():
-    """
-    Mock endpoint for real-time churn prediction.
-    In a real scenario, this would load the XGBoost/CatBoost model.
-    """
-    return {
-        "churn_probability": 0.25,
-        "risk_level": "Medium",
-        "note": "This is a mock prediction for demonstration."
-    }
 
 @app.post("/recommend")
 def recommend_products(data: RecommendationInput, db: Session = Depends(get_db)):

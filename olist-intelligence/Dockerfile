@@ -1,14 +1,15 @@
-# Base Image (Bookworm is newer and often has fewer CVEs than Bullseye)
-FROM python:3.10-slim-bookworm
+# Base Image (Match local python version 3.12)
+FROM python:3.12-slim-bookworm
 
 # Working Directory
 WORKDIR /app
 
 # Install System Dependencies & Security Updates
-# apt-get upgrade -y fixes known vulnerabilities in system packages
+# libgomp1 is required for CatBoost/XGBoost/Scikit-learn threading
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     build-essential \
     libpq-dev \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Requirements

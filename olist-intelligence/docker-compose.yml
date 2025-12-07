@@ -1,28 +1,5 @@
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: olist_db
-    restart: unless-stopped
-    shm_size: 512mb # PostgreSQL shared memory - tüm OS'lerde çalışır
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "${POSTGRES_PORT}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - olist_network
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 1G
+  # SQLite File Storage (No DB Service needed)
 
   mlflow:
     build: .
@@ -31,14 +8,12 @@ services:
     ports:
       - "5000:5000"
     environment:
-      MLFLOW_BACKEND_STORE_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      MLFLOW_BACKEND_STORE_URI: sqlite:////app/mlflow.db
       MLFLOW_DEFAULT_ARTIFACT_ROOT: ./mlruns
-    command: mlflow server --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB} --default-artifact-root ./mlruns --host 0.0.0.0 --serve-artifacts
+    command: mlflow server --backend-store-uri sqlite:////app/mlflow.db --default-artifact-root ./mlruns --host 0.0.0.0 --serve-artifacts
     volumes:
       - ./mlruns:/mlruns
-    depends_on:
-      db:
-        condition: service_healthy
+      - .:/app
     networks:
       - olist_network
     deploy:
@@ -54,14 +29,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - POSTGRES_HOST=db
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - DATABASE_URL=sqlite:////app/olist.db
+      - KAGGLE_USERNAME=${KAGGLE_USERNAME}
+      - KAGGLE_KEY=${KAGGLE_KEY}
     depends_on:
-      db:
-        condition: service_healthy
+      - mlflow
     volumes:
       - .:/app
     networks:
@@ -79,14 +52,13 @@ services:
     ports:
       - "8501:8501"
     environment:
-      - POSTGRES_HOST=db
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - DATABASE_URL=sqlite:////app/olist.db
+      - API_URL=http://api:8000
+      - KAGGLE_USERNAME=${KAGGLE_USERNAME}
+      - KAGGLE_KEY=${KAGGLE_KEY}
     depends_on:
-      db:
-        condition: service_healthy
+      - mlflow
     volumes:
       - .:/app
     networks:
@@ -95,10 +67,6 @@ services:
       resources:
         limits:
           memory: 1G
-
-volumes:
-  postgres_data:
-
 
 networks:
   olist_network:

@@ -10,8 +10,63 @@ def get_logistics_data(limit=None):
     """
     Fetches data for logistics model (delivery time prediction).
     Returns X (features DataFrame) and y (target Series).
+    Logic moved to Pandas for SQLite compatibility.
     """
     limit_clause = f"LIMIT {limit}" if limit else ""
+    
+    # Raw data query (DB Agnostic)
+    query = f"""
+    SELECT 
+        o.order_purchase_timestamp,
+        o.order_delivered_customer_date,
+        oi.freight_value,
+        oi.price,
+        p.product_weight_g,
+        p.product_description_lenght,
+        p.product_photos_qty,
+        p.product_length_cm,
+        p.product_height_cm,
+        p.product_width_cm,
+        s.seller_zip_code_prefix,
+        s.seller_state,
+        s.seller_id,
+        c.customer_zip_code_prefix,
+        c.customer_state
+    FROM orders o
+    JOIN order_items oi ON o.order_id = oi.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    JOIN customers c ON o.customer_id = c.customer_id
+    JOIN sellers s ON oi.seller_id = s.seller_id
+    WHERE o.order_status = 'delivered'
+    AND o.order_delivered_customer_date IS NOT NULL
+    {limit_clause}
+    """
+    
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        df = pd.read_sql(text(query), conn).dropna()
+
+    # Load aux tables for merging (Seller Ratings & Geolocation)
+    # We do this separately to avoid complex joins in SQLite/Polars
+    with engine.connect() as conn:
+        reviews = pd.read_sql(text("SELECT order_id, review_score FROM order_reviews"), conn)
+        # Note: We need order_items to link seller -> order -> review, but we can approximate
+        # For simplicity in this demo refactor, we re-query seller ratings if needed or calculate here.
+        
+        # Better approach: Calculate seller ratings from full order_items + reviews dump
+        # But for performance let's keep it simple. If table is huge, this is slow.
+        # SQLite doesn't support complex lateral joins easily.
+        
+        # Let's fetch pre-calculated geolocation if possible, or calculate on fly.
+        # For this refactor, we will load full geolocation table? It is 1M rows. Too big.
+        # We will use a simplified approach: Group inputs by zip code in Python? No.
+        
+        # Compromise: Keep the JOINs simple in SQL
+        pass
+
+    # REVISIT: The original query used subqueries for Geolocation. 
+    # SQLite SUPPORTS subqueries. The problem was EXTRACT and ::timestamp.
+    # So we can keep the structure but fix the DATE math.
     
     query = f"""
     WITH seller_geo AS (
@@ -34,7 +89,8 @@ def get_logistics_data(limit=None):
         HAVING COUNT(*) >= 5
     )
     SELECT 
-        EXTRACT(EPOCH FROM (o.order_delivered_customer_date::timestamp - o.order_purchase_timestamp::timestamp))/86400 as target_days,
+        o.order_purchase_timestamp,
+        o.order_delivered_customer_date,
         oi.freight_value,
         oi.price,
         p.product_weight_g,
@@ -56,13 +112,21 @@ def get_logistics_data(limit=None):
     LEFT JOIN customer_geo cg ON c.customer_zip_code_prefix = cg.customer_zip_code_prefix
     LEFT JOIN seller_ratings sr ON s.seller_id = sr.seller_id
     WHERE o.order_status = 'delivered'
-    AND o.order_delivered_customer_date IS NOT NULL
     {limit_clause}
     """
     
-    engine = get_db_engine()
     with engine.connect() as conn:
         df = pd.read_sql(text(query), conn).dropna()
+        
+    # --- Python Logic for Date Calculation (DB Agnostic) ---
+    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
+    df['order_delivered_customer_date'] = pd.to_datetime(df['order_delivered_customer_date'])
+    
+    # Target Days calculation
+    df['target_days'] = (df['order_delivered_customer_date'] - df['order_purchase_timestamp']).dt.total_seconds() / 86400
+    
+    # Filter valid dates (delivered after purchase)
+    df = df[df['target_days'] > 0]
     
     # Calculate Haversine distance
     df['distance_km'] = haversine_distance(
@@ -93,42 +157,50 @@ def get_churn_data(limit=None):
     """
     Fetches data for churn model.
     Returns X (features DataFrame) and y (target Series).
+    Logic moved to Pandas for SQLite compatibility.
     """
     limit_clause = f"LIMIT {limit}" if limit else ""
     
-    query = f"""
-    WITH customer_orders AS (
-        SELECT 
-            c.customer_unique_id,
-            MAX(o.order_purchase_timestamp::timestamp) as last_order_date,
-            COUNT(DISTINCT o.order_id) as frequency,
-            SUM(oi.price) as monetary
-        FROM customers c
-        JOIN orders o ON c.customer_id = o.customer_id
-        JOIN order_items oi ON o.order_id = oi.order_id
-        WHERE o.order_status = 'delivered'
-        GROUP BY c.customer_unique_id
-    ),
-    max_date AS (
-        SELECT MAX(order_purchase_timestamp::timestamp) as dataset_end FROM orders
-    )
+    # 1. Fetch Customer Orders
+    query_orders = f"""
     SELECT 
-        co.customer_unique_id,
-        EXTRACT(DAY FROM (md.dataset_end - co.last_order_date)) as days_since_last_order,
-        co.frequency,
-        co.monetary,
-        CASE WHEN EXTRACT(DAY FROM (md.dataset_end - co.last_order_date)) > 90 THEN 1 ELSE 0 END as churned
-    FROM customer_orders co, max_date md
+        c.customer_unique_id,
+        o.order_purchase_timestamp,
+        o.order_id,
+        oi.price
+    FROM customers c
+    JOIN orders o ON c.customer_id = o.customer_id
+    JOIN order_items oi ON o.order_id = oi.order_id
+    WHERE o.order_status = 'delivered'
     {limit_clause}
     """
     
+    # 2. Fetch Dataset End Date (Global Max)
+    query_max_date = "SELECT MAX(order_purchase_timestamp) FROM orders"
+    
     engine = get_db_engine()
     with engine.connect() as conn:
-        df = pd.read_sql(text(query), conn).dropna()
+        df = pd.read_sql(text(query_orders), conn)
+        max_date_str = pd.read_sql(text(query_max_date), conn).iloc[0, 0]
+        
+    # --- Python Logic ---
+    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
+    dataset_end = pd.to_datetime(max_date_str)
+    
+    # Aggregation
+    customer_group = df.groupby('customer_unique_id').agg(
+        last_order_date=('order_purchase_timestamp', 'max'),
+        frequency=('order_id', 'nunique'),
+        monetary=('price', 'sum')
+    ).reset_index()
+    
+    # Churn Calculation
+    customer_group['days_since_last_order'] = (dataset_end - customer_group['last_order_date']).dt.days
+    customer_group['churned'] = (customer_group['days_since_last_order'] > 90).astype(int)
     
     feature_cols = ['days_since_last_order', 'frequency', 'monetary']
     
-    return df[feature_cols], df['churned']
+    return customer_group[feature_cols], customer_group['churned']
 
 def get_recommender_data(limit=None):
     """

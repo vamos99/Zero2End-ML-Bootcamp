@@ -43,7 +43,10 @@ data/
 mlruns/
 mlflow.db
 models/*.joblib
-models/*.pkl
+*.pkl
+!models/*.pkl
 *.log
 catboost_info/
 store/
+*.db
+olist_yedek.db

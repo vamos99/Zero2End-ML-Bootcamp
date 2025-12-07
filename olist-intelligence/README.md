@@ -1,34 +1,28 @@
 # Olist Intelligence Suite
-
 Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geliştirilmiş uçtan uca Veri Bilimi ve İş Zekası çözümü.
-
----
 
 ## Problem & Çözüm
 
 ### Problem 1: Teslimat Gecikmesi
-**Sorun:** Müşteriler siparişlerin ne zaman geleceğini bilemiyor, gecikmeler şikayete dönüşüyor.
-
+**Sorun:** Müşteriler siparişlerin ne zaman geleceğini bilemiyor, gecikmeler şikayete dönüşüyor.  
 **Çözüm:** CatBoost modeli ile teslimat süresi tahmini (RMSE: 7.60 gün)
 
 **Neden Bu Yaklaşım?**
-- Haversine mesafe (satıcı-müşteri arası) en önemli faktör
-- Satıcı puanı (review verisi) teslimat performansıyla ilişkili
-- Aynı eyalet = daha hızlı teslimat
+*   Haversine mesafe (satıcı-müşteri arası) en önemli faktör
+*   Satıcı puanı (review verisi) teslimat performansıyla ilişkili
+*   Aynı eyalet = daha hızlı teslimat
 
 ### Problem 2: Müşteri Kaybı (Churn)
-**Sorun:** Hangi müşterilerin platformu terk edeceğini önceden tahmin edemiyoruz.
-
-**Çözüm:** Zaman bazlı Churn tanımı (90 gün inaktif = Churn)
+**Sorun:** Hangi müşterilerin platformu terk edeceğini önceden tahmin edemiyoruz.  
+**Çözüm:** Zaman bazlı Churn tanımı (90 gün inaktif = Churn) ve CatBoost Classifier
 
 **Neden Bu Yaklaşım?**
-- İlk yaklaşımda AUC %100 çıkıyordu - bu data leakage'dı
-- Cluster'dan türetilen target gerçekçi değildi
-- Gerçek tanım: %80.3 Churn Rate (anlamlı)
+*   İlk yaklaşımda AUC %100 çıkıyordu - bu data leakage'dı (Düzeltildi)
+*   Cluster'dan türetilen target gerçekçi değildi
+*   Gerçek tanım: %80.3 Churn Rate (anlamlı)
 
 ### Problem 3: Müşteri Tek Tip Görülüyor
-**Sorun:** Tüm müşterilere aynı pazarlama yapılıyor.
-
+**Sorun:** Tüm müşterilere aynı pazarlama yapılıyor.  
 **Çözüm:** RFM + K-Means ile segmentasyon (5 segment)
 
 ---
@@ -37,94 +31,103 @@ Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geli
 
 | Teknoloji | Neden? |
 |-----------|--------|
-| PostgreSQL | SQLite çoklu kullanıcıda kilitlenir, production için uygun değil |
-| Streamlit | React ile aylar sürecek işi günlere indirir |
-| Docker | "Benim bilgisayarımda çalışıyordu" problemini çözer |
-| Polars | ETL'de Pandas'tan 10x hızlı |
-| FastAPI | Modern, async, otomatik dokümantasyon |
+| **SQLite** | Local geliştirme ve taşınabilirlik için ideal (Konfigürasyon gerektirmez) |
+| **Streamlit** | React ile aylar sürecek işi günlere indirir |
+| **Docker** | "Benim bilgisayarımda çalışıyordu" problemini çözer |
+| **Polars** | ETL'de Pandas'tan 10x hızlı |
+| **FastAPI** | Modern, async, otomatik dokümantasyon (Backend API) |
 
 ---
 
 ## Özellikler
 
 ### Lojistik Tahmin
-- RMSE: 7.60 gün
-- Özellikler: mesafe, kargo, fiyat, ağırlık, satıcı puanı
+*   **RMSE:** 7.60 gün
+*   **Özellikler:** Mesafe, kargo, fiyat, ağırlık, satıcı puanı
 
 ### Churn Tahmini
-- Rate: %80.3
-- Tanım: 90 gün sipariş yok = Churn
+*   **Rate:** %80.3 (Marketplace doğası gereği yüksek)
+*   **Tanım:** 90 gün sipariş yok = Churn
 
 ### Müşteri Segmentasyonu
-- 5 segment: Şampiyonlar, Sadıklar, Potansiyeller, Riskli, Uyuyanlar
+*   **5 Segment:** Şampiyonlar, Sadıklar, Potansiyeller, Riskli, Uyuyanlar
 
 ### Dashboard
-- 5 sayfa: Ana Sayfa, Operasyon, Müşteri, Segmentasyon, Ranking
-- ROI simülasyonu
+*   **5 Sayfa:** Ana Sayfa, Operasyon, Müşteri, Segmentasyon, Ranking
+*   **ROI Simülasyonu:** Kampanya maliyet/getiri analizi
 
 ### API
-- 4 endpoint: /predict/delivery, /predict/churn, /recommend, /segments
-- X-API-KEY koruması
+*   **4 Endpoint:** `/predict/delivery`, `/predict/churn`, `/recommend`, `/segments`
+*   **Güvenlik:** X-API-KEY koruması
 
 ---
 
-## Kurulum
+## 🚀 Kurulum ve Çalıştırma
+
+Proje hem Yerel (Local) hem de Docker ortamında çalışacak şekilde tasarlanmıştır.
 
 ### Ön Gereksinimler
-- Docker & Docker Compose (v2+)
-- Git
-- 4GB+ RAM (Docker için)
-- 10GB+ boş disk alanı
+*   Docker & Docker Compose (Önerilen)
+*   Git
+*   Python 3.10+ (Yerel çalışma için)
 
-### Adımlar
-
+### Adım 1: Projeyi İndir
 ```bash
-# 1. Klonla
 git clone https://github.com/vamos99/Zero2End-ML-Bootcamp.git
 cd Zero2End-ML-Bootcamp/olist-intelligence
-
-# 2. Veri dosyalarını hazırla (ilk kez)
-# data/ klasörüne Olist CSV dosyalarını koy:
-# - olist_orders_dataset.csv
-# - olist_order_items_dataset.csv
-# - olist_customers_dataset.csv
-# - olist_geolocation_dataset.csv
-# - olist_order_payments_dataset.csv
-# - olist_order_reviews_dataset.csv
-# - olist_products_dataset.csv
-# - olist_sellers_dataset.csv
-# - product_category_name_translation.csv
-
-# 3. Docker ile başlat
-docker-compose up --build -d
-
-# 4. Veriyi yükle (ilk kez, başka terminalde)
-docker exec olist_api python -m src.ml.ingest
-
-# 5. Modelleri eğit (isteğe bağlı)
-docker exec olist_api python -m src.ml.train
 ```
 
-### Erişim Adresleri
-
-| Servis | URL | Açıklama |
-|--------|-----|----------|
-| Dashboard | http://localhost:8501 | Streamlit BI Dashboard |
-| API Docs | http://localhost:8000/docs | FastAPI Swagger UI |
-| MLflow | http://localhost:5000 | Model Registry |
-
-### Notebook'ları Çalıştırma
+### Adım 2: Ortam Değişkenlerini Ayarla (.env)
+Projenin çalışması için bir `.env` dosyası oluşturun (Örnek dosyadan kopyalayabilirsiniz). Notebooklar ve Docker bu dosyayı kullanır.
 
 ```bash
-# Yerel Python ortamı gerekli
-cd notebooks
-pip install -r ../requirements.txt
+# MacOS/Linux
+cp .env.example .env
+# Windows
+copy .env.example .env
+```
+Ardından `.env` dosyasını açıp **KAGGLE_USERNAME** ve **KAGGLE_KEY** bilgilerinizi ekleyin (Veri indirmek için gereklidir).
 
-# Jupyter başlat
-jupyter notebook
+### Adım 3: Veri Hazırlığı ve Modeller
+Proje açıldığında API çalışır (`.pkl` modelleri hazır gelir). Ancak **Dashboard grafiklerinin** dolması için geçmiş tahminlerin üretilmesi gerekir.
+
+**Sırayla Çalıştırın:**
+1.  `notebooks/1_general_eda_and_prep.ipynb`: **Zorunludur.** Veritabanı boşsa [Kaggle Olist Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) verisini indirir ve kurar.
+2.  `notebooks/2_logistics_engine.ipynb`: Lojistik tahmin tablosunu üretir.
+3.  `notebooks/4_growth_engine.ipynb`: Churn ve Segmentasyon tablosunu üretir.
+
+*Not: Veritabanı (`olist.db`) bu işlem sonunda dolacaktır.*
+
+### Seçenek A: Docker ile Başlatma (Önerilen)
+Tüm servisleri (API, Dashboard, MLflow) tek komutla başlatın.
+
+```bash
+docker-compose up --build
 ```
 
-**Not:** Notebook'lar PostgreSQL'e `localhost:5432` üzerinden bağlanır. Docker çalışıyor olmalı.
+### Seçenek B: Yerel (Local) Çalıştırma
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# API Başlat
+uvicorn src.app:app --reload
+# Dashboard Başlat
+streamlit run src/dashboard.py
+```
+
+---
+
+## Notebook'ları Çalıştırma (Geliştirme)
+
+Analiz yapmak için yerel Python ortamınıza bağımlılıkları yüklediğinizden emin olun (Adım 2'deki gibi).
+Notebooklar `.env` dosyasındaki ayarları otomatik okur.
+
+```bash
+cd notebooks
+jupyter lab
+```
 
 ---
 
@@ -132,134 +135,43 @@ jupyter notebook
 
 ```
 src/
-├── app.py          # FastAPI
-├── dashboard.py    # Streamlit
-├── ml/             # ML Core
-│   ├── data.py     # Central Data Access
-│   ├── features.py # Feature Engineering
-│   ├── train.py    # Training Scripts
-│   ├── ingest.py   # CSV → PostgreSQL
-│   └── benchmark.py# Model Experiments
-├── services/       # Services (Business Logic)
-├── views/          # Dashboard Views
-└── database/       # DB Connection & Queries
+├── app.py          # FastAPI Backend
+├── dashboard.py    # Streamlit Frontend
+├── ml/             # ML Core (Eğitim, Ingestion)
+│   ├── ingest.py   # CSV → SQLite
+│   └── train.py    # Model Eğitimi
+├── services/       # İş Mantığı (Service Layer)
+├── views/          # Dashboard Sayfaları
+└── database/       # Veritabanı Bağlantısı
 
 notebooks/
-├── 1_general_eda_and_prep.ipynb  # Veri keşfi
-├── 2_logistics_engine.ipynb      # Teslimat modeli
+├── 1_general_eda_and_prep.ipynb  # Veri keşfi ve Yükleme
+├── 2_logistics_engine.ipynb      # Teslimat modeli eğitimi
 ├── 3_customer_sentinel.ipynb     # Churn analizi
-├── 4_growth_engine.ipynb         # Segmentasyon
-├── 5_final_evaluation.ipynb      # Sonuçlar
-└── 6_executive_pipeline.ipynb    # Executive sunum
+├── 4_growth_engine.ipynb         # Segmentasyon modeli
+└── ...
 
-data/               # CSV dosyaları (git'te yok)
+data/               # CSV dosyaları (Git-ignored)
 models/             # Eğitilmiş modeller (.pkl)
 ```
-
----
 
 ## Model Performansı
 
 | Model | Algoritma | Metrik | Değer |
 |-------|-----------|--------|-------|
-| Lojistik | CatBoost Regressor | RMSE | 7.8 gün |
-| Churn | CatBoost Classifier | AUC | ~0.56 |
-| Recommender | SVD (Matrix Factorization) | Coverage | 99K user |
-| Segmentation | K-Means | Segments | 5 |
-
-### Lojistik Model Features (10 adet)
-
-| # | Feature | Açıklama |
-|---|---------|----------|
-| 1 | distance_km | Haversine mesafesi (km) |
-| 2 | freight_value | Kargo ücreti |
-| 3 | price | Ürün fiyatı |
-| 4 | product_weight_g | Ürün ağırlığı (gram) |
-| 5 | product_description_lenght | Ürün açıklama uzunluğu |
-| 6 | same_state | Aynı eyalet mi? (0/1) |
-| 7 | seller_avg_rating | Satıcı ortalama puanı |
-| 8 | product_photos_qty | Ürün fotoğraf sayısı |
-| 9 | product_volume | Ürün hacmi (cm³) |
-| 10 | freight_ratio | Kargo/Fiyat oranı |
-
-### Churn Model Features (RFM)
-
-| Feature | Açıklama |
-|---------|----------|
-| days_since_last_order | Son siparişten bu yana gün (Recency) |
-| frequency | Toplam sipariş sayısı |
-| monetary | Toplam harcama (R$) |
+| **Lojistik** | CatBoost Regressor | RMSE | ~7.6 Gün |
+| **Churn** | CatBoost Classifier | Accuracy | ~%90 (Imbalanced) |
+| **Recommender** | SVD | Coverage | 99K User |
 
 ---
 
-## Sınırlamalar & Denenen İyileştirmeler
+### Troubleshooting (Sorun Giderme)
 
-### Churn Model Sınırlamaları
-
-| Sorun | Açıklama |
-|-------|----------|
-| Düşük AUC (~0.56) | Olist one-time purchase marketplace, %97 müşteri tek seferlik |
-| Data Leakage Riski | `days_since_last_order` target tanımıyla örtüşüyor |
-| Yüksek Imbalance | %90 churn oranı modeli zorluyor |
-
-**Denenen İyileştirmeler:**
-- `avg_review_score`, `payment_type`, `monetary_per_order` eklendi → Minimal etki
-- `auto_class_weights='Balanced'` → AUC 0.56'da kaldı
-- Feature crossing → Anlamlı iyileşme yok
-
-**Sonuç:** Bu veri seti yapısı (marketplace, tek seferlik) için churn tahmini inherent olarak zor.
-
-### Lojistik Model
-
-**Denenen İyileştirmeler:**
-- `freight_per_km`, `distance_x_weight`, `is_weekend`, `category_avg_delivery` → RMSE 7.8 (değişim yok)
+*   **API Bağlantı Hatası:** MacOS kullanıcıları `localhost` yerine `127.0.0.1` kullanmalıdır (Projede varsayılan olarak ayarlanmıştır).
+*   **Grafikler/Tablolar Boş Görünüyor:**
+    *   **Durum:** API ve Simülasyonlar çalışıyor (`.pkl` modelleri hazır geldiği için).
+    *   **Çözüm:** Dashboard'daki *"Operasyon Merkezi"* gibi geçmişe dönük analizlerin dolması için veritabanında tahmin tablolarının oluşması şarttır. Bunu sağlamak için **Notebook 2 (Lojistik)** ve **Notebook 4 (Churn)** dosyalarını bir kez çalıştırmanız yeterlidir.
+*   **Docker Port Hatası:** Yerelde çalışan servisleri (`Ctrl+C`) kapatıp `docker-compose`'u yeniden başlatın.
 
 ---
-
-## Troubleshooting
-
-### PostgreSQL "No space left on device" Hatası
-
-```bash
-# Docker kaynaklarını temizle
-docker system prune -a --volumes -f
-
-# Docker Desktop'ta Memory: 4GB+, Disk: 20GB+ olmalı
-```
-
-### Windows'ta Çalıştırma
-
-Docker Desktop for Windows gerekli. WSL2 backend önerilir.
-
-```powershell
-# PowerShell'de
-docker-compose up --build -d
-```
-
-### Notebook Veritabanı Hatası
-
-Docker çalışıyor olmalı:
-```bash
-docker-compose ps  # db servisi UP olmalı
-```
-
----
-
-## Veritabanı Optimizasyonu
-
-11 index eklendi:
-- orders: customer_id, status, purchase_date
-- order_items: order_id, product_id, seller_id
-- geolocation: zip_code_prefix
-
----
-
-## CI/CD
-
-GitHub Actions ile:
-- Push/PR'da otomatik test
-- Syntax kontrolü (flake8)
-
----
-
-**Versiyon:** 3.1 | **Güncelleme:** Aralık 2025
+**Versiyon:** 2.0 | **Güncelleme:** Aralık 2025

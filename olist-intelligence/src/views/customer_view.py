@@ -1,5 +1,7 @@
 import streamlit as st
 from src.services import action_service, analytics_service
+from src.database import repository
+from src.services.api_client import api_client
 
 def render_customer_view(risk_churn):
     st.title("🤝 Müşteri Sadakati (Retention)")
@@ -66,7 +68,22 @@ def render_customer_view(risk_churn):
     with st.expander("🛍️ Müşteri Öneri Motoru", expanded=True):
         st.info("Bu modül, SVD (Singular Value Decomposition) algoritması kullanarak müşteriye özel ürün önerileri sunar.")
         
-        c_input = st.text_input("Müşteri ID:", value="871766c5855e863f6eccc05f988b23")
+        # Random ID Logic
+        col_in, col_btn = st.columns([3, 1])
+        
+        default_id = "871766c5855e863f6eccc05f988b23"
+        if "random_id" in st.session_state:
+            default_id = st.session_state.random_id
+
+        with col_in:
+            c_input = st.text_input("Müşteri ID:", value=default_id)
+        
+        with col_btn:
+             st.write("") # Spacer
+             st.write("")
+             if st.button("🎲 Rastgele", help="Veritabanından gerçek bir müşteri seç"):
+                 st.session_state.random_id = repository.get_random_customer_id()
+                 st.rerun()
         
         if st.button("Önerileri Getir 🧠", key="rec_btn"):
             with st.spinner("Yapay Zeka düşünüyor..."):
@@ -85,5 +102,47 @@ def render_customer_view(risk_churn):
                 for i, prod in enumerate(products):
                     if i < 5:
                         with cols[i]:
-                            st.image("https://placehold.co/150x150?text=Product", caption=prod[:15]+"...")
-                            st.caption(prod)
+                            # Clean string just in case
+                            prod_str = str(prod).strip()
+                            st.image("https://placehold.co/150x150?text=Product", caption=prod_str)
+
+    st.markdown("---")
+    
+    # NEW: Churn Calculator
+    st.markdown("### 🔥 Churn Riski Hesaplayıcı (Simülasyon)")
+    
+    with st.expander("👤 Tekil Müşteri Analizi Yap", expanded=False):
+        with st.form("churn_prediction_form"):
+            c1, c2, c3 = st.columns(3)
+            
+            with c1:
+                recency = st.number_input("Son Sipariş Üzerinden Geçen Gün", value=30, step=1)
+            with c2:
+                freq = st.number_input("Toplam Sipariş Sayısı", value=1, step=1)
+            with c3:
+                money = st.number_input("Toplam Harcama (BRL)", value=100.0, step=10.0)
+                
+            submitted = st.form_submit_button("Risk Hesapla 🚨")
+            
+        if submitted:
+            with st.spinner("Model tahmin yapıyor..."):
+                result = api_client.predict_churn(
+                    days_since=recency,
+                    frequency=freq,
+                    monetary=money
+                )
+                
+            if result:
+                prob = result.get('churn_probability', 0)
+                risk = result.get('risk_level', 'Unknown')
+                
+                st.write(f"**Churn İhtimali:** %{prob*100:.1f}")
+                
+                if prob > 0.7:
+                    st.error(f"Risk Seviyesi: {risk} (Çok Yüksek)")
+                elif prob > 0.4:
+                    st.warning(f"Risk Seviyesi: {risk} (Orta)")
+                else:
+                    st.success(f"Risk Seviyesi: {risk} (Düşük)")
+            else:
+                st.error("API Hatası! Uvicorn çalışıyor mu?")

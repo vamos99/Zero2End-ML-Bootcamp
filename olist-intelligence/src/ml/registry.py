@@ -14,6 +14,12 @@ def get_mlflow_client():
     return MlflowClient()
 
 
+
+try:
+    import catboost
+except ImportError:
+    catboost = None
+
 def register_model(model, model_name: str, metrics: dict, params: dict = None, flavor: str = "sklearn"):
     """
     Register a model with MLflow Model Registry.
@@ -40,7 +46,12 @@ def register_model(model, model_name: str, metrics: dict, params: dict = None, f
             # Log model based on flavor
             artifact_path = "model"
             if flavor == "catboost":
-                mlflow.catboost.log_model(model, artifact_path=artifact_path, registered_model_name=f"olist-{model_name}")
+                if catboost:
+                    mlflow.catboost.log_model(model, artifact_path=artifact_path, registered_model_name=f"olist-{model_name}")
+                else:
+                    print(f"⚠️ CatBoost module missing. Skipping MLflow logging for {model_name}.")
+                    # Could fall back to generic but risky
+                    return None
             elif flavor == "sklearn":
                 mlflow.sklearn.log_model(model, artifact_path=artifact_path, registered_model_name=f"olist-{model_name}")
             else:
@@ -93,6 +104,9 @@ def load_production_model(model_name: str, flavor: str = "sklearn"):
         model_uri = f"models:/olist-{model_name}/Production"
         
         if flavor == "catboost":
+            if catboost is None:
+                print(f"⚠️ CatBoost module missing. Cannot load {model_name} from MLflow.")
+                raise ImportError("CatBoost module not found")
             model = mlflow.catboost.load_model(model_uri)
         else:
             model = mlflow.sklearn.load_model(model_uri)

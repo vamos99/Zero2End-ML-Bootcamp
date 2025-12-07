@@ -5,80 +5,138 @@ from src.database.db_client import get_db_connection
 engine = get_db_connection()
 
 def get_total_orders(start_date, end_date):
-    query = "SELECT COUNT(*) FROM orders WHERE order_purchase_timestamp::timestamp BETWEEN :start AND :end"
-    return pd.read_sql(text(query), engine, params={"start": start_date, "end": end_date}).iloc[0, 0]
+    query = "SELECT order_purchase_timestamp FROM orders"
+    df = pd.read_sql(text(query), engine)
+    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
+    
+    mask = (df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & \
+           (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))
+    
+    return len(df[mask])
 
 def get_date_range():
     query = "SELECT MIN(order_purchase_timestamp), MAX(order_purchase_timestamp) FROM orders"
+    # This standard SQL works on both SQLite and Postgres
     result = pd.read_sql(text(query), engine)
     return result.iloc[0, 0], result.iloc[0, 1]
 
 def get_logistics_metrics(start_date, end_date):
-    """Calculates dynamic KPIs for Logistics."""
-    # 1. On-Time Delivery Rate & Avg Time
-    query_kpi = """
+    """Calculates dynamic KPIs for Logistics (DB Agnostic)."""
+    # 1. Fetch Raw Data needed for KPIs
+    query = """
     SELECT 
-        COUNT(*) FILTER (WHERE delivery_days <= predicted_delivery_days) * 100.0 / NULLIF(COUNT(*), 0) as on_time_rate,
-        AVG(delivery_days) as avg_time
+        CAST(JULIANDAY(o.order_delivered_customer_date) - JULIANDAY(o.order_purchase_timestamp) AS INTEGER) as delivery_days,
+        lp.predicted_delivery_days,
+        o.order_purchase_timestamp,
+        r.review_score
     FROM logistics_predictions lp
     JOIN orders o ON lp.order_id = o.order_id
-    WHERE o.order_purchase_timestamp::timestamp BETWEEN :start AND :end
+    LEFT JOIN order_reviews r ON o.order_id = r.order_id
     """
-    kpi = pd.read_sql(text(query_kpi), engine, params={"start": start_date, "end": end_date}).iloc[0]
     
-    # 2. Complaint Rate for Risky Orders (Late)
-    # We assume 'order_reviews' exists. If not, return None.
     try:
-        query_complaint = """
-        SELECT 
-            COUNT(*) FILTER (WHERE r.review_score <= 2) * 100.0 / NULLIF(COUNT(*), 0) as complaint_rate
-        FROM logistics_predictions lp
-        JOIN orders o ON lp.order_id = o.order_id
-        JOIN order_reviews r ON o.order_id = r.order_id
-        WHERE lp.predicted_delivery_days > 10
-        AND o.order_purchase_timestamp::timestamp BETWEEN :start AND :end
-        """
-        complaint_rate = pd.read_sql(text(query_complaint), engine, params={"start": start_date, "end": end_date}).iloc[0, 0]
-    except:
-        complaint_rate = None
+        df = pd.read_sql(text(query), engine)
+    except Exception as e:
+        # Table might not exist yet
+        return {"on_time_rate": 0, "avg_time": 0, "complaint_rate": 0}
         
+    if df.empty:
+         return {"on_time_rate": 0, "avg_time": 0, "complaint_rate": 0}
+
+    # 2. Process in Python
+    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
+    mask = (df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & \
+           (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))
+    
+    filtered = df[mask]
+    
+    if filtered.empty:
+        return {"on_time_rate": 0, "avg_time": 0, "complaint_rate": 0}
+
+    # KPI 1: On-Time Rate
+    on_time = filtered[filtered['delivery_days'] <= filtered['predicted_delivery_days']]
+    on_time_rate = (len(on_time) / len(filtered)) * 100
+    
+    # KPI 2: Avg Time
+    avg_time = filtered['delivery_days'].mean()
+    
+    # KPI 3: Risky Orders Complaint Rate
+    risky_orders = filtered[filtered['predicted_delivery_days'] > 10]
+    if not risky_orders.empty:
+        complaints = risky_orders[risky_orders['review_score'] <= 2]
+        complaint_rate = (len(complaints) / len(risky_orders)) * 100
+    else:
+        complaint_rate = 0.0
+
     return {
-        "on_time_rate": kpi["on_time_rate"] if pd.notnull(kpi["on_time_rate"]) else 0,
-        "avg_time": kpi["avg_time"] if pd.notnull(kpi["avg_time"]) else 0,
-        "complaint_rate": complaint_rate if pd.notnull(complaint_rate) else 15.0 # Fallback to 15%
+        "on_time_rate": on_time_rate,
+        "avg_time": avg_time,
+        "complaint_rate": complaint_rate
     }
 
 def get_logistics_risk_count(start_date, end_date):
     query = """
-    SELECT COUNT(*) 
+    SELECT lp.predicted_delivery_days, o.order_purchase_timestamp
     FROM logistics_predictions lp
     JOIN orders o ON lp.order_id = o.order_id
-    WHERE lp.predicted_delivery_days > 10
-    AND o.order_purchase_timestamp::timestamp BETWEEN :start AND :end
     """
-    return pd.read_sql(text(query), engine, params={"start": start_date, "end": end_date}).iloc[0, 0]
+    try:
+        df = pd.read_sql(text(query), engine)
+    except:
+        return 0
+        
+    if df.empty: return 0
+    
+    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
+    
+    # Filter
+    mask = (df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & \
+           (df['order_purchase_timestamp'] <= pd.to_datetime(end_date)) & \
+           (df['predicted_delivery_days'] > 10)
+           
+    return len(df[mask])
 
 def get_churn_risk_count():
     # Snapshot metric, no date filter for now
-    return pd.read_sql("SELECT COUNT(*) FROM customer_segments WHERE \"Cluster\" IN (2, 3)", engine).iloc[0, 0]
+    try:
+        return pd.read_sql("SELECT COUNT(*) FROM customer_segments WHERE \"Cluster\" IN (2, 3)", engine).iloc[0, 0]
+    except:
+        return 0
 
 def get_logistics_details(start_date, end_date, limit=10):
-    query = """
+    query = text("""
     SELECT 
-        lp.customer_id, 
+        o.customer_id, 
         lp.predicted_delivery_days as "Tahmini Süre (Gün)",
-        lp.delivery_days as "Gerçekleşen (Gün)"
+        CAST(JULIANDAY(o.order_delivered_customer_date) - JULIANDAY(o.order_purchase_timestamp) AS INTEGER) as "Gerçekleşen (Gün)",
+        o.order_purchase_timestamp
     FROM logistics_predictions lp
     JOIN orders o ON lp.order_id = o.order_id
     WHERE lp.predicted_delivery_days > 10
-    AND o.order_purchase_timestamp::timestamp BETWEEN :start AND :end
-    LIMIT :limit
-    """
-    return pd.read_sql(text(query), engine, params={"start": start_date, "end": end_date, "limit": limit})
+    LIMIT 50
+    """)
+    
+    try:
+        df = pd.read_sql(query, engine)
+    except Exception as e:
+        print(f"⚠️ Warning: Could not fetch logistics details (Table missing?): {e}")
+        # Return empty DF with expected columns to prevent UI crash
+        return pd.DataFrame(columns=["customer_id", "Tahmini Süre (Gün)", "Gerçekleşen (Gün)", "order_purchase_timestamp"])
+        
+    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
+    
+    mask = (df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & \
+           (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))
+           
+    res = df[mask].head(limit)
+    return res.drop(columns=['order_purchase_timestamp'])
 
 def get_customer_segments_stats():
     query = "SELECT \"Cluster\", COUNT(*) as count, AVG(\"Monetary\") as avg_spend, AVG(\"Recency\") as avg_recency, AVG(\"Frequency\") as avg_freq FROM customer_segments GROUP BY \"Cluster\""
-    return pd.read_sql(query, engine)
+    try:
+        return pd.read_sql(query, engine)
+    except Exception:
+        return pd.DataFrame()
 
 def get_target_audience(cluster_id=None, limit=500):
     base_query = """
@@ -92,7 +150,10 @@ def get_target_audience(cluster_id=None, limit=500):
         query = f"{base_query} ORDER BY \"Monetary\" DESC LIMIT :limit"
         params = {"limit": limit}
     
-    return pd.read_sql(text(query), engine, params=params)
+    try:
+        return pd.read_sql(text(query), engine, params=params)
+    except Exception:
+        return pd.DataFrame(columns=["customer_unique_id", "Recency", "Frequency", "Monetary", "Cluster"])
 
 def log_action_to_db(action_type, description, impact_value):
     # Fix for numpy types
@@ -110,102 +171,150 @@ def get_recent_actions(limit=5):
     return pd.read_sql(text("SELECT * FROM action_logs ORDER BY timestamp DESC LIMIT :limit"), engine, params={"limit": limit})
 
 def init_bi_tables():
-    with engine.connect() as conn:
-        conn.execute(text("""
+    dialect = engine.dialect.name
+    
+    if dialect == 'sqlite':
+        id_col = "id INTEGER PRIMARY KEY AUTOINCREMENT"
+        timestamp_col = "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP"
+    else:
+        # PostgreSQL
+        id_col = "id SERIAL PRIMARY KEY"
+        timestamp_col = "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        
+    create_sql = f"""
             CREATE TABLE IF NOT EXISTS action_logs (
-                id SERIAL PRIMARY KEY,
+                {id_col},
                 action_type VARCHAR(50),
                 description TEXT,
                 impact_value FLOAT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                {timestamp_col}
             )
-        """))
+    """
+    
+    with engine.connect() as conn:
+        conn.execute(text(create_sql))
         conn.commit()
 
-# ============== NEW: RANKING FUNCTIONS WITH DATE FILTERS ==============
+# ============== NEW: RANKING FUNCTIONS WITH DATE FILTERS (DB AGNOSTIC) ==============
 
 def get_top_products(limit=20, start_date=None, end_date=None):
     """Get top selling products by category with revenue."""
-    date_filter = ""
-    params = {"limit": limit}
     
-    if start_date and end_date:
-        date_filter = "WHERE o.order_purchase_timestamp::timestamp BETWEEN :start AND :end"
-        params["start"] = start_date
-        params["end"] = end_date
-    
-    query = f"""
+    # In SQLite/Pandas approach: Fetch raw, Aggregate in Python
+    query = """
     SELECT 
         COALESCE(t.product_category_name_english, p.product_category_name, 'Diğer') as product_category,
-        COUNT(DISTINCT oi.order_id) as order_count,
-        SUM(oi.price) as total_sales
+        oi.order_id,
+        oi.price,
+        o.order_purchase_timestamp
     FROM order_items oi
     JOIN products p ON oi.product_id = p.product_id
     JOIN orders o ON oi.order_id = o.order_id
     LEFT JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
-    {date_filter}
-    GROUP BY COALESCE(t.product_category_name_english, p.product_category_name, 'Diğer')
-    ORDER BY total_sales DESC
-    LIMIT :limit
     """
-    return pd.read_sql(text(query), engine, params=params)
+    
+    df = pd.read_sql(text(query), engine)
+    
+    if start_date and end_date:
+        df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
+        df = df[(df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & 
+                (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))]
+    
+    # Group By
+    res = df.groupby('product_category').agg(
+        order_count=('order_id', 'nunique'),
+        total_sales=('price', 'sum')
+    ).reset_index().sort_values('total_sales', ascending=False).head(limit)
+    
+    return res
 
 def get_top_sellers(limit=20, start_date=None, end_date=None):
     """Get top sellers with performance metrics."""
-    date_filter = ""
-    params = {"limit": limit}
-    
-    if start_date and end_date:
-        date_filter = "AND o.order_purchase_timestamp::timestamp BETWEEN :start AND :end"
-        params["start"] = start_date
-        params["end"] = end_date
-    
-    query = f"""
+    query = """
     SELECT 
         s.seller_id,
-        COUNT(DISTINCT oi.order_id) as order_count,
-        SUM(oi.price) as total_revenue,
-        COALESCE(AVG(r.review_score), 0) as avg_rating,
-        COALESCE(COUNT(*) FILTER (WHERE o.order_delivered_customer_date <= o.order_estimated_delivery_date) * 100.0 / NULLIF(COUNT(*), 0), 0) as on_time_rate
+        oi.order_id,
+        oi.price,
+        r.review_score,
+        o.order_delivered_customer_date,
+        o.order_estimated_delivery_date,
+        o.order_purchase_timestamp
     FROM sellers s
     JOIN order_items oi ON s.seller_id = oi.seller_id
     JOIN orders o ON oi.order_id = o.order_id
     LEFT JOIN order_reviews r ON o.order_id = r.order_id
     WHERE o.order_status = 'delivered'
-    {date_filter}
-    GROUP BY s.seller_id
-    HAVING COUNT(DISTINCT oi.order_id) >= 5
-    ORDER BY total_revenue DESC
-    LIMIT :limit
     """
-    return pd.read_sql(text(query), engine, params=params)
+    
+    df = pd.read_sql(text(query), engine)
+    
+    if start_date and end_date:
+        df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
+        df = df[(df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & 
+                (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))]
+        
+    if df.empty:
+        return pd.DataFrame()
+        
+    # Calculate On-Time per row
+    df['order_delivered_customer_date'] = pd.to_datetime(df['order_delivered_customer_date'])
+    df['order_estimated_delivery_date'] = pd.to_datetime(df['order_estimated_delivery_date'])
+    df['is_on_time'] = df['order_delivered_customer_date'] <= df['order_estimated_delivery_date']
+    
+    # Group By
+    res = df.groupby('seller_id').agg(
+        order_count=('order_id', 'nunique'),
+        total_revenue=('price', 'sum'),
+        avg_rating=('review_score', 'mean'),
+        on_time_count=('is_on_time', 'sum'),
+        total_rows=('order_id', 'count')
+    ).reset_index()
+    
+    # Correct On-Time Rate calculation
+    res['on_time_rate'] = (res['on_time_count'] / res['total_rows']) * 100
+    
+    # Filter min 5 orders
+    res = res[res['order_count'] >= 5]
+    
+    return res.sort_values('total_revenue', ascending=False).head(limit)
 
 def get_category_performance(start_date=None, end_date=None):
     """Get category performance with revenue and ratings."""
-    date_filter = ""
-    params = {}
-    
-    if start_date and end_date:
-        date_filter = "AND o.order_purchase_timestamp::timestamp BETWEEN :start AND :end"
-        params["start"] = start_date
-        params["end"] = end_date
-    
-    query = f"""
+    query = """
     SELECT 
         COALESCE(t.product_category_name_english, p.product_category_name, 'Diğer') as category,
-        SUM(oi.price) as revenue,
-        COALESCE(AVG(r.review_score), 0) as avg_review,
-        COUNT(DISTINCT oi.order_id) as order_count
+        oi.price,
+        r.review_score,
+        oi.order_id,
+        o.order_purchase_timestamp
     FROM order_items oi
     JOIN products p ON oi.product_id = p.product_id
     JOIN orders o ON oi.order_id = o.order_id
     LEFT JOIN order_reviews r ON o.order_id = r.order_id
     LEFT JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
     WHERE o.order_status = 'delivered'
-    {date_filter}
-    GROUP BY COALESCE(t.product_category_name_english, p.product_category_name, 'Diğer')
-    HAVING SUM(oi.price) > 1000
-    ORDER BY revenue DESC
-    LIMIT 30
     """
-    return pd.read_sql(text(query), engine, params=params)
+    
+    df = pd.read_sql(text(query), engine)
+    
+    if start_date and end_date:
+        df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
+        df = df[(df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & 
+                (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))]
+    
+    # Group
+    res = df.groupby('category').agg(
+        revenue=('price', 'sum'),
+        avg_review=('review_score', 'mean'),
+        order_count=('order_id', 'nunique')
+    ).reset_index()
+    
+    res = res[res['revenue'] > 1000].sort_values('revenue', ascending=False).head(30)
+    return res
+
+
+def get_random_customer_id():
+    try:
+        return pd.read_sql('SELECT customer_unique_id FROM customers ORDER BY RANDOM() LIMIT 1', engine).iloc[0, 0]
+    except:
+        return '871766c5855e863f6eccc05f988b23'
