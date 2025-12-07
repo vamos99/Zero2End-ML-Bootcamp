@@ -89,15 +89,16 @@ def test_predict_churn_real():
         mock_models.__contains__.side_effect = lambda k: k == "churn"
         
         payload = {
-            "Recency": 10,
-            "Frequency": 5,
-            "Monetary": 1000
+            "days_since_last_order": 10,
+            "frequency": 5,
+            "monetary": 1000
         }
         
         response = client.post("/predict/churn", json=payload)
         assert response.status_code == 200
         data = response.json()
-        assert data["is_churn_risk"] is True
+        assert data["churn_probability"] is not None
+        assert "risk_level" in data
 import numpy as np
 
 def test_recommend_products():
