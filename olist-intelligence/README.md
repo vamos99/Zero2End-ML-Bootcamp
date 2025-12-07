@@ -9,7 +9,7 @@ Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geli
 ### Problem 1: Teslimat Gecikmesi
 **Sorun:** Müşteriler siparişlerin ne zaman geleceğini bilemiyor, gecikmeler şikayete dönüşüyor.
 
-**Çözüm:** RandomForest modeli ile teslimat süresi tahmini (RMSE: 7.60 gün)
+**Çözüm:** CatBoost modeli ile teslimat süresi tahmini (RMSE: 7.60 gün)
 
 **Neden Bu Yaklaşım?**
 - Haversine mesafe (satıcı-müşteri arası) en önemli faktör
@@ -70,18 +70,38 @@ Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geli
 
 ## Kurulum
 
-```bash
-# Klonla
-git clone https://github.com/kullaniciadi/olist-intelligence.git
-cd olist-intelligence
+### Ön Gereksinimler
+- Docker & Docker Compose
+- Git
 
-# Başlat
+### Adımlar
+
+```bash
+# 1. Klonla
+git clone https://github.com/vamos99/Zero2End-ML-Bootcamp.git
+cd Zero2End-ML-Bootcamp/olist-intelligence
+
+# 2. Veri dosyalarını hazırla (ilk kez)
+# data/ klasörüne Olist CSV dosyalarını koy:
+# - olist_orders_dataset.csv
+# - olist_order_items_dataset.csv
+# - olist_customers_dataset.csv
+# - ... (diğer CSV'ler)
+
+# 3. Docker ile başlat
 docker-compose up --build
 
-# Erişim
-# Dashboard: http://localhost:8501
-# API Docs: http://localhost:8000/docs
+# 4. Veriyi yükle (ilk kez, başka terminalde)
+docker exec olist_api python src/ingest.py
 ```
+
+### Erişim Adresleri
+
+| Servis | URL |
+|--------|-----|
+| Dashboard | http://localhost:8501 |
+| API Docs | http://localhost:8000/docs |
+| MLflow | http://localhost:5000 |
 
 ---
 
@@ -101,31 +121,47 @@ src/
 └── database/       # DB Connection & Queries
 
 notebooks/
-├── 1_eda.ipynb      # Veri keşfi
-├── 2_logistics.ipynb # Teslimat modeli
-├── 3_customer.ipynb  # Churn analizi
-├── 4_growth.ipynb    # Segmentasyon
-├── 5_evaluation.ipynb # Sonuçlar
-└── 6_executive.ipynb # Sunum için
+├── 1_general_eda_and_prep.ipynb  # Veri keşfi
+├── 2_logistics_engine.ipynb      # Teslimat modeli
+├── 3_customer_sentinel.ipynb     # Churn analizi
+├── 4_growth_engine.ipynb         # Segmentasyon
+├── 5_final_evaluation.ipynb      # Sonuçlar
+└── 6_executive_pipeline.ipynb    # Executive sunum
 ```
 
 ---
 
 ## Model Performansı
 
-| Model | Metrik | Değer |
-|-------|--------|-------|
-| Lojistik (RandomForest) | RMSE | 7.60 gün |
-| Churn | Rate | %80.3 |
-| Recommender (SVD) | Coverage | 99K user |
+| Model | Algoritma | Metrik | Değer |
+|-------|-----------|--------|-------|
+| Lojistik | CatBoost Regressor | RMSE | 7.60 gün |
+| Churn | CatBoost Classifier | Rate | %80.3 |
+| Recommender | SVD (Matrix Factorization) | Coverage | 99K user |
+| Segmentation | K-Means | Segments | 5 |
 
-**Feature Importance (Lojistik):**
-1. distance_km (Haversine)
-2. freight_value
-3. price
-4. seller_avg_rating
-5. product_weight_g
-6. same_state
+### Lojistik Model Features (10 adet)
+
+| # | Feature | Açıklama |
+|---|---------|----------|
+| 1 | distance_km | Haversine mesafesi (km) |
+| 2 | freight_value | Kargo ücreti |
+| 3 | price | Ürün fiyatı |
+| 4 | product_weight_g | Ürün ağırlığı (gram) |
+| 5 | product_description_lenght | Ürün açıklama uzunluğu |
+| 6 | same_state | Aynı eyalet mi? (0/1) |
+| 7 | seller_avg_rating | Satıcı ortalama puanı |
+| 8 | product_photos_qty | Ürün fotoğraf sayısı |
+| 9 | product_volume | Ürün hacmi (cm³) |
+| 10 | freight_ratio | Kargo/Fiyat oranı |
+
+### Churn Model Features (RFM)
+
+| Feature | Açıklama |
+|---------|----------|
+| days_since_last_order | Son siparişten bu yana gün (Recency) |
+| frequency | Toplam sipariş sayısı |
+| monetary | Toplam harcama (R$) |
 
 ---
 
@@ -146,4 +182,4 @@ GitHub Actions ile:
 
 ---
 
-**Versiyon:** 3.0 | **Güncelleme:** Aralık 2024
+**Versiyon:** 3.0 | **Güncelleme:** Aralık 2025
