@@ -71,8 +71,10 @@ Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geli
 ## Kurulum
 
 ### Ön Gereksinimler
-- Docker & Docker Compose
+- Docker & Docker Compose (v2+)
 - Git
+- 4GB+ RAM (Docker için)
+- 10GB+ boş disk alanı
 
 ### Adımlar
 
@@ -86,22 +88,43 @@ cd Zero2End-ML-Bootcamp/olist-intelligence
 # - olist_orders_dataset.csv
 # - olist_order_items_dataset.csv
 # - olist_customers_dataset.csv
-# - ... (diğer CSV'ler)
+# - olist_geolocation_dataset.csv
+# - olist_order_payments_dataset.csv
+# - olist_order_reviews_dataset.csv
+# - olist_products_dataset.csv
+# - olist_sellers_dataset.csv
+# - product_category_name_translation.csv
 
 # 3. Docker ile başlat
-docker-compose up --build
+docker-compose up --build -d
 
 # 4. Veriyi yükle (ilk kez, başka terminalde)
-docker exec olist_api python src/ingest.py
+docker exec olist_api python -m src.ml.ingest
+
+# 5. Modelleri eğit (isteğe bağlı)
+docker exec olist_api python -m src.ml.train
 ```
 
 ### Erişim Adresleri
 
-| Servis | URL |
-|--------|-----|
-| Dashboard | http://localhost:8501 |
-| API Docs | http://localhost:8000/docs |
-| MLflow | http://localhost:5000 |
+| Servis | URL | Açıklama |
+|--------|-----|----------|
+| Dashboard | http://localhost:8501 | Streamlit BI Dashboard |
+| API Docs | http://localhost:8000/docs | FastAPI Swagger UI |
+| MLflow | http://localhost:5000 | Model Registry |
+
+### Notebook'ları Çalıştırma
+
+```bash
+# Yerel Python ortamı gerekli
+cd notebooks
+pip install -r ../requirements.txt
+
+# Jupyter başlat
+jupyter notebook
+```
+
+**Not:** Notebook'lar PostgreSQL'e `localhost:5432` üzerinden bağlanır. Docker çalışıyor olmalı.
 
 ---
 
@@ -115,6 +138,7 @@ src/
 │   ├── data.py     # Central Data Access
 │   ├── features.py # Feature Engineering
 │   ├── train.py    # Training Scripts
+│   ├── ingest.py   # CSV → PostgreSQL
 │   └── benchmark.py# Model Experiments
 ├── services/       # Services (Business Logic)
 ├── views/          # Dashboard Views
@@ -127,6 +151,9 @@ notebooks/
 ├── 4_growth_engine.ipynb         # Segmentasyon
 ├── 5_final_evaluation.ipynb      # Sonuçlar
 └── 6_executive_pipeline.ipynb    # Executive sunum
+
+data/               # CSV dosyaları (git'te yok)
+models/             # Eğitilmiş modeller (.pkl)
 ```
 
 ---
@@ -135,8 +162,8 @@ notebooks/
 
 | Model | Algoritma | Metrik | Değer |
 |-------|-----------|--------|-------|
-| Lojistik | CatBoost Regressor | RMSE | 7.60 gün |
-| Churn | CatBoost Classifier | Rate | %80.3 |
+| Lojistik | CatBoost Regressor | RMSE | 7.8 gün |
+| Churn | CatBoost Classifier | AUC | ~0.56 |
 | Recommender | SVD (Matrix Factorization) | Coverage | 99K user |
 | Segmentation | K-Means | Segments | 5 |
 
@@ -165,6 +192,59 @@ notebooks/
 
 ---
 
+## Sınırlamalar & Denenen İyileştirmeler
+
+### Churn Model Sınırlamaları
+
+| Sorun | Açıklama |
+|-------|----------|
+| Düşük AUC (~0.56) | Olist one-time purchase marketplace, %97 müşteri tek seferlik |
+| Data Leakage Riski | `days_since_last_order` target tanımıyla örtüşüyor |
+| Yüksek Imbalance | %90 churn oranı modeli zorluyor |
+
+**Denenen İyileştirmeler:**
+- `avg_review_score`, `payment_type`, `monetary_per_order` eklendi → Minimal etki
+- `auto_class_weights='Balanced'` → AUC 0.56'da kaldı
+- Feature crossing → Anlamlı iyileşme yok
+
+**Sonuç:** Bu veri seti yapısı (marketplace, tek seferlik) için churn tahmini inherent olarak zor.
+
+### Lojistik Model
+
+**Denenen İyileştirmeler:**
+- `freight_per_km`, `distance_x_weight`, `is_weekend`, `category_avg_delivery` → RMSE 7.8 (değişim yok)
+
+---
+
+## Troubleshooting
+
+### PostgreSQL "No space left on device" Hatası
+
+```bash
+# Docker kaynaklarını temizle
+docker system prune -a --volumes -f
+
+# Docker Desktop'ta Memory: 4GB+, Disk: 20GB+ olmalı
+```
+
+### Windows'ta Çalıştırma
+
+Docker Desktop for Windows gerekli. WSL2 backend önerilir.
+
+```powershell
+# PowerShell'de
+docker-compose up --build -d
+```
+
+### Notebook Veritabanı Hatası
+
+Docker çalışıyor olmalı:
+```bash
+docker-compose ps  # db servisi UP olmalı
+```
+
+---
+
 ## Veritabanı Optimizasyonu
 
 11 index eklendi:
@@ -182,4 +262,4 @@ GitHub Actions ile:
 
 ---
 
-**Versiyon:** 3.0 | **Güncelleme:** Aralık 2025
+**Versiyon:** 3.1 | **Güncelleme:** Aralık 2025
