@@ -76,10 +76,28 @@ Proje hem Yerel (Local) hem de Docker ortamında çalışacak şekilde tasarlanm
 ### Adım 1: Projeyi İndir
 ```bash
 git clone https://github.com/vamos99/Zero2End-ML-Bootcamp.git
-cd Zero2End-ML-Bootcamp/olist-intelligence
 ```
 
-### Adım 2: Ortam Değişkenlerini Ayarla (.env)
+### Adım 2: Python Ortamını Kurun (Sadece Yerel Çalışma İçin)
+Projenin bağımlılıklarını izole etmek için sanal ortam kurmanız önerilir:
+
+```bash
+# Sanal Ortam Oluştur
+python -m venv venv
+
+# Aktif Et (Mac/Linux)
+source venv/bin/activate
+# Aktif Et (Windows)
+# .\venv\Scripts\activate
+
+# Kütüphaneleri Yükle
+pip install -r requirements.txt
+
+# Kernel'i Notebook'a Tanıt (ÖNEMLİ)
+python -m ipykernel install --user --name=venv --display-name "Python (Olist Project)"
+```
+
+### Adım 3: Ortam Değişkenlerini Ayarla (.env)
 Projenin çalışması için bir `.env` dosyası oluşturun (Örnek dosyadan kopyalayabilirsiniz). Notebooklar ve Docker bu dosyayı kullanır.
 
 ```bash
@@ -90,16 +108,16 @@ copy .env.example .env
 ```
 Ardından `.env` dosyasını açıp **KAGGLE_USERNAME** ve **KAGGLE_KEY** bilgilerinizi ekleyin (Veri indirmek için gereklidir).
 
-### Adım 3: Veri Hazırlığı ve Modeller
+### Adım 4: Veri Hazırlığı ve Modeller
 Proje açıldığında API çalışır (`.pkl` modelleri hazır gelir). Ancak **Dashboard grafiklerinin** dolması için geçmiş tahminlerin üretilmesi gerekir.
 
-**Sırayla Çalıştırın (Zorunlu Kurulum):**
+**Sırayla Çalıştırın:**
 1.  `notebooks/1_general_eda_and_prep.ipynb`: **(Zorunlu)** Veritabanı boşsa [Kaggle Olist Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) verisini indirir ve SQL tablolarını kurar.
 2.  `notebooks/2_logistics_engine.ipynb`: **(Gerekli)** Dashboard'daki "Operasyon" ekranının dolması için lojistik tahminlerini veritabanına yazar.
-3.  `notebooks/4_growth_engine.ipynb`: **(Gerekli)** Dashboard'daki "Müşteri" ekranının dolması için Churn ve Segmentasyon verilerini veritabanına yazar.
+3.  `notebooks/3_customer_sentinel.ipynb`: **(Gerekli)** Churn modelini eğitir ve analiz eder.
+4.  `notebooks/4_growth_engine.ipynb`: **(Gerekli)** Dashboard'daki "Müşteri" ekranının dolması için segmentasyon verilerini veritabanına yazar.
 
 **İsteğe Bağlı Analizler (Opsiyonel):**
-*   `notebooks/3_customer_sentinel.ipynb`: Churn modelinin detaylı analizi ve "Data Leakage" tespiti hikayesi.
 *   `notebooks/5_final_evaluation.ipynb`: Tüm modellerin toplu performans karşılaştırması.
 *   `notebooks/6_executive_pipeline.ipynb`: Yeni gelen haftalık verinin nasıl işleneceğini simüle eden pipeline.
 *Not: Veritabanı (`olist.db`) bu işlem sonunda dolacaktır.*
