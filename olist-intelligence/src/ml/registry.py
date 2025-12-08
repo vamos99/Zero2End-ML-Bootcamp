@@ -7,9 +7,38 @@ import os
 from src.config import MODELS_PATH
 
 
+import requests
+from requests.exceptions import ConnectionError, Timeout
+
+def check_mlflow_connection(tracking_uri: str, timeout: int = 15) -> bool:
+    """
+    Check if MLflow server is reachable with a short timeout.
+    Prevents API hang if MLflow is down.
+    User requested 15s timeout.
+    """
+    if "localhost" not in tracking_uri and "127.0.0.1" not in tracking_uri:
+         # Skip check for remote/databricks URIs usually, or keep it.
+         # For local dev, this is critical.
+         pass
+
+    try:
+        # Ping the health endpoint or root
+        requests.get(f"{tracking_uri}/health", timeout=timeout)
+        return True
+    except (ConnectionError, Timeout):
+        print(f"⚠️ MLflow Server at {tracking_uri} is not reachable (Timeout {timeout}s).")
+        return False
+    except Exception:
+        return False
+
 def get_mlflow_client():
     """Get MLflow client with proper tracking URI."""
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    
+    # Pre-check connection to avoid hang
+    if not check_mlflow_connection(tracking_uri):
+        raise ConnectionError("MLflow Server Unreachable")
+        
     mlflow.set_tracking_uri(tracking_uri)
     return MlflowClient()
 

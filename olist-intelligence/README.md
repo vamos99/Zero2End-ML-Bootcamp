@@ -13,8 +13,10 @@ Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geli
 *   Aynı eyalet = daha hızlı teslimat
 
 ### Problem 2: Müşteri Kaybı (Churn)
-**Sorun:** Hangi müşterilerin platformu terk edeceğini önceden tahmin edemiyoruz.  
-**Çözüm:** Zaman bazlı Churn tanımı (90 gün inaktif = Churn) ve CatBoost Classifier
+**Sorun:** Hangi müşterilerin platformu terk edeceğini önceden tahmin edemiyoruz.
+**Tanım Nedir?:** *Churn*, bir müşterinin platformu kullanmayı bırakması (terk etmesi) demektir.  
+**Bizdeki Karşılığı:** 90 gün boyunca hiç sipariş vermeyen müşteri, sistemimiz tarafından **"Churn" (Kaybedilmiş)** olarak etiketlenir.
+**Çözüm:** CatBoost Classifier ile bu riski taşıyan müşterileri erkenden tespit etmek.
 
 **Neden Bu Yaklaşım?**
 *   İlk yaklaşımda AUC %100 çıkıyordu - bu data leakage'dı (Düzeltildi)
@@ -109,17 +111,32 @@ Tüm servisleri (API, Dashboard, MLflow) tek komutla başlatın.
 docker-compose up --build
 ```
 
-### Seçenek B: Yerel (Local) Çalıştırma
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+### Seçenek B: Hızlı Başlangıç (Script ile)
+Tek komutla MLflow, API ve Dashboard'u aynı anda başlatın:
 
-# API Başlat
-uvicorn src.app:app --reload
-# Dashboard Başlat
-streamlit run src/dashboard.py
+```bash
+chmod +x run_local.sh
+./run_local.sh
 ```
+
+### Seçenek C: Manuel (Adım Adım)
+Eğer her servisi ayrı terminalde görmek isterseniz:
+
+1. **Terminal 1: MLflow Arayüzü (Zorunlu)**
+   ```bash
+   mlflow ui --port 5000
+   ```
+   *(Bunu başlatmazsanız API modelleri yükleyemez ve açılmaz)*
+
+2. **Terminal 2: API**
+   ```bash
+   uvicorn src.app:app --reload
+   ```
+
+3. **Terminal 3: Dashboard**
+   ```bash
+   streamlit run src/dashboard.py
+   ```
 
 ---
 

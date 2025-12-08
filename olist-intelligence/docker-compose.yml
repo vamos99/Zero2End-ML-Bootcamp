@@ -8,12 +8,13 @@ services:
     ports:
       - "5000:5000"
     environment:
-      MLFLOW_BACKEND_STORE_URI: sqlite:////app/mlflow.db
+      MLFLOW_BACKEND_STORE_URI: sqlite:////mlflow_db_data/mlflow.db
       MLFLOW_DEFAULT_ARTIFACT_ROOT: ./mlruns
-    command: mlflow server --backend-store-uri sqlite:////app/mlflow.db --default-artifact-root ./mlruns --host 0.0.0.0 --serve-artifacts
+    command: mlflow server --backend-store-uri sqlite:////mlflow_db_data/mlflow.db --default-artifact-root ./mlruns --host 0.0.0.0 --serve-artifacts
     volumes:
       - ./mlruns:/mlruns
       - .:/app
+      - mlflow_db_data:/mlflow_db_data
     networks:
       - olist_network
     deploy:
@@ -71,3 +72,6 @@ services:
 networks:
   olist_network:
     driver: bridge
+
+volumes:
+  mlflow_db_data:

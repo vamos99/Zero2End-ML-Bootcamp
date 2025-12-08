@@ -35,6 +35,12 @@ class OlistIngestor:
             logger.info("ℹ️ Kaggle credentials env vars not found. Assuming local kaggle.json config or manual download.")
             pass # Kaggle lib will autodetect ~/.kaggle/kaggle.json
 
+        # Cleanup potential corrupted files before retry
+        zip_file = self.data_path / "brazilian-ecommerce.zip"
+        if zip_file.exists():
+            zip_file.unlink()
+            logger.info("🗑️ Removed existing zip file to ensure fresh download.")
+
         try:
             import kaggle
             logger.info(f"⬇️ Downloading {self.KAGGLE_DATASET} from Kaggle...")
@@ -55,8 +61,12 @@ class OlistIngestor:
             raise
         except Exception as e:
             logger.error(f"❌ Failed to download from Kaggle: {e}")
-            logger.error("👉 Please set KAGGLE_USERNAME and KAGGLE_KEY environment variables.")
-            # Don't crash immediately, functionality might be optional if files exist
+            logger.error("👉 Check: 1. .env file has KAGGLE_USERNAME & KAGGLE_KEY. 2. Internet connection. 3. Delete data/raw/*.zip manually.")
+            
+            # Cleanup bad file
+            if zip_file.exists():
+                zip_file.unlink()
+                logger.info("🗑️ Removed corrupted zip file.")
             pass
 
     def get_csv_files(self) -> List[str]:
