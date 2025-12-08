@@ -91,11 +91,15 @@ Ardından `.env` dosyasını açıp **KAGGLE_USERNAME** ve **KAGGLE_KEY** bilgil
 ### Adım 3: Veri Hazırlığı ve Modeller
 Proje açıldığında API çalışır (`.pkl` modelleri hazır gelir). Ancak **Dashboard grafiklerinin** dolması için geçmiş tahminlerin üretilmesi gerekir.
 
-**Sırayla Çalıştırın:**
-1.  `notebooks/1_general_eda_and_prep.ipynb`: **Zorunludur.** Veritabanı boşsa [Kaggle Olist Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) verisini indirir ve kurar.
-2.  `notebooks/2_logistics_engine.ipynb`: Lojistik tahmin tablosunu üretir.
-3.  `notebooks/4_growth_engine.ipynb`: Churn ve Segmentasyon tablosunu üretir.
+**Sırayla Çalıştırın (Zorunlu Kurulum):**
+1.  `notebooks/1_general_eda_and_prep.ipynb`: **(Zorunlu)** Veritabanı boşsa [Kaggle Olist Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) verisini indirir ve SQL tablolarını kurar.
+2.  `notebooks/2_logistics_engine.ipynb`: **(Gerekli)** Dashboard'daki "Operasyon" ekranının dolması için lojistik tahminlerini veritabanına yazar.
+3.  `notebooks/4_growth_engine.ipynb`: **(Gerekli)** Dashboard'daki "Müşteri" ekranının dolması için Churn ve Segmentasyon verilerini veritabanına yazar.
 
+**İsteğe Bağlı Analizler (Opsiyonel):**
+*   `notebooks/3_customer_sentinel.ipynb`: Churn modelinin detaylı analizi ve "Data Leakage" tespiti hikayesi.
+*   `notebooks/5_final_evaluation.ipynb`: Tüm modellerin toplu performans karşılaştırması.
+*   `notebooks/6_executive_pipeline.ipynb`: Yeni gelen haftalık verinin nasıl işleneceğini simüle eden pipeline.
 *Not: Veritabanı (`olist.db`) bu işlem sonunda dolacaktır.*
 
 ### Seçenek A: Docker ile Başlatma (Önerilen)
