@@ -7,6 +7,14 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
+# --- ENVIRONMENT CONFIG FOR CLOUD ---
+# Inject secrets into os.environ so libraries like 'kaggle' can find them
+if hasattr(st, "secrets"):
+    for key, value in st.secrets.items():
+        if key in ["KAGGLE_USERNAME", "KAGGLE_KEY", "DATABASE_URL"]:
+             os.environ[key] = value
+# ------------------------------------
+
 from src.services import analytics_service, action_service
 from src.views import home_view, logistics_view, customer_view, growth_view, ranking_view
 from src.database import repository
