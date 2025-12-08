@@ -250,7 +250,7 @@ def recommend_products(data: RecommendationInput, db: Session = Depends(get_db))
                 scores = user_vector @ product_components
                 
                 # Get Top Indices
-                top_indices = scores.argsort()[::-1][:data.top_k]
+                top_indices = scores.argsort()[::-1][:data.top_k].tolist()
                 recommended_ids = [reverse_product_map.get(int(i), "Unknown Product") for i in top_indices]
                 
                 # Fetch legible names (categories) from DB for better UX

@@ -42,14 +42,15 @@ class TestRepository:
         """Test top sellers query."""
         from src.database.repository import get_top_sellers
         
+        # Create 5 orders for s1 to pass the >=5 order filter
         mock_df = pd.DataFrame({
-            'seller_id': ['s1', 's2'],
-            'price': [1000, 500],
-            'review_score': [5, 4],
-            'order_id': ['o1', 'o2'],
-            'order_delivered_customer_date': ['2024-01-05', '2024-01-06'],
-            'order_estimated_delivery_date': ['2024-01-10', '2024-01-10'],
-            'order_purchase_timestamp': ['2024-01-01', '2024-01-01']
+            'seller_id': ['s1'] * 6,
+            'price': [100.0] * 6,
+            'review_score': [5] * 6,
+            'order_id': [f'o{i}' for i in range(6)],
+            'order_delivered_customer_date': [pd.Timestamp('2024-01-05')] * 6,
+            'order_estimated_delivery_date': [pd.Timestamp('2024-01-10')] * 6,
+            'order_purchase_timestamp': [pd.Timestamp('2024-01-01')] * 6
         })
         
         with patch('pandas.read_sql', return_value=mock_df):
