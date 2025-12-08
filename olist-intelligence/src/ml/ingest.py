@@ -115,6 +115,30 @@ class OlistIngestor:
         except Exception as e:
             logger.error(f"❌ Failed to ingest {file_path}: {e}")
 
+    def load_predictions_from_csv(self):
+        """Loads pre-calculated predictions if available (Streamlit Cloud support)."""
+        try:
+            processed_dir = self.data_path.parent / "processed"
+            
+            # 1. Logistics Predictions
+            log_path = processed_dir / "logistics_predictions.csv"
+            if log_path.exists():
+                logger.info(f"📦 Loading pre-calculated logistics predictions from {log_path}...")
+                df_log = pl.read_csv(log_path).to_pandas()
+                df_log.to_sql("logistics_predictions", self.engine, if_exists="replace", index=False)
+                logger.info("✅ Service restored: Logistics Engine")
+            
+            # 2. Customer Segments
+            seg_path = processed_dir / "customer_segments.csv"
+            if seg_path.exists():
+                logger.info(f"📊 Loading pre-calculated customer segments from {seg_path}...")
+                df_seg = pl.read_csv(seg_path).to_pandas()
+                df_seg.to_sql("customer_segments", self.engine, if_exists="replace", index=False)
+                logger.info("✅ Service restored: Growth Engine")
+                
+        except Exception as e:
+            logger.error(f"⚠️ Failed to load static predictions: {e}")
+
     def run(self):
         """Executes the full ingestion process."""
         logger.info("🚀 Starting Data Ingestion Process...")
