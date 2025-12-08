@@ -1,6 +1,6 @@
 import streamlit as st
 from src.services import action_service
-from src.services.api_client import api_client
+# from src.services.api_client import api_client
 
 def render_logistics_view(risk_count, metrics, df_details):
     st.title("📦 Operasyon Merkezi")
@@ -66,17 +66,13 @@ def render_logistics_view(risk_count, metrics, df_details):
             submitted = st.form_submit_button("Tahmin Et ⏱️")
             
         if submitted:
-            with st.spinner("Model çalışıyor..."):
-                # Call API
-                result = api_client.predict_delivery(
-                    freight=freight,
-                    price=price,
-                    weight=weight,
-                    desc_length=500, # Default
-                    distance=distance,
-                    same_state=1 if same_state else 0,
-                    seller_rating=seller_score
-                )
+            with st.spinner("Model çalışıyor (Demo Modu)..."):
+                # Call API -> Mocked for Cloud
+                # result = api_client.predict_delivery(...)
+                result = {
+                    'predicted_days': distance / 100.0 * 2.5,  # Dummy logic
+                    'risk_level': 'Low' if seller_score > 3 else 'High'
+                }
                 
             if result:
                 days = result.get('predicted_days', 0)
@@ -87,5 +83,6 @@ def render_logistics_view(risk_count, metrics, df_details):
                     st.error(f"Risk Seviyesi: {risk}")
                 else:
                     st.info(f"Risk Seviyesi: {risk}")
+                st.caption("ℹ️ Not: Bu sonuç Streamlit Cloud demo modunda simüle edilmiştir.")
             else:
-                st.error("API Bağlantı Hatası! (Uvicorn çalışıyor mu?)")
+                st.error("Hata!")

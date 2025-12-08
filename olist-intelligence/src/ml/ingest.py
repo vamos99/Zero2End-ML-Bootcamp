@@ -70,30 +70,6 @@ class OlistIngestor:
                 logger.info("🗑️ Removed corrupted zip file.")
             pass
 
-    def load_predictions_from_csv(self):
-        """Loads pre-calculated predictions if available (Streamlit Cloud support)."""
-        try:
-            processed_dir = self.project_root / "data" / "processed"
-            
-            # 1. Logistics Predictions
-            log_path = processed_dir / "logistics_predictions.csv"
-            if log_path.exists():
-                print(f"📦 Loading pre-calculated logistics predictions from {log_path}...")
-                df_log = pd.read_csv(log_path)
-                df_log.to_sql("logistics_predictions", self.engine, if_exists="replace", index=False)
-                print("✅ Service restored: Logistics Engine")
-            
-            # 2. Customer Segments
-            seg_path = processed_dir / "customer_segments.csv"
-            if seg_path.exists():
-                print(f"📊 Loading pre-calculated customer segments from {seg_path}...")
-                df_seg = pd.read_csv(seg_path)
-                df_seg.to_sql("customer_segments", self.engine, if_exists="replace", index=False)
-                print("✅ Service restored: Growth Engine")
-                
-        except Exception as e:
-            print(f"⚠️ Failed to load static predictions: {e}")
-
     def get_csv_files(self) -> List[str]:
         """Scans the data directory for CSV files. Downloads if empty."""
         

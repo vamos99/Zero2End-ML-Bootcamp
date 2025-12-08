@@ -17,18 +17,19 @@ def simulate_impact(action_name):
     }
     return impact_map.get(action_name, {"cost": 0, "saved": 0, "roi": "N/A"})
 
-import requests
-from src.config import API_URL
+# import requests  <-- Removed for Cloud
+# from src.config import API_URL
 
 def get_recommendations(customer_id: str):
     """
-    Call the API to get personalized product recommendations.
+    Mock recommendations for Streamlit Cloud (API is removed).
     """
-    try:
-        response = requests.post(f"{API_URL}/recommend", json={"customer_id": customer_id, "top_k": 5})
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return {"error": f"API Error: {response.status_code}"}
-    except Exception as e:
-        return {"error": f"Connection Error: {e}"}
+    return {
+        "recommendations": [
+            "cool_stuff (Mock Product 1)", 
+            "util (Relogio)", 
+            "belez_saude (Cream)",
+            "informatica_acessorios (Mouse)",
+            "cama_mesa_banho (Towel)"
+        ]
+    }

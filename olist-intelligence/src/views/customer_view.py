@@ -1,7 +1,7 @@
 import streamlit as st
 from src.services import action_service, analytics_service
 from src.database import repository
-from src.services.api_client import api_client
+# from src.services.api_client import api_client
 
 def render_customer_view(risk_churn):
     st.title("🤝 Müşteri Sadakati (Retention)")
@@ -125,12 +125,14 @@ def render_customer_view(risk_churn):
             submitted = st.form_submit_button("Risk Hesapla 🚨")
             
         if submitted:
-            with st.spinner("Model tahmin yapıyor..."):
-                result = api_client.predict_churn(
-                    days_since=recency,
-                    frequency=freq,
-                    monetary=money
-                )
+            with st.spinner("Model tahmin yapıyor (Demo Modu)..."):
+                # result = api_client.predict_churn(...)
+                import random
+                mock_prob = random.uniform(0.1, 0.9)
+                result = {
+                    'churn_probability': mock_prob,
+                    'risk_level': 'High' if mock_prob > 0.7 else 'Medium' if mock_prob > 0.4 else 'Low'
+                }
                 
             if result:
                 prob = result.get('churn_probability', 0)
@@ -144,5 +146,6 @@ def render_customer_view(risk_churn):
                     st.warning(f"Risk Seviyesi: {risk} (Orta)")
                 else:
                     st.success(f"Risk Seviyesi: {risk} (Düşük)")
+                st.caption("ℹ️ Not: Bu sonuç Streamlit Cloud demo modunda simüle edilmiştir.")
             else:
-                st.error("API Hatası! Uvicorn çalışıyor mu?")
+                st.error("Hata!")
