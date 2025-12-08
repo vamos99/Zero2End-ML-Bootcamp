@@ -10,6 +10,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./olist-intelligence
     
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +36,9 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./olist-intelligence
     steps:
       - uses: actions/checkout@v4
       
