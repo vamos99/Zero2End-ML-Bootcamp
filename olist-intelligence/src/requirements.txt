@@ -1,0 +1,26 @@
+# Core
+pandas>=2.2.0
+numpy<3.0.0
+polars>=1.0.0
+
+# Database
+sqlalchemy==2.0.44
+# psycopg2-binary needed? No, using sqlite defaults. But config has postgres code. Keep it lightweight or remove? 
+# Config has 'import os'. ingest uses sqlalchemy for sqlite. 
+# Streamlit Cloud might need psycopg2 if using postgres secrets? 
+# Just keep it, it's small.
+psycopg2-binary==2.9.10 
+connectorx>=0.4.3
+pyarrow>=19.0.0
+
+# Dashboard
+streamlit==1.52.0
+plotly==5.24.1
+# kaleido not needed for live dashboard, only for static export
+# kaleido==0.2.1
+
+# Utils
+python-dotenv==1.2.1
+requests==2.32.5
+tenacity==9.0.0
+kaggle>=1.6.14
