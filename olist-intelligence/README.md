@@ -1,5 +1,25 @@
 # Olist Intelligence Suite
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://zero2end-ml-bootcamp.streamlit.app/)
+
 Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geliştirilmiş uçtan uca Veri Bilimi ve İş Zekası çözümü.
+
+[📄 Proje Raporunu İndir (PDF)](docs/reports/Zero2End_ML_Bootcamp_Project_Report.pdf)
+
+## Uygulama Ekran Görüntüleri (Showcase)
+
+| **Ana Sayfa (Dashboard)** | **Operasyon Merkezi** |
+|:---:|:---:|
+| ![Ana Sayfa](docs/assets/img/dashboard_home.png) | ![Operasyon](docs/assets/img/operations_overview.png) |
+
+| **Müşteri Sadakati (Retention)** | **Segmentasyon Analizi** |
+|:---:|:---:|
+| ![Sadakat](docs/assets/img/customer_loyalty_overview.png) | ![Segmentasyon](docs/assets/img/segmentation_overview.png) |
+
+| **Ranking & Trends** | **Ürün Öneri Motoru** |
+|:---:|:---:|
+| ![Ranking](docs/assets/img/ranking_top_categories_revenue.png) | ![Öneri](docs/assets/img/customer_loyalty_recommendations.png) |
+
+---
 
 ## Problem & Çözüm
 
@@ -13,7 +33,7 @@ Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geli
 *   Aynı eyalet = daha hızlı teslimat
 
 ### Problem 2: Müşteri Kaybı (Churn)
-**Sorun:** Hangi müşterilerin platformu terk edeceğini önceden tahmin edemiyoruz.
+**Sorun:** Hangi müşterilerin platformu terk edeceğini önceden tahmin edemiyoruz.  
 **Tanım Nedir?:** *Churn*, bir müşterinin platformu kullanmayı bırakması (terk etmesi) demektir.  
 **Bizdeki Karşılığı:** 90 gün boyunca hiç sipariş vermeyen müşteri, sistemimiz tarafından **"Churn" (Kaybedilmiş)** olarak etiketlenir.
 **Çözüm:** CatBoost Classifier ile bu riski taşıyan müşterileri erkenden tespit etmek.
@@ -192,6 +212,7 @@ notebooks/
 
 data/               # CSV dosyaları (Git-ignored)
 models/             # Eğitilmiş modeller (.pkl)
+docs/               # Proje dökümanları ve görseller
 ```
 
 ## Model Performansı
@@ -213,4 +234,4 @@ models/             # Eğitilmiş modeller (.pkl)
 *   **Docker Port Hatası:** Yerelde çalışan servisleri (`Ctrl+C`) kapatıp `docker-compose`'u yeniden başlatın.
 
 ---
-**Versiyon:** 2.0 | **Güncelleme:** Aralık 2025
+**Versiyon:** 2.1 | **Güncelleme:** Aralık 2025
