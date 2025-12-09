@@ -6,7 +6,7 @@ Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geli
 Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geliştirilmiş uçtan uca Veri Bilimi ve İş Zekası çözümü.
 
 > [!NOTE]
-> Bu proje, **Miuul Data Science Bootcamp** bitirme projesi kapsamında verilen talimatlara uygun olarak hazırlanmıştır.
+> Bu proje, **Zero2End ML Bootcamp** bitirme projesi kapsamında verilen talimatlara uygun olarak hazırlanmıştır.
 > 📄 [Bootcamp Proje Talimatlarını İncele (PDF)](docs/reports/Zero2End_ML_Bootcamp_Project_Report.pdf)
 
 ## ✅ Proje Gereksinimleri ve Karşılanma Durumu

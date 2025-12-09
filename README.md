@@ -1,6 +1,6 @@
 # Zero2End ML Bootcamp - Final Project 🚀
 
-**Miuul Data Science Bootcamp** bitirme projesi (Capstone Project) için hazırlanmış kod deposudur.
+**Zero2End ML Bootcamp** bitirme projesi (Capstone Project) için hazırlanmış kod deposudur.
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://zero2end-ml-bootcamp.streamlit.app/)
 
