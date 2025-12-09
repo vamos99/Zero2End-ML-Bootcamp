@@ -3,9 +3,25 @@
 
 Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geliştirilmiş uçtan uca Veri Bilimi ve İş Zekası çözümü.
 
-[📄 Proje Raporunu İndir (PDF)](docs/reports/Zero2End_ML_Bootcamp_Project_Report.pdf)
+Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geliştirilmiş uçtan uca Veri Bilimi ve İş Zekası çözümü.
 
-## Uygulama Ekran Görüntüleri (Showcase)
+> [!NOTE]
+> Bu proje, **Miuul Data Science Bootcamp** bitirme projesi kapsamında verilen talimatlara uygun olarak hazırlanmıştır.
+> 📄 [Bootcamp Proje Talimatlarını İncele (PDF)](docs/reports/Zero2End_ML_Bootcamp_Project_Report.pdf)
+
+## ✅ Proje Gereksinimleri ve Karşılanma Durumu
+
+Proje talimatlarında belirtilen kriterlerin tamamı başarıyla uygulanmıştır:
+
+| Gereksinim | Durum | Uygulama Detayı |
+|------------|-------|-----------------|
+| **Veri Analizi (EDA)** | ✅ Tamamlandı | Notebook 1'de detaylı veri keşfi ve temizliği yapıldı. |
+| **Model Geliştirme** | ✅ Tamamlandı | CatBoost (Lojistik & Churn) ve SVD (Öneri) modelleri eğitildi. |
+| **Pipeline Kurulumu** | ✅ Tamamlandı | Veri indirme -> İşleme -> Eğitim -> Tahmin akışı otomatize edildi (`ingest.py`). |
+| **Deployment** | ✅ Tamamlandı | Streamlit kullanarak interaktif dashboard geliştirildi ve Cloud'a yüklendi. |
+| **Kod Kalitesi** | ✅ Tamamlandı | Modüler yapı (`src/`), OOP prensipleri ve Docstring kullanımı. |
+| **Raporlama** | ✅ Tamamlandı | Readme dosyası ve Notebook içi Markdown açıklamaları ile süreç dökümante edildi. |
+
 
 | **Ana Sayfa (Dashboard)** | **Operasyon Merkezi** |
 |:---:|:---:|
