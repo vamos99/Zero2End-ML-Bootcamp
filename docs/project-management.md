@@ -2,6 +2,10 @@
 
 This document keeps the portfolio project manageable in GitHub Issues and GitHub Projects without adding heavy process.
 
+## Live Board
+
+- GitHub Project: https://github.com/users/vamos99/projects/3
+
 ## Workflow
 
 Use a GitHub Projects board with these fields:
