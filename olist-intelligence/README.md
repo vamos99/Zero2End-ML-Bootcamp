@@ -1,9 +1,7 @@
 # Olist Intelligence Suite
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://zero2end-ml-bootcamp.streamlit.app/)
 
-Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geliştirilmiş uçtan uca Veri Bilimi ve İş Zekası çözümü.
-
-Brezilya'nın en büyük e-ticaret platformu Olist'in verilerini kullanarak geliştirilmiş uçtan uca Veri Bilimi ve İş Zekası çözümü.
+Olist e-ticaret veri seti ile hazırlanmış analitik dashboard ve ML workflow prototipi. Proje; veri hazırlama, SQL ile yeniden kullanılabilir metrik mantığı, tahmin servisleri ve teknik olmayan kullanıcı için karar odaklı dashboard anlatımını bir araya getirir.
 
 > [!NOTE]
 > Bu proje, **Zero2End ML Bootcamp** bitirme projesi kapsamında verilen talimatlara uygun olarak hazırlanmıştır.
@@ -21,6 +19,7 @@ Proje talimatlarında belirtilen kriterlerin tamamı başarıyla uygulanmıştı
 | **Deployment** | ✅ Tamamlandı | Streamlit kullanarak interaktif dashboard geliştirildi ve Cloud'a yüklendi. |
 | **Kod Kalitesi** | ✅ Tamamlandı | Modüler yapı (`src/`), OOP prensipleri ve Docstring kullanımı. |
 | **Raporlama** | ✅ Tamamlandı | Readme dosyası ve Notebook içi Markdown açıklamaları ile süreç dökümante edildi. |
+| **Analitik SQL Katmanı** | ✅ Eklendi | `sql/views/` altında dashboard ve veri modeli için tekrar kullanılabilir view örnekleri. |
 
 
 | **Ana Sayfa (Dashboard)** | **Operasyon Merkezi** |
@@ -63,6 +62,29 @@ Proje talimatlarında belirtilen kriterlerin tamamı başarıyla uygulanmıştı
 **Sorun:** Tüm müşterilere aynı pazarlama yapılıyor.  
 **Çözüm:** RFM + K-Means ile segmentasyon (5 segment)
 
+## Analytics & Data Engineering Açısı
+
+Bu proje production seviyesinde bir veri platformu iddiası taşımaz; bootcamp kapsamındaki veri setini daha okunabilir bir analitik ürüne dönüştürmeyi hedefler.
+
+| Katman | Bu Projede Karşılığı |
+|--------|-----------------------|
+| **Raw data** | Kaggle Olist CSV dosyaları (`data/raw`, Git'e dahil değil) |
+| **Ingestion** | `src/ml/ingest.py` ile CSV -> SQLite/Postgres uyumlu tablo akışı |
+| **Analytics model** | `sql/views/` altında revenue, delivery quality, seller performance ve segment view'ları |
+| **ML workflow** | Notebooklar ve `src/ml/` altında lojistik, churn ve öneri prototipleri |
+| **Serving** | FastAPI endpointleri ve Streamlit dashboard |
+| **Quality checks** | Pytest tabanlı servis/repository testleri ve GitHub Actions CI |
+
+### SQL View'ları
+
+SQL dosyaları, dashboard metriklerinin nasıl yeniden kullanılabilir analitik çıktılara çevrilebileceğini göstermek için eklendi.
+
+```bash
+python scripts/apply_sql_views.py
+```
+
+Bu komut, lokal `olist.db` veya `DATABASE_URL` ile tanımlanmış veritabanı üzerinde `sql/views/` altındaki view'ları uygular.
+
 ---
 
 ## Teknoloji Tercihleri
@@ -70,6 +92,7 @@ Proje talimatlarında belirtilen kriterlerin tamamı başarıyla uygulanmıştı
 | Teknoloji | Neden? |
 |-----------|--------|
 | **SQLite** | Local geliştirme ve taşınabilirlik için ideal (Konfigürasyon gerektirmez) |
+| **SQL Views** | Dashboard metriklerini notebook dışına çıkarıp tekrar kullanılabilir hale getirir |
 | **Streamlit** | React ile aylar sürecek işi günlere indirir |
 | **Docker** | "Benim bilgisayarımda çalışıyordu" problemini çözer |
 | **Polars** | ETL'de Pandas'tan 10x hızlı |
@@ -91,7 +114,7 @@ Proje talimatlarında belirtilen kriterlerin tamamı başarıyla uygulanmıştı
 *   **5 Segment:** Şampiyonlar, Sadıklar, Potansiyeller, Riskli, Uyuyanlar
 
 ### Dashboard
-*   **5 Sayfa:** Ana Sayfa, Operasyon, Müşteri, Segmentasyon, Ranking
+*   **5 Sayfa:** Executive overview, Operasyon, Müşteri, Segmentasyon, Ranking
 *   **ROI Simülasyonu:** Kampanya maliyet/getiri analizi
 
 ### API
@@ -229,6 +252,8 @@ notebooks/
 data/               # CSV dosyaları (Git-ignored)
 models/             # Eğitilmiş modeller (.pkl)
 docs/               # Proje dökümanları ve görseller
+sql/views/          # Analitik SQL view örnekleri
+scripts/            # Lokal yardımcı scriptler
 ```
 
 ## Model Performansı
