@@ -6,11 +6,25 @@ def get_daily_pulse(start_date, end_date):
     total_orders = repository.get_total_orders(start_date, end_date)
     risk_logistics = repository.get_logistics_risk_count(start_date, end_date)
     risk_churn = repository.get_churn_risk_count()
+    revenue_metrics = repository.get_revenue_metrics(start_date, end_date)
+    quality_metrics = repository.get_review_delivery_quality(start_date, end_date)
     
     return {
         "total_orders": total_orders,
         "risk_logistics": risk_logistics,
-        "risk_churn": risk_churn
+        "risk_churn": risk_churn,
+        **revenue_metrics,
+        **quality_metrics,
+    }
+
+def get_executive_dashboard_data(start_date, end_date):
+    """Prepares summary charts for the executive home page."""
+    revenue_by_state = repository.get_revenue_by_state(start_date, end_date)
+    review_delivery_matrix = repository.get_review_delivery_matrix(start_date, end_date)
+
+    return {
+        "revenue_by_state": revenue_by_state,
+        "review_delivery_matrix": review_delivery_matrix,
     }
 
 def get_logistics_data(start_date, end_date):

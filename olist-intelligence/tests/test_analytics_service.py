@@ -10,6 +10,17 @@ def test_get_daily_pulse(mock_repository):
     mock_repository.get_total_orders.return_value = 1000
     mock_repository.get_logistics_risk_count.return_value = 50
     mock_repository.get_churn_risk_count.return_value = 200
+    mock_repository.get_revenue_metrics.return_value = {
+        "total_revenue": 25000.0,
+        "avg_order_value": 25.0,
+        "unique_customers": 800,
+        "revenue_per_customer": 31.25,
+    }
+    mock_repository.get_review_delivery_quality.return_value = {
+        "avg_review_score": 4.2,
+        "late_delivery_rate": 8.5,
+        "review_count": 900,
+    }
     
     # Execute
     result = analytics_service.get_daily_pulse("2017-01-01", "2017-01-31")
@@ -18,10 +29,25 @@ def test_get_daily_pulse(mock_repository):
     assert result["total_orders"] == 1000
     assert result["risk_logistics"] == 50
     assert result["risk_churn"] == 200
+    assert result["total_revenue"] == 25000.0
+    assert result["late_delivery_rate"] == 8.5
     
     # Verify calls
     mock_repository.get_total_orders.assert_called_once()
     mock_repository.get_logistics_risk_count.assert_called_once()
+
+@patch('src.services.analytics_service.repository')
+def test_get_executive_dashboard_data(mock_repository):
+    """Test executive dashboard chart data preparation."""
+    state_df = pd.DataFrame({"customer_state": ["SP"], "revenue": [1000], "order_count": [10]})
+    quality_df = pd.DataFrame({"review_score": [5], "late_delivery_rate": [2.5], "order_count": [10]})
+    mock_repository.get_revenue_by_state.return_value = state_df
+    mock_repository.get_review_delivery_matrix.return_value = quality_df
+
+    result = analytics_service.get_executive_dashboard_data("2017-01-01", "2017-01-31")
+
+    assert result["revenue_by_state"].equals(state_df)
+    assert result["review_delivery_matrix"].equals(quality_df)
 
 @patch('src.services.analytics_service.repository')
 def test_get_logistics_data(mock_repository):
