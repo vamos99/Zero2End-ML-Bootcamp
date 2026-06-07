@@ -25,6 +25,7 @@ Tüm kaynak kodlar, notebooklar ve dökümantasyon **`olist-intelligence/`** kla
 - **Proje Talimatları:** [PDF](olist-intelligence/docs/reports/Zero2End_ML_Bootcamp_Project_Report.pdf)
 - **Canlı Demo:** [Streamlit App](https://zero2end-ml-bootcamp.streamlit.app/)
 - **Detaylı Dökümantasyon:** [Olist Intelligence README](olist-intelligence/README.md)
+- **Mimari / Akış:** [Project Architecture](docs/architecture.md)
 - **Proje Yönetimi:** [GitHub Projects / Backlog Guide](docs/project-management.md)
 
 ---
