@@ -20,6 +20,149 @@ def get_date_range():
     result = pd.read_sql(text(query), engine)
     return result.iloc[0, 0], result.iloc[0, 1]
 
+def get_revenue_metrics(start_date, end_date):
+    """Returns executive revenue metrics for the selected order window."""
+    query = text("""
+    WITH order_value AS (
+        SELECT
+            order_id,
+            SUM(price) AS product_revenue,
+            SUM(freight_value) AS freight_revenue
+        FROM order_items
+        GROUP BY order_id
+    )
+    SELECT
+        o.order_id,
+        o.customer_id,
+        COALESCE(ov.product_revenue, 0) AS product_revenue,
+        COALESCE(ov.freight_revenue, 0) AS freight_revenue
+    FROM orders o
+    LEFT JOIN order_value ov ON o.order_id = ov.order_id
+    WHERE DATE(o.order_purchase_timestamp) BETWEEN DATE(:start_date) AND DATE(:end_date)
+    """)
+
+    try:
+        df = pd.read_sql(query, engine, params={"start_date": start_date, "end_date": end_date})
+    except Exception:
+        return {
+            "total_revenue": 0.0,
+            "avg_order_value": 0.0,
+            "unique_customers": 0,
+            "revenue_per_customer": 0.0,
+        }
+
+    if df.empty:
+        return {
+            "total_revenue": 0.0,
+            "avg_order_value": 0.0,
+            "unique_customers": 0,
+            "revenue_per_customer": 0.0,
+        }
+
+    total_orders = df["order_id"].nunique()
+    unique_customers = df["customer_id"].nunique()
+    total_revenue = float(df["product_revenue"].sum())
+
+    return {
+        "total_revenue": total_revenue,
+        "avg_order_value": total_revenue / total_orders if total_orders else 0.0,
+        "unique_customers": int(unique_customers),
+        "revenue_per_customer": total_revenue / unique_customers if unique_customers else 0.0,
+    }
+
+def get_review_delivery_quality(start_date, end_date):
+    """Summarizes review and delivery quality for the selected order window."""
+    query = text("""
+    SELECT
+        o.order_id,
+        o.order_delivered_customer_date,
+        o.order_estimated_delivery_date,
+        r.review_score,
+        CASE
+            WHEN o.order_delivered_customer_date IS NULL THEN NULL
+            WHEN o.order_estimated_delivery_date IS NULL THEN NULL
+            WHEN o.order_delivered_customer_date > o.order_estimated_delivery_date THEN 1
+            ELSE 0
+        END AS is_late
+    FROM orders o
+    LEFT JOIN order_reviews r ON o.order_id = r.order_id
+    WHERE DATE(o.order_purchase_timestamp) BETWEEN DATE(:start_date) AND DATE(:end_date)
+    """)
+
+    try:
+        df = pd.read_sql(query, engine, params={"start_date": start_date, "end_date": end_date})
+    except Exception:
+        return {"avg_review_score": 0.0, "late_delivery_rate": 0.0, "review_count": 0}
+
+    if df.empty:
+        return {"avg_review_score": 0.0, "late_delivery_rate": 0.0, "review_count": 0}
+
+    delivered = df[df["is_late"].notna()]
+
+    return {
+        "avg_review_score": float(df["review_score"].dropna().mean()) if df["review_score"].notna().any() else 0.0,
+        "late_delivery_rate": float(delivered["is_late"].mean() * 100) if not delivered.empty else 0.0,
+        "review_count": int(df["review_score"].notna().sum()),
+    }
+
+def get_revenue_by_state(start_date, end_date, limit=12):
+    """Returns customer-state revenue ranking for the executive dashboard."""
+    query = text("""
+    WITH order_value AS (
+        SELECT
+            order_id,
+            SUM(price) AS product_revenue
+        FROM order_items
+        GROUP BY order_id
+    )
+    SELECT
+        c.customer_state,
+        COUNT(DISTINCT o.order_id) AS order_count,
+        SUM(COALESCE(ov.product_revenue, 0)) AS revenue
+    FROM orders o
+    JOIN customers c ON o.customer_id = c.customer_id
+    LEFT JOIN order_value ov ON o.order_id = ov.order_id
+    WHERE DATE(o.order_purchase_timestamp) BETWEEN DATE(:start_date) AND DATE(:end_date)
+    GROUP BY c.customer_state
+    ORDER BY revenue DESC
+    LIMIT :limit
+    """)
+
+    try:
+        return pd.read_sql(
+            query,
+            engine,
+            params={"start_date": start_date, "end_date": end_date, "limit": limit},
+        )
+    except Exception:
+        return pd.DataFrame(columns=["customer_state", "order_count", "revenue"])
+
+def get_review_delivery_matrix(start_date, end_date):
+    """Returns review-score delivery quality for a simple driver chart."""
+    query = text("""
+    SELECT
+        r.review_score,
+        COUNT(DISTINCT o.order_id) AS order_count,
+        AVG(
+            CASE
+                WHEN o.order_delivered_customer_date IS NULL THEN NULL
+                WHEN o.order_estimated_delivery_date IS NULL THEN NULL
+                WHEN o.order_delivered_customer_date > o.order_estimated_delivery_date THEN 1.0
+                ELSE 0.0
+            END
+        ) * 100 AS late_delivery_rate
+    FROM orders o
+    JOIN order_reviews r ON o.order_id = r.order_id
+    WHERE DATE(o.order_purchase_timestamp) BETWEEN DATE(:start_date) AND DATE(:end_date)
+    GROUP BY r.review_score
+    ORDER BY r.review_score
+    """)
+
+    try:
+        return pd.read_sql(query, engine, params={"start_date": start_date, "end_date": end_date})
+    except Exception:
+        return pd.DataFrame(columns=["review_score", "order_count", "late_delivery_rate"])
+
 def get_logistics_metrics(start_date, end_date):
     """Calculates dynamic KPIs for Logistics (DB Agnostic)."""
     # 1. Fetch Raw Data needed for KPIs

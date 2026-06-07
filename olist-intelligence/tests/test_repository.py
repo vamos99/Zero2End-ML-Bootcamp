@@ -56,3 +56,42 @@ class TestRepository:
         with patch('pandas.read_sql', return_value=mock_df):
             result = get_top_sellers(10)
             assert not result.empty
+
+    @patch('src.database.repository.engine')
+    def test_get_revenue_metrics(self, mock_engine):
+        """Test executive revenue metric calculation."""
+        from src.database.repository import get_revenue_metrics
+
+        mock_df = pd.DataFrame({
+            'order_id': ['o1', 'o2'],
+            'customer_id': ['c1', 'c1'],
+            'product_revenue': [100.0, 50.0],
+            'freight_revenue': [10.0, 5.0],
+        })
+
+        with patch('pandas.read_sql', return_value=mock_df):
+            result = get_revenue_metrics('2024-01-01', '2024-01-31')
+
+            assert result['total_revenue'] == 150.0
+            assert result['avg_order_value'] == 75.0
+            assert result['unique_customers'] == 1
+
+    @patch('src.database.repository.engine')
+    def test_get_review_delivery_quality(self, mock_engine):
+        """Test delivery and review quality metric calculation."""
+        from src.database.repository import get_review_delivery_quality
+
+        mock_df = pd.DataFrame({
+            'order_id': ['o1', 'o2'],
+            'order_delivered_customer_date': ['2024-01-05', '2024-01-15'],
+            'order_estimated_delivery_date': ['2024-01-07', '2024-01-10'],
+            'review_score': [5, 2],
+            'is_late': [0, 1],
+        })
+
+        with patch('pandas.read_sql', return_value=mock_df):
+            result = get_review_delivery_quality('2024-01-01', '2024-01-31')
+
+            assert result['avg_review_score'] == 3.5
+            assert result['late_delivery_rate'] == 50.0
+            assert result['review_count'] == 2

@@ -84,7 +84,8 @@ st.sidebar.info("v3.1.0 - Enhanced Analytics")
 
 if page == "Ana Sayfa":
     metrics = analytics_service.get_daily_pulse(start_date, end_date)
-    home_view.render_home_view(metrics)
+    executive_data = analytics_service.get_executive_dashboard_data(start_date, end_date)
+    home_view.render_home_view(metrics, executive_data)
 
 elif page == "📦 Operasyon Merkezi":
     risk_count, metrics, df_details = analytics_service.get_logistics_data(start_date, end_date)

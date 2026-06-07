@@ -1,5 +1,6 @@
 import os
 import glob
+import pandas as pd
 import polars as pl
 from sqlalchemy import create_engine
 from typing import List
@@ -23,6 +24,7 @@ class OlistIngestor:
     def __init__(self, db_url: str, data_path: str):
         self.db_url = db_url
         self.data_path = Path(data_path)
+        self.project_root = self.data_path.parent.parent
         self.engine = create_engine(self.db_url)
 
     def download_from_kaggle(self):
