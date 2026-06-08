@@ -25,6 +25,14 @@ cd olist-intelligence
 python scripts/apply_sql_views.py
 ```
 
+Before applying views or running model notebooks, validate that the local raw
+CSV files or the ingested database still match the Kaggle Olist source contract:
+
+```bash
+python scripts/validate_olist_schema.py --target csv
+python scripts/validate_olist_schema.py --target db
+```
+
 For manual SQLite inspection:
 
 ```bash

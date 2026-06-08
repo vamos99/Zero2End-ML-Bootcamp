@@ -48,3 +48,7 @@ against the Olist source tables.
 with `scripts/apply_sql_views.py`, and checks the expected revenue, review,
 late-delivery and segment aggregates. This keeps the SQL layer testable without
 requiring the full Kaggle dataset.
+
+`tests/test_data_contract.py` validates the expected Kaggle source contract:
+9 CSV files, 52 source columns, the repository's CSV-to-table naming convention,
+and a SQLite smoke check for the ingested table schema.
