@@ -45,12 +45,17 @@ Recommended board columns:
 
 | Priority | Area | Task | Acceptance Criteria |
 | --- | --- | --- | --- |
-| P1 | analytics | Add metric dictionary for executive KPIs | Each KPI has source table/view, grain, formula, and caveat. |
 | P1 | dashboard | Add date and segment filters to dashboard | Filters update cards and charts consistently. |
-| P1 | data-pipeline | Add SQL reconciliation smoke checks | SQLite views reconcile against source CSV extracts. |
 | P2 | ml | Add model card for delivery/churn prototypes | Model purpose, features, limits, and validation notes are documented. |
-| P2 | ci | Add a small sample-data test fixture | CI can run without depending on full local datasets. |
 | P2 | docs | Add dashboard walkthrough screenshots | README shows the default executive view and key decision points. |
+
+## Recently Done
+
+| Area | Task | Evidence |
+| --- | --- | --- |
+| analytics | Add metric dictionary for executive KPIs | `olist-intelligence/sql/METRICS.md` |
+| data-pipeline | Add SQL reconciliation smoke checks | `olist-intelligence/tests/test_sql_views.py` |
+| ci | Add a small sample-data test fixture | SQLite fixture in `test_sql_views.py` |
 
 ## Sprint Plan
 
@@ -80,4 +85,5 @@ Recommended board columns:
 
 ## GitHub Projects Setup
 
-Create a repository project named `Olist Analytics Portfolio Board`, add the fields above, then use the issue templates in `.github/ISSUE_TEMPLATE/` for new work.
+The project board already exists. Keep future issues small and link PRs back to
+the board items when implementation starts.

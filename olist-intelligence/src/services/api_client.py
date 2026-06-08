@@ -1,7 +1,12 @@
 """API Client for Dashboard to communicate with FastAPI backend."""
+import logging
 import os
-import requests
 from typing import Dict, List, Optional
+
+import requests
+
+
+logger = logging.getLogger(__name__)
 
 
 class APIClient:
@@ -11,8 +16,8 @@ class APIClient:
         # Prefer 127.0.0.1 for local env to avoid MacOS localhost issues
         default_url = "http://127.0.0.1:8000"
         self.base_url = base_url or os.getenv("API_URL", default_url)
-        self.api_key = api_key or os.getenv("API_KEY", "olist-dev-key-2024")
-        self.headers = {"X-API-KEY": self.api_key}
+        self.api_key = api_key or os.getenv("API_KEY")
+        self.headers = {"X-API-KEY": self.api_key} if self.api_key else {}
     
     def _handle_request(self, method: str, endpoint: str, **kwargs) -> Optional[Dict]:
         """Generic request handler with detailed error logging."""
@@ -22,9 +27,9 @@ class APIClient:
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
-            print(f"❌ API Error [{method} {endpoint}]: {e}")
+            logger.warning("API request failed [%s %s]: %s", method, endpoint, e)
             if response := getattr(e, 'response', None):
-                print(f"📜 Detailed Response: {response.text}")
+                logger.debug("API response body [%s %s]: %s", method, endpoint, response.text)
             return None
 
     def predict_delivery(self, freight: float, price: float, weight: float,
