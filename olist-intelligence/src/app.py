@@ -1,27 +1,33 @@
-from fastapi import FastAPI, HTTPException, Depends, Security
+import logging
+import os
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+import pandas as pd
+from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-import os
-import sys
-from pathlib import Path
-import pickle
-from contextlib import asynccontextmanager
-from src.config import DATABASE_URL, MODELS_PATH
-import pandas as pd
+from sqlalchemy.orm import Session, sessionmaker
+
+from src.config import DATABASE_URL
 
 # Add project root to path
 # (Required for local debugging if running script directly)
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
+logger = logging.getLogger(__name__)
+
 # ============== API KEY SECURITY ==============
-API_KEY = os.getenv("API_KEY", "olist-dev-key-2024")  # Default for development
+API_KEY = os.getenv("API_KEY")
 api_key_header = APIKeyHeader(name="X-API-KEY", auto_error=False)
 
 async def verify_api_key(api_key: str = Security(api_key_header)):
     """Verify API key for protected endpoints."""
+    if not API_KEY:
+        raise HTTPException(status_code=503, detail="API key is not configured")
     if api_key is None or api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API Key")
     return api_key
@@ -51,24 +57,24 @@ async def lifespan(app: FastAPI):
         try:
             models["logistics"] = load_production_model("logistics", flavor="catboost")
         except Exception as e:
-            print(f"Failed to load logistics: {e}")
+            logger.warning("Failed to load logistics model: %s", e)
 
         # Load Churn (CatBoost)
         try:
             models["churn"] = load_production_model("churn", flavor="catboost")
         except Exception as e:
-            print(f"Failed to load churn: {e}")
+            logger.warning("Failed to load churn model: %s", e)
 
         # Load Recommender (Dict - Local Fallback usually)
         try:
             # Recommender is not fully in Registry yet, uses local fallback path in registry
             models["recommender"] = load_production_model("recommender", flavor="sklearn")
         except Exception as e:
-            print(f"Failed to load recommender: {e}")
+            logger.warning("Failed to load recommender model: %s", e)
             
-        print("✅ Models loaded successfully")
+        logger.info("Model loading completed. loaded_models=%s", sorted(models))
     except Exception as e:
-        print(f"⚠️ Failed to load models: {e}")
+        logger.exception("Failed to initialize model registry: %s", e)
     yield
     models.clear()
 
@@ -154,8 +160,8 @@ def predict_churn(data: ChurnInput):
             "risk_level": "Critical" if prob > 0.7 else "Medium" if prob > 0.4 else "Low"
         }
     except Exception as e:
-        print(f"⚠️ Churn Prediction Error: {e}")
-        raise HTTPException(status_code=500, detail=f"Prediction Error: {str(e)}")
+        logger.exception("Churn prediction failed: %s", e)
+        raise HTTPException(status_code=500, detail="Prediction Error")
 
 # Pydantic Models
 class LogisticsPrediction(BaseModel):
@@ -170,7 +176,6 @@ class CustomerSegment(BaseModel):
     frequency: float
     monetary: float
     cluster: int
-    cluster: int
     segment: str
 
 class RecommendationInput(BaseModel):
@@ -182,6 +187,16 @@ class RecommendationInput(BaseModel):
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Olist Intelligence API "}
+
+@app.get("/health")
+def health_check():
+    """Return a small readiness snapshot without touching external services."""
+    return {
+        "status": "ok",
+        "database_configured": bool(DATABASE_URL),
+        "api_key_configured": bool(API_KEY),
+        "loaded_models": sorted(models),
+    }
 
 @app.get("/orders/{order_id}/prediction", response_model=LogisticsPrediction)
 def get_order_prediction(order_id: str, db: Session = Depends(get_db)):
@@ -265,7 +280,7 @@ def recommend_products(data: RecommendationInput, db: Session = Depends(get_db))
                     "recommendations": final_recommendations
                 }
         except Exception as e:
-            print(f"⚠️ SVD Error: {e}")
+            logger.warning("SVD recommendation failed; using popularity fallback: %s", e)
             # Fallback to popularity
             pass
             
@@ -289,7 +304,7 @@ def recommend_products(data: RecommendationInput, db: Session = Depends(get_db))
                 recommendations = ["relogios_presentes", "cama_mesa_banho", "esporte_lazer", "informatica_acessorios", "moveis_decoracao"]
                 
         except Exception as e:
-            print(f"⚠️ DB Error: {e}")
+            logger.warning("Popularity recommendation query failed; using static fallback: %s", e)
             recommendations = ["relogios_presentes", "cama_mesa_banho", "esporte_lazer"]
     
     return {

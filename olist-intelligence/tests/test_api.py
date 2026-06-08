@@ -1,5 +1,10 @@
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
+import asyncio
+
+import pytest
+from fastapi import HTTPException
+
 from src.app import app, get_db
 
 client = TestClient(app)
@@ -38,6 +43,26 @@ def test_read_root():
     response = client.get("/")
     assert response.status_code == 200
     assert "Welcome" in response.json()["message"]
+
+def test_health_check_reports_readiness_without_secrets():
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert "database_configured" in data
+    assert "api_key_configured" in data
+    assert "loaded_models" in data
+
+def test_api_key_verification_requires_config(monkeypatch):
+    import src.app as api_app
+
+    monkeypatch.setattr(api_app, "API_KEY", None)
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(api_app.verify_api_key("any-value"))
+
+    assert exc_info.value.status_code == 503
 
 def test_get_order_prediction():
     response = client.get("/orders/ORD-123/prediction")

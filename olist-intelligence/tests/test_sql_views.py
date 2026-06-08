@@ -1,0 +1,106 @@
+"""Reconciliation tests for reusable analytics SQL views."""
+
+from pathlib import Path
+
+import pandas as pd
+import pytest
+from sqlalchemy import create_engine, text
+
+from scripts.apply_sql_views import apply_sql_views
+
+
+def _seed_metric_fixture(database_url: str):
+    engine = create_engine(database_url)
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE orders (
+                order_id TEXT,
+                customer_id TEXT,
+                order_purchase_timestamp TEXT,
+                order_delivered_customer_date TEXT,
+                order_estimated_delivery_date TEXT,
+                order_status TEXT
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE order_items (
+                order_id TEXT,
+                product_id TEXT,
+                seller_id TEXT,
+                price REAL,
+                freight_value REAL
+            )
+        """))
+        conn.execute(text("CREATE TABLE order_reviews (order_id TEXT, review_score INTEGER)"))
+        conn.execute(text("CREATE TABLE customers (customer_id TEXT, customer_state TEXT)"))
+        conn.execute(text("CREATE TABLE sellers (seller_id TEXT, seller_state TEXT)"))
+        conn.execute(text("""
+            CREATE TABLE customer_segments (
+                "Cluster" INTEGER,
+                "Recency" REAL,
+                "Frequency" REAL,
+                "Monetary" REAL
+            )
+        """))
+
+        conn.execute(text("""
+            INSERT INTO orders VALUES
+                ('o1', 'c1', '2024-01-01', '2024-01-05', '2024-01-06', 'delivered'),
+                ('o2', 'c2', '2024-01-01', '2024-01-08', '2024-01-06', 'delivered')
+        """))
+        conn.execute(text("""
+            INSERT INTO order_items VALUES
+                ('o1', 'p1', 's1', 100.0, 10.0),
+                ('o2', 'p2', 's1', 50.0, 5.0)
+        """))
+        conn.execute(text("INSERT INTO order_reviews VALUES ('o1', 5), ('o2', 2)"))
+        conn.execute(text("INSERT INTO customers VALUES ('c1', 'SP'), ('c2', 'RJ')"))
+        conn.execute(text("INSERT INTO sellers VALUES ('s1', 'SP')"))
+        conn.execute(text("""
+            INSERT INTO customer_segments VALUES
+                (1, 10.0, 2.0, 50.0),
+                (1, 20.0, 4.0, 100.0),
+                (2, 60.0, 1.0, 20.0)
+        """))
+    return engine
+
+
+def test_sql_views_reconcile_core_metrics(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'olist_metrics.db'}"
+    engine = _seed_metric_fixture(database_url)
+
+    applied, skipped = apply_sql_views(
+        database_url=database_url,
+        sql_dir=Path("sql/views"),
+        strict=True,
+    )
+
+    assert skipped == []
+    assert set(applied) == {
+        "customer_segment_summary.sql",
+        "delivery_quality.sql",
+        "executive_order_summary.sql",
+        "seller_performance.sql",
+    }
+
+    executive = pd.read_sql(text("SELECT * FROM executive_order_summary"), engine).iloc[0]
+    assert executive["orders"] == 2
+    assert executive["customers"] == 2
+    assert executive["product_revenue"] == pytest.approx(150.0)
+    assert executive["freight_revenue"] == pytest.approx(15.0)
+    assert executive["avg_review_score"] == pytest.approx(3.5)
+
+    delivery = pd.read_sql(text("SELECT SUM(is_late) AS late_orders FROM delivery_quality"), engine).iloc[0]
+    assert delivery["late_orders"] == 1
+
+    seller = pd.read_sql(text("SELECT * FROM seller_performance"), engine).iloc[0]
+    assert seller["orders"] == 2
+    assert seller["revenue"] == pytest.approx(150.0)
+    assert seller["late_delivery_rate"] == pytest.approx(50.0)
+
+    segment = pd.read_sql(
+        text("SELECT * FROM customer_segment_summary WHERE segment_id = 1"),
+        engine,
+    ).iloc[0]
+    assert segment["customers"] == 2
+    assert segment["avg_monetary"] == pytest.approx(75.0)

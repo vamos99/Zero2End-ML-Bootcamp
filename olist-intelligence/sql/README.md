@@ -13,6 +13,9 @@ Postgres-like environments.
 - `customer_segment_summary.sql`: RFM segment summary after the segmentation
   notebook creates `customer_segments`.
 
+See [`METRICS.md`](METRICS.md) for the metric dictionary and reconciliation
+coverage.
+
 ## Local Usage
 
 After the Kaggle Olist data has been ingested into `olist.db`, apply all views:
