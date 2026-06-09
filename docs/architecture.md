@@ -1,62 +1,66 @@
-# Project Architecture
+# Olist Mimari Notları
 
-Bu doküman, Olist e-ticaret projesinin portfolio açısından hangi parçaları gösterdiğini kısa ve görsel şekilde anlatır. Proje üretim seviyesi bir platform iddiası taşımaz; amaç veri hazırlama, SQL tabanlı analitik modelleme, dashboard anlatımı ve ML çıktısını aksiyona dönüştürme pratiğini göstermektir.
+Bu doküman, Olist Intelligence projesinin veri akışını ve uygulama parçalarını
+portfolio değerlendirmesi için kısa şekilde açıklar. Proje production veri
+platformu iddiası taşımaz; amaç Kaggle verisini yerel bir analitik dashboard,
+SQL metrik katmanı ve ML prototipleriyle okunabilir hale getirmektir.
 
-## Data and Application Flow
+## Mimari Görsel
 
-```mermaid
-flowchart LR
-  subgraph data["Data and Modeling"]
-    raw["Olist CSV data"] --> notebooks["EDA and feature notebooks"]
-    notebooks --> features["Feature tables and model outputs"]
-    raw --> sqlViews["SQL analytics views"]
-  end
+Excalidraw ile hazırlanan kaynak diyagram:
+[`docs/diagrams/olist-data-flow.excalidraw.json`](diagrams/olist-data-flow.excalidraw.json)
 
-  subgraph app["Application Layer"]
-    repo["Repository layer<br>src/database/repository.py"]
-    analytics["Analytics service<br>src/services/analytics_service.py"]
-    actions["Action service<br>src/services/action_service.py"]
-    dashboard["Streamlit dashboard<br>src/app.py"]
-  end
+Diyagramın amacı tek ekranda şu akışı göstermek:
 
-  subgraph views["Business Views"]
-    home["Executive overview"]
-    logistics["Logistics risk"]
-    customer["Customer analytics"]
-    growth["Growth analysis"]
-    ranking["Seller/category ranking"]
-  end
-
-  sqlViews --> repo
-  features --> repo
-  repo --> analytics
-  repo --> actions
-  analytics --> dashboard
-  actions --> dashboard
-  dashboard --> home
-  dashboard --> logistics
-  dashboard --> customer
-  dashboard --> growth
-  dashboard --> ranking
+```text
+Kaggle CSV
+  -> data/raw
+  -> src.ml.ingest
+  -> olist.db
+  -> şema/kalite kontrolleri
+  -> SQL marts
+  -> veri erişim/servis katmanı
+  -> Streamlit dashboard
 ```
 
-## What Is Already Done
+Notebook 2 ve Notebook 4 ayrıca `logistics_predictions` ve
+`customer_segments` tablolarını üretir. Bu yüzden ham Olist tabloları dashboard
+için temel veriyi sağlar, fakat tüm dashboard sayfalarının dolması için notebook
+çıktıları da gerekir.
 
-| Area | Completed work | Files |
+## Katmanlar
+
+| Katman | Bu projedeki karşılığı | Not |
 | --- | --- | --- |
-| Executive analytics | Manager-facing dashboard with orders, revenue, customer count, late delivery rate and review score | `olist-intelligence/src/views/home_view.py` |
-| SQL layer | Reusable SQL views for order summary, delivery quality, payment mix, seller SLA, seller performance and customer segments | `olist-intelligence/sql/views/` |
-| Data contract | Kaggle CSV/table schema and stable DB quality checks | `olist-intelligence/src/data_contract.py`, `olist-intelligence/tests/test_data_contract.py` |
-| App data access | Repository/service structure to keep dashboard pages away from raw query details | `olist-intelligence/src/database/repository.py`, `olist-intelligence/src/services/analytics_service.py` |
-| ML prototypes | Feature, training, registry and benchmark modules for delivery/customer experiments | `olist-intelligence/src/ml/` |
-| CI and checks | GitHub Actions runs tests and Python syntax checks on PRs | `.github/workflows/main.yml` |
+| Kaynak veri | Kaggle Olist CSV dosyaları | Git'e eklenmez; yerelde `olist-intelligence/data/raw/` altında tutulur. |
+| Ingest | `src/ml/ingest.py` | CSV dosyalarını SQLite/Postgres uyumlu tablolara yazar. |
+| Veritabanı | `olist.db` veya `DATABASE_URL` | Varsayılan yerel çalışma SQLite kullanır. |
+| Veri kontrolü | `scripts/validate_olist_schema.py` | CSV schema, DB schema ve kalite kontrollerini çalıştırır. |
+| SQL marts | `olist-intelligence/sql/views/` | Dashboard ve analiz için tekrar kullanılabilir view'lar. |
+| Uygulama katmanı | `src/database`, `src/services`, `src/views` | Dashboard sayfalarını ham SQL detayından ayırır. |
+| ML prototipleri | `notebooks/`, `src/ml/` | Lojistik, churn, segmentasyon ve öneri deneyleri. |
+| Sunum | Streamlit dashboard ve FastAPI endpointleri | Yerel demo ve portfolio anlatımı için. |
 
-## Realistic Next Backlog
+## Şu Anda Tamamlanan Parçalar
 
-| Priority | Work | Why it matters |
+| Alan | Durum | Dosyalar |
 | --- | --- | --- |
-| P1 | Customer cohort and retention view | Converts the broad customer analysis into a clearer analytics story. |
-| P1 | Dashboard mart mapping | Connects manager-facing charts to SQL marts instead of ad hoc repository queries. |
-| P1 | Review sentiment prototype | The Olist review comments can support a small NLP feature, but it should be scoped as an experiment because the text is Portuguese. |
-| P2 | dbt-style model docs | Documents view ownership, source tables, grain and metric caveats without adding a full dbt setup. |
-| P2 | Dashboard walkthrough screenshots | Add only after local data is loaded and Browser QA confirms the charts render correctly. |
+| Executive dashboard | Sipariş, ürün geliri, müşteri, gecikme ve review metrikleri var | `olist-intelligence/src/views/home_view.py` |
+| SQL metrik katmanı | Order summary, delivery quality, payment mix, review-delivery, seller SLA, seller performance ve segment view'ları var | `olist-intelligence/sql/views/` |
+| Kaynak sözleşmesi | Kaggle 9 CSV / 52 kolon beklentisi ve DB kalite kontrolleri var | `olist-intelligence/src/data_contract.py`, `olist-intelligence/tests/test_data_contract.py` |
+| SQL mutabakatı | Küçük SQLite fixture ile mart kontrolleri var | `olist-intelligence/tests/test_sql_views.py` |
+| Uygulama ayrımı | Repository/service/view yapısı var | `olist-intelligence/src/database/`, `olist-intelligence/src/services/`, `olist-intelligence/src/views/` |
+| CI | PR üzerinde lint/test çalışıyor | `.github/workflows/main.yml` |
+
+## Sonraki İşler
+
+Bu liste GitHub Project board'un yerine geçmez; sadece README ve issue yazarken
+referans olacak kısa teknik nottur.
+
+| Öncelik | İş | Neden önemli |
+| --- | --- | --- |
+| P1 | Cohort/retention SQL martı | `customer_unique_id` ile tekrar satın alma hikayesini daha doğru anlatır. |
+| P1 | Dashboard chart -> SQL mart eşlemesi | Yönetici ekranındaki metriklerin hangi view'dan geldiği izlenebilir olur. |
+| P2 | Delivery/churn model card | Model amacı, veri sızıntısı riski, split yöntemi ve sınırlar netleşir. |
+| P2 | Review text NLP deneyi | Portekizce yorumlardan sınırlı ama açıklanabilir issue bucket'ları çıkarılabilir. |
+| P2 | Dashboard ekran görüntüleri | Sadece yerel veri ve Browser QA sonrası eklenmeli. |

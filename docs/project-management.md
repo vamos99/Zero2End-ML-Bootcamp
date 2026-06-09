@@ -1,16 +1,19 @@
-# Project Management
+# Proje Yönetimi
 
-This document keeps the portfolio project manageable in GitHub Issues and GitHub Projects without adding heavy process.
+Bu dosya, Olist Intelligence için GitHub Projects board'un nasıl kullanılacağını
+kısa şekilde açıklar. Ana takip yeri bu markdown dosyası değil, GitHub Project
+board'dur.
 
-## Live Board
+## GitHub Project
 
-- GitHub Project: https://github.com/users/vamos99/projects/3
+- Board: [Olist Analytics Board](https://github.com/users/vamos99/projects/3)
+- Durum: public
+- Amaç: Olist projesindeki küçük ve takip edilebilir işleri issue/PR akışıyla
+  yönetmek.
 
-## Workflow
+## Board Alanları
 
-Use a GitHub Projects board with these fields:
-
-| Field | Values |
+| Alan | Değerler |
 | --- | --- |
 | Status | Backlog, Ready, In Progress, Review, Done |
 | Priority | P0, P1, P2 |
@@ -18,77 +21,53 @@ Use a GitHub Projects board with these fields:
 | Size | S, M, L |
 | Sprint | Sprint 1, Sprint 2, Sprint 3 |
 
-Recommended board columns:
+## Kullanım Akışı
 
-1. Backlog: useful ideas, not yet scoped.
-2. Ready: scoped tasks with acceptance criteria.
-3. In Progress: one or two active tasks only.
-4. Review: PR opened, checks passing or under review.
-5. Done: merged or intentionally closed.
+1. Yeni fikir önce GitHub Project board'da Backlog olarak açılır.
+2. Kapsam netleşince issue Ready durumuna alınır.
+3. Kod veya doküman değişikliği ayrı branch'te yapılır.
+4. PR açılınca issue Review durumuna taşınır.
+5. CI geçip PR merge edilince issue Done olur.
 
-## Definition of Ready
+## Issue Hazırlık Kriteri
 
-- The issue states the user-facing or analytical outcome.
-- Data source and metric grain are named.
-- Acceptance criteria include a verification step.
-- Secrets, private data, and deployment assumptions are explicit.
+- Kullanıcıya veya analize etkisi bir cümleyle yazılmış olmalı.
+- Kullanılacak veri kaynağı ve metrik grain'i belirtilmeli.
+- Kabul kriterinde en az bir doğrulama adımı olmalı.
+- Secret, özel veri veya deployment varsayımı varsa açıkça yazılmalı.
 
-## Definition of Done
+## Done Kriteri
 
-- Code or documentation is committed on a feature branch.
-- Relevant checks pass locally or in CI.
-- Dashboard or SQL numbers reconcile with the selected source.
-- README, runbook, or SQL docs are updated when the behavior changes.
-- PR summary includes what changed and how it was verified.
+- Değişiklik feature branch üzerinde commitlenmiş olmalı.
+- İlgili test, validation veya doküman kontrolü çalışmış olmalı.
+- SQL/dashboard sonucu seçilen veri kaynağıyla tutarlı olmalı.
+- README, SQL docs veya runbook davranış değiştiyse güncellenmiş olmalı.
+- PR açıklaması ne değiştiğini ve nasıl doğrulandığını kısa anlatmalı.
 
-## Current Backlog
+## Aktif İş Havuzu
 
-| Priority | Area | Task | Acceptance Criteria |
+Bu tablo board'un yerini almaz; sadece README ve PR planı yazarken kısa referans
+olarak tutulur.
+
+| Öncelik | Alan | İş | Kabul kriteri |
 | --- | --- | --- | --- |
-| P1 | analytics | Add cohort/retention foundation using `customer_unique_id` | Cohort logic uses customer identity correctly and is covered by tests. |
-| P1 | dashboard | Map executive dashboard charts to SQL marts | README or docs show which mart powers each manager-facing chart. |
-| P2 | ml | Add model card for delivery/churn prototypes | Model purpose, features, limits, leakage risks and validation notes are documented. |
-| P2 | docs | Add dashboard walkthrough screenshots after real data QA | README shows key decision points only after local data/browser verification. |
+| P1 | analytics | Cohort/retention temelini ekle | `customer_unique_id` kullanılır ve SQL fixture testi vardır. |
+| P1 | dashboard | Dashboard chart -> SQL mart eşlemesini dokümante et | Ana chart'ların hangi view'dan beslendiği README veya docs içinde görünür. |
+| P2 | ml | Delivery/churn model card ekle | Amaç, özellikler, sınırlılıklar, veri sızıntısı riski ve doğrulama notları yazılır. |
+| P2 | docs | Dashboard ekran görüntülerini yenile | Sadece yerel veri ve Browser QA sonrası eklenir. |
 
-## Recently Done
+## Tamamlanan Son İşler
 
-| Area | Task | Evidence |
+| Alan | İş | Kanıt |
 | --- | --- | --- |
-| analytics | Add metric dictionary for executive KPIs | `olist-intelligence/sql/METRICS.md` |
-| data-pipeline | Add SQL reconciliation smoke checks | `olist-intelligence/tests/test_sql_views.py` |
-| data-pipeline | Add Kaggle source schema contract | `olist-intelligence/src/data_contract.py` |
-| data-pipeline | Add stable DB data-quality checks | `olist-intelligence/tests/test_data_contract.py` |
-| analytics | Add payment, review-delivery and seller SLA marts | `olist-intelligence/sql/views/*_summary.sql`, `tests/test_sql_views.py` |
-| ci | Add small sample-data test fixtures | SQLite fixtures in `test_sql_views.py` and `test_data_contract.py` |
+| analytics | Executive KPI metric dictionary | `olist-intelligence/sql/METRICS.md` |
+| data-pipeline | Kaggle source schema contract | `olist-intelligence/src/data_contract.py` |
+| data-pipeline | DB kalite kontrolleri | `olist-intelligence/tests/test_data_contract.py` |
+| analytics | Payment, review-delivery ve seller SLA marts | `olist-intelligence/sql/views/`, `tests/test_sql_views.py` |
+| ci | Küçük SQLite fixture testleri | `olist-intelligence/tests/` |
 
-## Sprint Plan
-
-### Sprint 1 - Portfolio Baseline
-
-- Executive dashboard
-- SQL analytics layer
-- CI and dependency hygiene
-
-### Sprint 2 - Analytics Reliability
-
-- Metric dictionary
-- Reconciliation checks
-- Source contract and data-quality checks
-- Small test fixtures
-
-### Sprint 3 - ML/MLOps Readiness
-
-- Model card
-- Prediction monitoring notes
-- Batch scoring runbook
-
-## Labels
+## Label Önerisi
 
 - `type: task`, `type: bug`, `type: docs`
 - `area: analytics`, `area: dashboard`, `area: data-pipeline`, `area: ml`, `area: ci`
 - `priority: P0`, `priority: P1`, `priority: P2`
-
-## GitHub Projects Setup
-
-The project board already exists. Keep future issues small and link PRs back to
-the board items when implementation starts.
