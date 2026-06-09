@@ -133,6 +133,7 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 ### Data Quality
 *   **Schema contract:** Kaggle Olist'in 9 CSV / 52 kolon beklentisi `src/data_contract.py` altında tanımlıdır.
 *   **DB kalite kontrolleri:** Boş tablo, duplicate key, orphan foreign key, kabul edilen status/payment değerleri, negatif ödeme/fiyat ve imkansız teslimat tarihleri kontrol edilir.
+*   **Analytics marts:** Payment mix, review-delivery driver ve seller SLA view'ları yönetici dashboard akışına hazırlanmıştır.
 
 ---
 

@@ -32,6 +32,48 @@ against the Olist source tables.
 | `avg_review_score` | Mean review score for seller orders | `order_reviews.review_score` |
 | `late_delivery_rate` | Average `is_late` multiplied by 100 | `orders` date columns |
 
+## `payment_mix_summary`
+
+| Metric | Definition | Source |
+| --- | --- | --- |
+| `order_date` | `DATE(order_purchase_timestamp)` | `orders` |
+| `payment_type` | Olist payment method category | `order_payments.payment_type` |
+| `orders` | Distinct orders using the payment type on that day | `order_payments.order_id` |
+| `payment_records` | Payment rows for the type on that day | `order_payments` |
+| `payment_value` | Sum of payment values | `order_payments.payment_value` |
+| `avg_installments` | Average installment count | `order_payments.payment_installments` |
+
+This view intentionally avoids joining to `order_items`; payment mix is a
+payment-grain mart and should not duplicate item-level revenue.
+
+## `review_delivery_drivers`
+
+| Metric | Definition | Source |
+| --- | --- | --- |
+| `review_score` | Rounded order-level review score bucket from 1 to 5 | `order_reviews.review_score` |
+| `orders` | Distinct delivered orders in the score bucket | `orders`, `order_reviews` |
+| `avg_delivery_days` | Average delivered date minus purchase date | `orders` date columns |
+| `late_delivery_rate` | Average late flag multiplied by 100 | `orders` date columns |
+
+This view first aggregates reviews to order grain, then groups by score bucket
+so duplicate review rows do not create fractional score categories.
+
+## `seller_sla_summary`
+
+| Metric | Definition | Source |
+| --- | --- | --- |
+| `seller_id` | Seller identifier | `sellers.seller_id` |
+| `orders` | Distinct delivered orders handled by the seller | `order_items`, `orders` |
+| `items` | Item rows handled by the seller | `order_items` |
+| `product_revenue` | Sum of seller item prices | `order_items.price` |
+| `freight_revenue` | Sum of seller freight values | `order_items.freight_value` |
+| `avg_review_score` | Average order-level review score | `order_reviews.review_score` |
+| `avg_delivery_days` | Average delivered date minus purchase date | `orders` date columns |
+| `late_delivery_rate` | Average seller-order late flag multiplied by 100 | `orders` date columns |
+
+This view aggregates to seller-order grain before seller-level grouping, which
+prevents multi-item orders from inflating order counts.
+
 ## `customer_segment_summary`
 
 | Metric | Definition | Source |
@@ -45,9 +87,9 @@ against the Olist source tables.
 ## Reconciliation
 
 `tests/test_sql_views.py` builds a small SQLite fixture, applies every SQL view
-with `scripts/apply_sql_views.py`, and checks the expected revenue, review,
-late-delivery and segment aggregates. This keeps the SQL layer testable without
-requiring the full Kaggle dataset.
+with `scripts/apply_sql_views.py`, and checks expected revenue, review,
+late-delivery, payment mix, seller SLA and segment aggregates. This keeps the
+SQL layer testable without requiring the full Kaggle dataset.
 
 `tests/test_data_contract.py` validates the expected Kaggle source contract:
 9 CSV files, 52 source columns, the repository's CSV-to-table naming convention,

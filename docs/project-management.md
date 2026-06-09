@@ -45,7 +45,6 @@ Recommended board columns:
 
 | Priority | Area | Task | Acceptance Criteria |
 | --- | --- | --- | --- |
-| P1 | analytics | Add payment mix and review-delivery SQL marts | Views reconcile on a small fixture and document grain caveats. |
 | P1 | analytics | Add cohort/retention foundation using `customer_unique_id` | Cohort logic uses customer identity correctly and is covered by tests. |
 | P1 | dashboard | Map executive dashboard charts to SQL marts | README or docs show which mart powers each manager-facing chart. |
 | P2 | ml | Add model card for delivery/churn prototypes | Model purpose, features, limits, leakage risks and validation notes are documented. |
@@ -59,6 +58,7 @@ Recommended board columns:
 | data-pipeline | Add SQL reconciliation smoke checks | `olist-intelligence/tests/test_sql_views.py` |
 | data-pipeline | Add Kaggle source schema contract | `olist-intelligence/src/data_contract.py` |
 | data-pipeline | Add stable DB data-quality checks | `olist-intelligence/tests/test_data_contract.py` |
+| analytics | Add payment, review-delivery and seller SLA marts | `olist-intelligence/sql/views/*_summary.sql`, `tests/test_sql_views.py` |
 | ci | Add small sample-data test fixtures | SQLite fixtures in `test_sql_views.py` and `test_data_contract.py` |
 
 ## Sprint Plan

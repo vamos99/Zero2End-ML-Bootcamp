@@ -10,6 +10,9 @@ Postgres-like environments.
 - `executive_order_summary.sql`: daily order, customer, and revenue metrics.
 - `delivery_quality.sql`: delivery lateness and review-score quality signals.
 - `seller_performance.sql`: seller revenue, review, and delivery reliability.
+- `payment_mix_summary.sql`: payment type, installment and payment-value mix.
+- `review_delivery_drivers.sql`: review-score buckets versus delivery quality.
+- `seller_sla_summary.sql`: seller-level SLA, revenue, item and review metrics.
 - `customer_segment_summary.sql`: RFM segment summary after the segmentation
   notebook creates `customer_segments`.
 
@@ -23,6 +26,13 @@ After the Kaggle Olist data has been ingested into `olist.db`, apply all views:
 ```bash
 cd olist-intelligence
 python scripts/apply_sql_views.py
+```
+
+When a view definition changes and you want the local database to pick up the
+new SQL, replace existing views:
+
+```bash
+python scripts/apply_sql_views.py --replace
 ```
 
 Before applying views or running model notebooks, validate that the local raw

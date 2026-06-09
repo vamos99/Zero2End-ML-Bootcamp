@@ -124,6 +124,17 @@ def test_validate_csv_directory_accepts_expected_kaggle_headers(tmp_path):
     assert validate_csv_directory(tmp_path) == []
 
 
+def test_validate_csv_directory_accepts_utf8_sig_header(tmp_path):
+    for file_name, columns in EXPECTED_CSV_SCHEMAS.items():
+        content = ",".join(columns) + "\n"
+        if file_name == "product_category_name_translation.csv":
+            (tmp_path / file_name).write_text(content, encoding="utf-8-sig")
+        else:
+            (tmp_path / file_name).write_text(content, encoding="utf-8")
+
+    assert validate_csv_directory(tmp_path) == []
+
+
 def test_validate_csv_directory_reports_missing_required_columns(tmp_path):
     for file_name, columns in EXPECTED_CSV_SCHEMAS.items():
         if file_name == "olist_orders_dataset.csv":
