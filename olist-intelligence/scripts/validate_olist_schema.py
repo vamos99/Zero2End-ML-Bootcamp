@@ -15,6 +15,7 @@ from src.data_contract import (  # noqa: E402
     KAGGLE_DATASET_URL,
     expected_column_count,
     validate_csv_directory,
+    validate_database_quality,
     validate_database_schema,
 )
 
@@ -28,9 +29,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Validate Olist source schema.")
     parser.add_argument(
         "--target",
-        choices=("csv", "db", "both"),
+        choices=("csv", "db", "quality", "both", "all"),
         default="both",
-        help="Validate raw CSV headers, database tables, or both.",
+        help="Validate raw CSV headers, database schema, database quality checks, or all checks.",
     )
     parser.add_argument(
         "--data-path",
@@ -51,11 +52,23 @@ def main() -> int:
 
     issues = []
 
-    if args.target in {"csv", "both"}:
+    db_schema_issues = []
+
+    if args.target in {"csv", "both", "all"}:
         issues.extend(validate_csv_directory(Path(args.data_path), strict_extra=args.strict_extra))
 
-    if args.target in {"db", "both"}:
-        issues.extend(validate_database_schema(args.database_url, strict_extra=args.strict_extra))
+    if args.target in {"db", "both", "all"}:
+        db_schema_issues = validate_database_schema(
+            args.database_url,
+            strict_extra=args.strict_extra,
+        )
+        issues.extend(db_schema_issues)
+
+    if args.target == "quality":
+        issues.extend(validate_database_quality(args.database_url))
+
+    if args.target == "all" and not db_schema_issues:
+        issues.extend(validate_database_quality(args.database_url))
 
     if issues:
         print(

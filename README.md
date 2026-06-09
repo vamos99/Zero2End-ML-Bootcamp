@@ -2,8 +2,6 @@
 
 **Zero2End ML Bootcamp** bitirme projesi için hazırlanmış e-ticaret analitiği ve ML workflow çalışmasıdır. Proje, Olist veri seti üzerinden dashboard, SQL tabanlı analitik modelleme, tahminleme ve basit aksiyon simülasyonlarını bir araya getirir.
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://zero2end-ml-bootcamp.streamlit.app/)
-
 ## Proje İçeriği
 
 Bu depo, uçtan uca geliştirilmiş bir e-ticaret iş zekası ve tahminleme prototipini içerir. Odak noktası üretim seviyesi bir platform iddiası değil; veri hazırlama, analitik çıktı üretme, dashboard ile anlatma ve ML modellerini servis edilebilir hale getirme pratiğidir.
@@ -14,6 +12,7 @@ Tüm kaynak kodlar, notebooklar ve dökümantasyon **`olist-intelligence/`** kla
 
 - **Executive dashboard:** teknik olmayan kullanıcı için özet metrikler ve yönlendirici grafikler.
 - **SQL analytics layer:** SQLite/Postgres uyumlu view dosyaları ile tekrar kullanılabilir metrik mantığı.
+- **Data quality:** Kaggle source contract, schema validation ve DB kalite kontrolleri.
 - **Lojistik tahmin modülü:** teslimat süresi ve gecikme riski.
 - **Müşteri analitiği:** RFM segmentasyon, churn riski ve hedef kitle çıktısı.
 - **Recommendation prototype:** ürün öneri akışı.
@@ -23,7 +22,7 @@ Tüm kaynak kodlar, notebooklar ve dökümantasyon **`olist-intelligence/`** kla
 ## Hızlı Erişim
 
 - **Proje Talimatları:** [PDF](olist-intelligence/docs/reports/Zero2End_ML_Bootcamp_Project_Report.pdf)
-- **Canlı Demo:** [Streamlit App](https://zero2end-ml-bootcamp.streamlit.app/)
+- **Demo notu:** Dashboard yerel veri, model çıktıları ve ortam değişkenleri hazır olduğunda dolu çalışır.
 - **Detaylı Dökümantasyon:** [Olist Intelligence README](olist-intelligence/README.md)
 - **Mimari / Akış:** [Project Architecture](docs/architecture.md)
 - **Proje Yönetimi:** [Live Project Board](https://github.com/users/vamos99/projects/3) / [Backlog Guide](docs/project-management.md)
@@ -31,3 +30,4 @@ Tüm kaynak kodlar, notebooklar ve dökümantasyon **`olist-intelligence/`** kla
 ---
 **Geliştirici:** Halil Kıyak
 **Tarih:** Aralık 2025
+**Son bakım:** Haziran 2026
