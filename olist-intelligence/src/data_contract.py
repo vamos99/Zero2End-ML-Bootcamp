@@ -164,7 +164,7 @@ def expected_column_count() -> int:
 
 
 def _read_csv_header(path: Path) -> list[str]:
-    with path.open("r", encoding="utf-8", newline="") as file:
+    with path.open("r", encoding="utf-8-sig", newline="") as file:
         reader = csv.reader(file)
         return next(reader, [])
 

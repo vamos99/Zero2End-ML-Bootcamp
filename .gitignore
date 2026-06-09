@@ -1,9 +1,11 @@
 # Data
 data/
 olist-intelligence/data/
+olist-intelligence/olist-dataset/
 *.csv
 *.parquet
 *.zip
+*.db
 
 # Secrets
 .env

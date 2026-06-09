@@ -19,7 +19,14 @@ def iter_sql_files(sql_dir: Path):
     return sorted(sql_dir.glob("*.sql"))
 
 
-def apply_sql_views(database_url: str, sql_dir: Path, strict: bool = False):
+def _view_name_from_file(sql_file: Path) -> str:
+    view_name = sql_file.stem
+    if not view_name.replace("_", "").isalnum():
+        raise ValueError(f"Unsafe SQL view file name: {sql_file.name}")
+    return view_name
+
+
+def apply_sql_views(database_url: str, sql_dir: Path, strict: bool = False, replace: bool = False):
     engine = create_engine(database_url)
     applied = []
     skipped = []
@@ -31,6 +38,8 @@ def apply_sql_views(database_url: str, sql_dir: Path, strict: bool = False):
                 continue
 
             try:
+                if replace:
+                    conn.execute(text(f"DROP VIEW IF EXISTS {_view_name_from_file(sql_file)}"))
                 conn.execute(text(statement))
                 applied.append(sql_file.name)
             except Exception as exc:
@@ -58,12 +67,18 @@ def main():
         action="store_true",
         help="Fail on the first SQL error instead of reporting skipped views.",
     )
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="Drop each target view before applying the SQL file.",
+    )
     args = parser.parse_args()
 
     applied, skipped = apply_sql_views(
         database_url=args.database_url,
         sql_dir=Path(args.sql_dir),
         strict=args.strict,
+        replace=args.replace,
     )
 
     for name in applied:
