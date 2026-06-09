@@ -79,7 +79,7 @@ Bu proje production seviyesinde bir veri platformu iddiası taşımaz; bootcamp 
 SQL dosyaları, dashboard metriklerinin nasıl yeniden kullanılabilir analitik çıktılara çevrilebileceğini göstermek için eklendi.
 
 ```bash
-python scripts/apply_sql_views.py
+python scripts/apply_sql_views.py --replace
 ```
 
 Bu komut, lokal `olist.db` veya `DATABASE_URL` ile tanımlanmış veritabanı üzerinde `sql/views/` altındaki view'ları uygular.
@@ -149,6 +149,7 @@ Proje hem Yerel (Local) hem de Docker ortamında çalışacak şekilde tasarlanm
 ### Adım 1: Projeyi İndir
 ```bash
 git clone https://github.com/vamos99/Zero2End-ML-Bootcamp.git
+cd Zero2End-ML-Bootcamp/olist-intelligence
 ```
 
 ### Adım 2: Python Ortamını Kurun (Sadece Yerel Çalışma İçin)
@@ -181,7 +182,48 @@ copy .env.example .env
 ```
 Ardından `.env` dosyasını açıp **KAGGLE_USERNAME** ve **KAGGLE_KEY** bilgilerinizi ekleyin (Veri indirmek için gereklidir).
 
-### Adım 4: Veri Hazırlığı ve Modeller
+### Adım 4: Dataset ve Veritabanı Hazırlığı
+Proje raw dataset veya `olist.db` dosyasını GitHub'a yüklemez. Yeni indiren
+kullanıcı veriyi kendi ortamında hazırlamalıdır.
+
+**Otomatik Kaggle indirme:**
+
+`.env` içindeki Kaggle bilgileri doğruysa `src.ml.ingest` akışı dataset yokken
+Kaggle'dan indirmeyi dener, CSV dosyalarını `data/raw/` altında tutar ve
+varsayılan olarak `olist.db` SQLite dosyasını oluşturur.
+
+```bash
+python -m src.ml.ingest
+```
+
+**Manuel indirme:**
+
+Kaggle'dan [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
+verisini indirip zip'i açın. CSV dosyalarını şu klasöre koyun:
+
+```text
+olist-intelligence/data/raw/
+```
+
+Ardından aynı ingest komutunu çalıştırın:
+
+```bash
+python -m src.ml.ingest
+```
+
+**Kontrol ve SQL view kurulumu:**
+
+```bash
+python scripts/validate_olist_schema.py --target csv
+python scripts/validate_olist_schema.py --target db
+python scripts/validate_olist_schema.py --target quality
+python scripts/apply_sql_views.py --replace
+```
+
+Bu adımlar geçince ham Olist tabloları ve SQL analitik view'ları yerel
+veritabanında hazır olur.
+
+### Adım 5: Notebooklar ve Modeller
 Proje açıldığında API çalışır (`.pkl` modelleri hazır gelir). Ancak **Dashboard grafiklerinin** dolması için geçmiş tahminlerin üretilmesi gerekir.
 
 **Sırayla Çalıştırın:**
