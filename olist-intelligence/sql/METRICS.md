@@ -51,4 +51,7 @@ requiring the full Kaggle dataset.
 
 `tests/test_data_contract.py` validates the expected Kaggle source contract:
 9 CSV files, 52 source columns, the repository's CSV-to-table naming convention,
-and a SQLite smoke check for the ingested table schema.
+and a SQLite smoke check for the ingested table schema. It also covers stable
+data-quality rules for empty tables, duplicate keys, orphan joins, accepted
+status/payment values, review-score range, negative amounts and delivery dates
+that occur before purchase dates.

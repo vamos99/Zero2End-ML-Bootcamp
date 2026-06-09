@@ -1,5 +1,4 @@
 # Olist Intelligence Suite
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://zero2end-ml-bootcamp.streamlit.app/)
 
 Olist e-ticaret veri seti ile hazırlanmış analitik dashboard ve ML workflow prototipi. Proje; veri hazırlama, SQL ile yeniden kullanılabilir metrik mantığı, tahmin servisleri ve teknik olmayan kullanıcı için karar odaklı dashboard anlatımını bir araya getirir.
 
@@ -7,19 +6,19 @@ Olist e-ticaret veri seti ile hazırlanmış analitik dashboard ve ML workflow p
 > Bu proje, **Zero2End ML Bootcamp** bitirme projesi kapsamında verilen talimatlara uygun olarak hazırlanmıştır.
 > 📄 [Bootcamp Proje Talimatlarını İncele (PDF)](docs/reports/Zero2End_ML_Bootcamp_Project_Report.pdf)
 
-## ✅ Proje Gereksinimleri ve Karşılanma Durumu
+## Proje Kapsamı ve Mevcut Durum
 
-Proje talimatlarında belirtilen kriterlerin tamamı başarıyla uygulanmıştır:
+Proje bootcamp bitirme kapsamını karşılar; production seviyesinde servis veya canlı veri platformu iddiası taşımaz. Dashboard, Kaggle verisi, model çıktıları ve ortam değişkenleri hazır olduğunda anlamlıdır.
 
 | Gereksinim | Durum | Uygulama Detayı |
 |------------|-------|-----------------|
-| **Veri Analizi (EDA)** | ✅ Tamamlandı | Notebook 1'de detaylı veri keşfi ve temizliği yapıldı. |
-| **Model Geliştirme** | ✅ Tamamlandı | CatBoost (Lojistik & Churn) ve SVD (Öneri) modelleri eğitildi. |
-| **Pipeline Kurulumu** | ✅ Tamamlandı | Veri indirme -> İşleme -> Eğitim -> Tahmin akışı otomatize edildi (`ingest.py`). |
-| **Deployment** | ✅ Tamamlandı | Streamlit kullanarak interaktif dashboard geliştirildi ve Cloud'a yüklendi. |
-| **Kod Kalitesi** | ✅ Tamamlandı | Modüler yapı (`src/`), OOP prensipleri ve Docstring kullanımı. |
-| **Raporlama** | ✅ Tamamlandı | Readme dosyası ve Notebook içi Markdown açıklamaları ile süreç dökümante edildi. |
-| **Analitik SQL Katmanı** | ✅ Eklendi | `sql/views/` altında dashboard ve veri modeli için tekrar kullanılabilir view örnekleri. |
+| **Veri Analizi (EDA)** | Uygulandı | Notebook 1'de veri keşfi ve hazırlık adımları yer alır. |
+| **Model Geliştirme** | Prototip | CatBoost (lojistik/churn) ve SVD öneri yaklaşımı notebook ve `src/ml/` altında tutulur. |
+| **Pipeline Kurulumu** | Yerel akış | Kaggle CSV -> SQLite/Postgres uyumlu tablo akışı `ingest.py` ile hazırlanmıştır. |
+| **Dashboard** | Ortam bağımlı | Streamlit dashboard yerel veritabanı ve üretilmiş tahmin/segment tabloları hazırsa dolu çalışır. |
+| **Kod Kalitesi** | Geliştiriliyor | `src/` modüler yapı, testler, schema contract ve SQL reconciliation kontrolleri vardır. |
+| **Raporlama** | Geliştiriliyor | README, notebook açıklamaları, SQL metric docs ve PM/backlog notları birlikte tutulur. |
+| **Analitik SQL Katmanı** | Eklendi | `sql/views/` altında dashboard ve veri modeli için tekrar kullanılabilir view örnekleri. |
 
 
 | **Ana Sayfa (Dashboard)** | **Operasyon Merkezi** |
@@ -40,7 +39,7 @@ Proje talimatlarında belirtilen kriterlerin tamamı başarıyla uygulanmıştı
 
 ### Problem 1: Teslimat Gecikmesi
 **Sorun:** Müşteriler siparişlerin ne zaman geleceğini bilemiyor, gecikmeler şikayete dönüşüyor.  
-**Çözüm:** CatBoost modeli ile teslimat süresi tahmini (RMSE: 7.60 gün)
+**Çözüm:** CatBoost modeli ile teslimat süresi tahmini prototipi. Notebook çıktılarında yaklaşık 7.6 gün RMSE raporlanmıştır; bu değer raw veriyle yeniden çalıştırılarak doğrulanmalıdır.
 
 **Neden Bu Yaklaşım?**
 *   Haversine mesafe (satıcı-müşteri arası) en önemli faktör
@@ -50,13 +49,13 @@ Proje talimatlarında belirtilen kriterlerin tamamı başarıyla uygulanmıştı
 ### Problem 2: Müşteri Kaybı (Churn)
 **Sorun:** Hangi müşterilerin platformu terk edeceğini önceden tahmin edemiyoruz.  
 **Tanım Nedir?:** *Churn*, bir müşterinin platformu kullanmayı bırakması (terk etmesi) demektir.  
-**Bizdeki Karşılığı:** 90 gün boyunca hiç sipariş vermeyen müşteri, sistemimiz tarafından **"Churn" (Kaybedilmiş)** olarak etiketlenir.
-**Çözüm:** CatBoost Classifier ile bu riski taşıyan müşterileri erkenden tespit etmek.
+**Bizdeki Karşılığı:** 90 gün boyunca hiç sipariş vermeyen müşteri, analizde **riskli/kaybedilmiş** olarak etiketlenir.
+**Çözüm:** CatBoost Classifier ile churn risk prototipi. Bu bölüm production churn modeli değil, metodoloji ve dashboard anlatımı için kullanılan bir deneydir.
 
 **Neden Bu Yaklaşım?**
-*   İlk yaklaşımda AUC %100 çıkıyordu - bu data leakage'dı (Düzeltildi)
-*   Cluster'dan türetilen target gerçekçi değildi
-*   Gerçek tanım: %80.3 Churn Rate (anlamlı)
+*   `customer_unique_id`, tekrar satın alma ve retention analizinde `customer_id`'den daha anlamlıdır
+*   90 gün kuralı pratik bir risk tanımıdır; zaman bazlı train/test ayrımıyla yeniden doğrulanmalıdır
+*   Mevcut feature/target tasarımı target-proxy riski taşıdığı için model sonuçları dikkatli yorumlanmalıdır
 
 ### Problem 3: Müşteri Tek Tip Görülüyor
 **Sorun:** Tüm müşterilere aynı pazarlama yapılıyor.  
@@ -73,7 +72,7 @@ Bu proje production seviyesinde bir veri platformu iddiası taşımaz; bootcamp 
 | **Analytics model** | `sql/views/` altında revenue, delivery quality, seller performance ve segment view'ları |
 | **ML workflow** | Notebooklar ve `src/ml/` altında lojistik, churn ve öneri prototipleri |
 | **Serving** | FastAPI endpointleri ve Streamlit dashboard |
-| **Quality checks** | Pytest tabanlı servis/repository testleri ve GitHub Actions CI |
+| **Quality checks** | Pytest, schema contract, data-quality checks ve GitHub Actions CI |
 
 ### SQL View'ları
 
@@ -85,6 +84,16 @@ python scripts/apply_sql_views.py
 
 Bu komut, lokal `olist.db` veya `DATABASE_URL` ile tanımlanmış veritabanı üzerinde `sql/views/` altındaki view'ları uygular.
 
+Veri ve tablo kalitesini kontrol etmek için:
+
+```bash
+python scripts/validate_olist_schema.py --target csv
+python scripts/validate_olist_schema.py --target db
+python scripts/validate_olist_schema.py --target quality
+```
+
+Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştır; önce Kaggle verisi indirilip ingest akışı çalıştırılmalıdır.
+
 ---
 
 ## Teknoloji Tercihleri
@@ -93,9 +102,9 @@ Bu komut, lokal `olist.db` veya `DATABASE_URL` ile tanımlanmış veritabanı ü
 |-----------|--------|
 | **SQLite** | Local geliştirme ve taşınabilirlik için ideal (Konfigürasyon gerektirmez) |
 | **SQL Views** | Dashboard metriklerini notebook dışına çıkarıp tekrar kullanılabilir hale getirir |
-| **Streamlit** | React ile aylar sürecek işi günlere indirir |
+| **Streamlit** | Dashboard prototipini hızlı ve okunabilir şekilde sunar |
 | **Docker** | "Benim bilgisayarımda çalışıyordu" problemini çözer |
-| **Polars** | ETL'de Pandas'tan 10x hızlı |
+| **Polars** | CSV okuma/yazma tarafında hızlı ve pratik alternatif |
 | **FastAPI** | Modern, async, otomatik dokümantasyon (Backend API) |
 
 ---
@@ -103,12 +112,12 @@ Bu komut, lokal `olist.db` veya `DATABASE_URL` ile tanımlanmış veritabanı ü
 ## Özellikler
 
 ### Lojistik Tahmin
-*   **RMSE:** 7.60 gün
+*   **RMSE:** Notebook çıktısında yaklaşık 7.60 gün
 *   **Özellikler:** Mesafe, kargo, fiyat, ağırlık, satıcı puanı
 
 ### Churn Tahmini
-*   **Rate:** %80.3 (Marketplace doğası gereği yüksek)
-*   **Tanım:** 90 gün sipariş yok = Churn
+*   **Tanım:** 90 gün sipariş yok = churn/risk etiketi
+*   **Not:** Bu bölüm predictive model iddiasından çok risk skoru ve metodoloji prototipi olarak okunmalıdır
 
 ### Müşteri Segmentasyonu
 *   **5 Segment:** Şampiyonlar, Sadıklar, Potansiyeller, Riskli, Uyuyanlar
@@ -120,6 +129,10 @@ Bu komut, lokal `olist.db` veya `DATABASE_URL` ile tanımlanmış veritabanı ü
 ### API
 *   **4 Endpoint:** `/predict/delivery`, `/predict/churn`, `/recommend`, `/segments`
 *   **Güvenlik:** X-API-KEY koruması
+
+### Data Quality
+*   **Schema contract:** Kaggle Olist'in 9 CSV / 52 kolon beklentisi `src/data_contract.py` altında tanımlıdır.
+*   **DB kalite kontrolleri:** Boş tablo, duplicate key, orphan foreign key, kabul edilen status/payment değerleri, negatif ödeme/fiyat ve imkansız teslimat tarihleri kontrol edilir.
 
 ---
 
@@ -256,13 +269,16 @@ sql/views/          # Analitik SQL view örnekleri
 scripts/            # Lokal yardımcı scriptler
 ```
 
-## Model Performansı
+## Model Performansı ve Notlar
 
 | Model | Algoritma | Metrik | Değer |
 |-------|-----------|--------|-------|
-| **Lojistik** | CatBoost Regressor | RMSE | ~7.6 Gün |
-| **Churn** | CatBoost Classifier | Accuracy | ~%90 (Imbalanced) |
-| **Recommender** | SVD | Coverage | 99K User |
+| **Lojistik** | CatBoost Regressor | RMSE | Notebook çıktısında ~7.6 gün |
+| **Churn** | CatBoost Classifier | Accuracy | Notebook çıktısı; imbalanced veri ve target-proxy riskiyle yorumlanmalı |
+| **Recommender** | SVD | Coverage | Notebook çıktısı; cold-start/evaluation detayları sınırlı |
+
+Bu değerler portföy/prototip bağlamında tutulur. Raw Kaggle verisi ve yerel `olist.db`
+ile yeniden çalıştırılmadan güncel model performansı olarak sunulmamalıdır.
 
 ---
 
@@ -271,8 +287,8 @@ scripts/            # Lokal yardımcı scriptler
 *   **API Bağlantı Hatası:** MacOS kullanıcıları `localhost` yerine `127.0.0.1` kullanmalıdır (Projede varsayılan olarak ayarlanmıştır).
 *   **Grafikler/Tablolar Boş Görünüyor:**
     *   **Durum:** API ve Simülasyonlar çalışıyor (`.pkl` modelleri hazır geldiği için).
-    *   **Çözüm:** Dashboard'daki *"Operasyon Merkezi"* gibi geçmişe dönük analizlerin dolması için veritabanında tahmin tablolarının oluşması şarttır. Bunu sağlamak için **Notebook 2 (Lojistik)** ve **Notebook 4 (Churn)** dosyalarını bir kez çalıştırmanız yeterlidir.
+    *   **Çözüm:** Dashboard'daki *"Operasyon Merkezi"* ve segmentasyon ekranlarının dolması için veritabanında tahmin/segment tablolarının oluşması şarttır. Bunu sağlamak için **Notebook 2 (Lojistik)** ve **Notebook 4 (Growth/Segmentasyon)** dosyalarını bir kez çalıştırmanız gerekir.
 *   **Docker Port Hatası:** Yerelde çalışan servisleri (`Ctrl+C`) kapatıp `docker-compose`'u yeniden başlatın.
 
 ---
-**Versiyon:** 2.1 | **Güncelleme:** Aralık 2025
+**Versiyon:** 2.2 | **Güncelleme:** Haziran 2026

@@ -31,7 +31,13 @@ CSV files or the ingested database still match the Kaggle Olist source contract:
 ```bash
 python scripts/validate_olist_schema.py --target csv
 python scripts/validate_olist_schema.py --target db
+python scripts/validate_olist_schema.py --target quality
 ```
+
+`--target quality` requires an ingested database. It checks stable rules such as
+empty source tables, duplicate business keys, orphan joins, accepted order and
+payment values, invalid review scores, negative amounts, and impossible delivery
+dates. If `olist.db` is missing, failing fast is expected.
 
 For manual SQLite inspection:
 
@@ -44,4 +50,5 @@ sqlite3 olist.db "SELECT * FROM executive_order_summary LIMIT 10;"
 
 These views are intentionally lightweight. They are not a replacement for a
 production warehouse, but they show the same modeling habit: separate raw
-source tables from reusable analytical outputs.
+source tables from reusable analytical outputs, and keep quality checks close to
+the source contract.
