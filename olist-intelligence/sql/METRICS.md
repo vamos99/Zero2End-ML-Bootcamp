@@ -84,12 +84,29 @@ prevents multi-item orders from inflating order counts.
 | `avg_frequency` | Mean frequency value in the cluster | `customer_segments.Frequency` |
 | `avg_monetary` | Mean monetary value in the cluster | `customer_segments.Monetary` |
 
+## `customer_cohort_retention`
+
+| Metric | Definition | Source |
+| --- | --- | --- |
+| `cohort_month` | Month of the customer's first non-canceled Olist order | `orders`, `customers` |
+| `months_since_first_order` | Month offset between activity month and cohort month | `orders.order_purchase_timestamp` |
+| `cohort_customers` | Customers whose first qualifying order happened in the cohort month | `customers.customer_unique_id` |
+| `active_customers` | Cohort customers with a qualifying order in the offset month | `customers.customer_unique_id` |
+| `orders` | Qualifying orders placed by active cohort customers in the offset month | `orders.order_id` |
+| `retention_rate` | `active_customers / cohort_customers * 100` | Derived |
+
+This view uses `customer_unique_id` instead of `customer_id` because Olist can
+assign a different `customer_id` to separate orders from the same underlying
+customer. Orders with `canceled` or `unavailable` status are excluded from the
+cohort and repeat-purchase calculation.
+
 ## Reconciliation
 
 `tests/test_sql_views.py` builds a small SQLite fixture, applies every SQL view
 with `scripts/apply_sql_views.py`, and checks expected revenue, review,
-late-delivery, payment mix, seller SLA and segment aggregates. This keeps the
-SQL layer testable without requiring the full Kaggle dataset.
+late-delivery, payment mix, seller SLA, customer cohort retention and segment
+aggregates. This keeps the SQL layer testable without requiring the full Kaggle
+dataset.
 
 `tests/test_data_contract.py` validates the expected Kaggle source contract:
 9 CSV files, 52 source columns, the repository's CSV-to-table naming convention,

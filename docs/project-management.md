@@ -51,7 +51,6 @@ olarak tutulur.
 
 | Öncelik | Alan | İş | Kabul kriteri |
 | --- | --- | --- | --- |
-| P1 | analytics | Cohort/retention temelini ekle | `customer_unique_id` kullanılır ve SQL fixture testi vardır. |
 | P1 | dashboard | Dashboard chart -> SQL mart eşlemesini dokümante et | Ana chart'ların hangi view'dan beslendiği README veya docs içinde görünür. |
 | P2 | ml | Delivery/churn model card ekle | Amaç, özellikler, sınırlılıklar, veri sızıntısı riski ve doğrulama notları yazılır. |
 | P2 | docs | Dashboard ekran görüntülerini yenile | Sadece yerel veri ve Browser QA sonrası eklenir. |
@@ -64,6 +63,7 @@ olarak tutulur.
 | data-pipeline | Kaggle source schema contract | `olist-intelligence/src/data_contract.py` |
 | data-pipeline | DB kalite kontrolleri | `olist-intelligence/tests/test_data_contract.py` |
 | analytics | Payment, review-delivery ve seller SLA marts | `olist-intelligence/sql/views/`, `tests/test_sql_views.py` |
+| analytics | Cohort/retention mart | `olist-intelligence/sql/views/customer_cohort_retention.sql`, `tests/test_sql_views.py` |
 | ci | Küçük SQLite fixture testleri | `olist-intelligence/tests/` |
 
 ## Label Önerisi

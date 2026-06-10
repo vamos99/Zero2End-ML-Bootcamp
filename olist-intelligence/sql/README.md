@@ -13,6 +13,8 @@ Postgres-like environments.
 - `payment_mix_summary.sql`: payment type, installment and payment-value mix.
 - `review_delivery_drivers.sql`: review-score buckets versus delivery quality.
 - `seller_sla_summary.sql`: seller-level SLA, revenue, item and review metrics.
+- `customer_cohort_retention.sql`: monthly cohort retention using
+  `customer_unique_id`.
 - `customer_segment_summary.sql`: RFM segment summary after the segmentation
   notebook creates `customer_segments`.
 
@@ -25,15 +27,11 @@ After the Kaggle Olist data has been ingested into `olist.db`, apply all views:
 
 ```bash
 cd olist-intelligence
-python scripts/apply_sql_views.py
-```
-
-When a view definition changes and you want the local database to pick up the
-new SQL, replace existing views:
-
-```bash
 python scripts/apply_sql_views.py --replace
 ```
+
+If you only want to apply missing views without replacing existing definitions,
+drop `--replace`.
 
 Before applying views or running model notebooks, validate that the local raw
 CSV files or the ingested database still match the Kaggle Olist source contract:

@@ -24,8 +24,8 @@ Tüm kaynak kodlar, notebooklar ve dökümantasyon **`olist-intelligence/`** kla
 - **Proje Talimatları:** [PDF](olist-intelligence/docs/reports/Zero2End_ML_Bootcamp_Project_Report.pdf)
 - **Demo notu:** Dashboard yerel veri, model çıktıları ve ortam değişkenleri hazır olduğunda dolu çalışır.
 - **Detaylı Dökümantasyon:** [Olist Intelligence README](olist-intelligence/README.md)
-- **Mimari / Akış:** [Project Architecture](docs/architecture.md)
-- **Proje Yönetimi:** [Live Project Board](https://github.com/users/vamos99/projects/3) / [Backlog Guide](docs/project-management.md)
+- **Mimari / Akış:** [Olist Mimari Notları](docs/architecture.md)
+- **Proje Yönetimi:** [Olist Analytics Board](https://github.com/users/vamos99/projects/3) / [Proje Yönetimi Notları](docs/project-management.md)
 
 ---
 **Geliştirici:** Halil Kıyak

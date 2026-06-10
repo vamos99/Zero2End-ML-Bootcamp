@@ -19,7 +19,7 @@
     {"type":"text","id":"modelTitle","x":355,"y":88,"text":"Kontrol ve Analitik Model","fontSize":20,"strokeColor":"#5b21b6"},
     {"type":"rectangle","id":"schema","x":365,"y":135,"width":250,"height":75,"backgroundColor":"#ffd8a8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#f59e0b","label":{"text":"Schema ve kalite\nvalidate_olist_schema.py","fontSize":18}},
     {"type":"arrow","id":"a4","x":240,"y":525,"width":125,"height":-350,"points":[[0,0],[125,-350]],"endArrowhead":"arrow","strokeColor":"#8b5cf6","label":{"text":"DB kontrol","fontSize":16}},
-    {"type":"rectangle","id":"marts","x":365,"y":255,"width":250,"height":95,"backgroundColor":"#eebefa","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#ec4899","label":{"text":"SQL marts\norder, delivery, payment\nreview, seller SLA","fontSize":18}},
+    {"type":"rectangle","id":"marts","x":365,"y":255,"width":250,"height":95,"backgroundColor":"#eebefa","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#ec4899","label":{"text":"SQL marts\norder, delivery\npayment, review\nseller + cohort","fontSize":18}},
     {"type":"arrow","id":"a5","x":240,"y":525,"width":125,"height":-220,"points":[[0,0],[125,-220]],"endArrowhead":"arrow","strokeColor":"#ec4899","label":{"text":"view apply","fontSize":16}},
     {"type":"rectangle","id":"notebooks","x":365,"y":405,"width":250,"height":95,"backgroundColor":"#fff3bf","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#f59e0b","label":{"text":"Notebook 2 ve 4\nmodel tahmini + segment\ntablolari uretir","fontSize":18}},
     {"type":"arrow","id":"a6","x":365,"y":452,"width":-125,"height":73,"points":[[0,0],[-125,73]],"endArrowhead":"arrow","strokeColor":"#f59e0b","label":{"text":"DB'ye yazar","fontSize":16}},
