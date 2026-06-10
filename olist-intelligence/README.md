@@ -65,6 +65,8 @@ Proje bootcamp bitirme kapsamını karşılar; production seviyesinde servis vey
 
 Bu proje production seviyesinde bir veri platformu iddiası taşımaz; bootcamp kapsamındaki veri setini daha okunabilir bir analitik ürüne dönüştürmeyi hedefler.
 
+![Olist data flow architecture](../docs/diagrams/olist-data-flow.png)
+
 | Katman | Bu Projede Karşılığı |
 |--------|-----------------------|
 | **Raw data** | Kaggle Olist CSV dosyaları (`data/raw`, Git'e dahil değil) |

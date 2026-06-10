@@ -1,31 +1,51 @@
-# Ignore git files
+# Git metadata
 .git
 .gitignore
+.github/
 
-# Ignore virtual environment
+# Virtual environments
 venv/
+.venv/
 env/
+ENV/
 
-# Ignore python cache
+# Python cache and test artifacts
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# Ignore data (mounted via volume)
+# Local data and databases are mounted or generated outside the image
 data/
+olist-dataset/
+olist.db
+*.db
 
-# Ignore environment variables (passed via docker-compose)
+# Environment variables are passed via docker-compose or the host
 .env
+.env.*
+!.env.example
 
-# Ignore IDE files
+# IDE and OS files
 .vscode/
 .idea/
-
-# Ignore OS files
 .DS_Store
 
-# Ignore artifacts
+# Runtime artifacts
 mlruns/
+mlflow.db
 store/
 catboost_info/
+
+# Notebook cache
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# Large generated reports are not needed in Docker image builds
+docs/reports/*.pdf
