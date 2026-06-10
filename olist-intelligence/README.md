@@ -71,7 +71,7 @@ Bu proje production seviyesinde bir veri platformu iddiası taşımaz; bootcamp 
 | **Ingestion** | `src/ml/ingest.py` ile CSV -> SQLite/Postgres uyumlu tablo akışı |
 | **Analytics model** | `sql/views/` altında revenue, delivery quality, payment, cohort, seller ve segment view'ları |
 | **ML workflow** | Notebooklar ve `src/ml/` altında lojistik, churn ve öneri prototipleri |
-| **Serving** | FastAPI endpointleri ve Streamlit dashboard |
+| **Serving** | FastAPI endpointleri ve SQL mart destekli Streamlit dashboard |
 | **Quality checks** | Pytest, schema contract, data-quality checks ve GitHub Actions CI |
 
 ### SQL View'ları
@@ -124,6 +124,7 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 
 ### Dashboard
 *   **5 Sayfa:** Executive overview, Operasyon, Müşteri, Segmentasyon, Ranking
+*   **Executive signals:** Payment mix, cohort retention ve seller SLA chart'ları SQL martlardan beslenir
 *   **ROI Simülasyonu:** Kampanya maliyet/getiri analizi
 
 ### API
@@ -133,7 +134,17 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 ### Data Quality
 *   **Schema contract:** Kaggle Olist'in 9 CSV / 52 kolon beklentisi `src/data_contract.py` altında tanımlıdır.
 *   **DB kalite kontrolleri:** Boş tablo, duplicate key, orphan foreign key, kabul edilen status/payment değerleri, negatif ödeme/fiyat ve imkansız teslimat tarihleri kontrol edilir.
-*   **Analytics marts:** Payment mix, review-delivery driver, seller SLA ve cohort retention view'ları yönetici dashboard akışına hazırlanmıştır.
+*   **Analytics marts:** Payment mix, review-delivery driver, seller SLA ve cohort retention view'ları yönetici dashboard akışında kullanılır.
+
+### Dashboard Kaynak Eşlemesi
+
+| Dashboard bloğu | Kaynak |
+|-----------------|--------|
+| Revenue by customer state | `orders`, `order_items`, `customers` |
+| Review score vs. delivery quality | `orders`, `order_reviews` |
+| Payment mix | `payment_mix_summary` |
+| Customer cohort retention | `customer_cohort_retention` |
+| Seller SLA watchlist | `seller_sla_summary` |
 
 ---
 

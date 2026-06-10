@@ -163,6 +163,112 @@ def get_review_delivery_matrix(start_date, end_date):
     except Exception:
         return pd.DataFrame(columns=["review_score", "order_count", "late_delivery_rate"])
 
+def get_payment_mix_summary(start_date, end_date, limit=6):
+    """Returns payment-method mix from the reusable payment mart."""
+    query = text("""
+    SELECT
+        payment_type,
+        SUM(orders) AS orders,
+        SUM(payment_records) AS payment_records,
+        SUM(payment_value) AS payment_value,
+        SUM(avg_installments * payment_records) / NULLIF(SUM(payment_records), 0) AS avg_installments
+    FROM payment_mix_summary
+    WHERE order_date BETWEEN DATE(:start_date) AND DATE(:end_date)
+    GROUP BY payment_type
+    ORDER BY payment_value DESC
+    LIMIT :limit
+    """)
+
+    try:
+        return pd.read_sql(
+            query,
+            engine,
+            params={"start_date": start_date, "end_date": end_date, "limit": limit},
+        )
+    except Exception:
+        return pd.DataFrame(
+            columns=["payment_type", "orders", "payment_records", "payment_value", "avg_installments"]
+        )
+
+def get_cohort_retention_matrix(start_date, end_date, max_cohorts=8, max_months=6, min_cohort_size=100):
+    """Returns recent customer cohort retention rows for a dashboard heatmap."""
+    query = text("""
+    WITH selected_cohorts AS (
+        SELECT cohort_month
+        FROM customer_cohort_retention
+        WHERE months_since_first_order = 0
+            AND cohort_customers >= :min_cohort_size
+            AND cohort_month BETWEEN DATE(:start_date, 'start of month') AND DATE(:end_date, 'start of month')
+        ORDER BY cohort_month DESC
+        LIMIT :max_cohorts
+    )
+    SELECT
+        STRFTIME('%Y-%m', c.cohort_month) AS cohort_month,
+        c.months_since_first_order,
+        c.cohort_customers,
+        c.active_customers,
+        c.retention_rate
+    FROM customer_cohort_retention c
+    JOIN selected_cohorts sc ON c.cohort_month = sc.cohort_month
+    WHERE c.months_since_first_order BETWEEN 0 AND :max_months
+    ORDER BY c.cohort_month DESC, c.months_since_first_order
+    """)
+
+    try:
+        return pd.read_sql(
+            query,
+            engine,
+            params={
+                "start_date": start_date,
+                "end_date": end_date,
+                "max_cohorts": max_cohorts,
+                "max_months": max_months,
+                "min_cohort_size": min_cohort_size,
+            },
+        )
+    except Exception:
+        return pd.DataFrame(
+            columns=[
+                "cohort_month",
+                "months_since_first_order",
+                "cohort_customers",
+                "active_customers",
+                "retention_rate",
+            ]
+        )
+
+def get_seller_sla_watchlist(limit=10, min_orders=20):
+    """Returns sellers with enough delivered orders and high SLA risk."""
+    query = text("""
+    SELECT
+        seller_id,
+        seller_state,
+        orders,
+        product_revenue,
+        avg_review_score,
+        avg_delivery_days,
+        late_delivery_rate
+    FROM seller_sla_summary
+    WHERE orders >= :min_orders
+    ORDER BY late_delivery_rate DESC, product_revenue DESC
+    LIMIT :limit
+    """)
+
+    try:
+        return pd.read_sql(query, engine, params={"limit": limit, "min_orders": min_orders})
+    except Exception:
+        return pd.DataFrame(
+            columns=[
+                "seller_id",
+                "seller_state",
+                "orders",
+                "product_revenue",
+                "avg_review_score",
+                "avg_delivery_days",
+                "late_delivery_rate",
+            ]
+        )
+
 def get_logistics_metrics(start_date, end_date):
     """Calculates dynamic KPIs for Logistics (DB Agnostic)."""
     # 1. Fetch Raw Data needed for KPIs
