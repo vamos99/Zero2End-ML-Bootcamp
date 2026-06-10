@@ -7,21 +7,22 @@ SQL metrik katmanı ve ML prototipleriyle okunabilir hale getirmektir.
 
 ## Mimari Görsel
 
-Excalidraw ile hazırlanan kaynak diyagram:
+![Olist data flow architecture](diagrams/olist-data-flow.png)
+
+Excalidraw ile hazırlanan kaynak diyagram
 [`docs/diagrams/olist-data-flow.excalidraw.json`](diagrams/olist-data-flow.excalidraw.json)
+altında tutulur. GitHub README ve dokümanlarda görünen PNG export
+[`docs/diagrams/olist-data-flow.png`](diagrams/olist-data-flow.png) dosyasıdır;
+ölçeklenebilir SVG export ise
+[`docs/diagrams/olist-data-flow.svg`](diagrams/olist-data-flow.svg) olarak
+saklanır.
 
-Diyagramın amacı tek ekranda şu akışı göstermek:
-
-```text
-Kaggle CSV
-  -> data/raw
-  -> src.ml.ingest
-  -> olist.db
-  -> şema/kalite kontrolleri
-  -> SQL marts
-  -> veri erişim/servis katmanı
-  -> Streamlit dashboard
-```
+Diyagramın amacı tek ekranda Kaggle CSV -> ingest -> yerel veritabanı ->
+şema/kalite kontrolleri -> SQL marts -> repository/service katmanı ->
+Streamlit/FastAPI çıktıları akışını göstermektir. Görseldeki
+`Processing + Local Store` kolonu bilinçli olarak iki ayrı işi birlikte
+gösterir: ham CSV ingest akışı ve notebook'lardan üretilen türetilmiş tabloların
+yerel veritabanına yazılması.
 
 Notebook 2 ve Notebook 4 ayrıca `logistics_predictions` ve
 `customer_segments` tablolarını üretir. Bu yüzden ham Olist tabloları dashboard
@@ -32,7 +33,7 @@ için temel veriyi sağlar, fakat tüm dashboard sayfalarının dolması için n
 
 | Katman | Bu projedeki karşılığı | Not |
 | --- | --- | --- |
-| Kaynak veri | Kaggle Olist CSV dosyaları | Git'e eklenmez; yerelde `olist-intelligence/data/raw/` altında tutulur. |
+| Kaynak veri | Kaggle Olist CSV dosyaları | Git'e eklenmez; yerelde `olist-intelligence/data/raw/` veya `olist-intelligence/olist-dataset/` altında tutulur. |
 | Ingest | `src/ml/ingest.py` | CSV dosyalarını SQLite/Postgres uyumlu tablolara yazar. |
 | Veritabanı | `olist.db` veya `DATABASE_URL` | Varsayılan yerel çalışma SQLite kullanır. |
 | Veri kontrolü | `scripts/validate_olist_schema.py` | CSV schema, DB schema ve kalite kontrollerini çalıştırır. |
@@ -61,4 +62,4 @@ referans olacak kısa teknik nottur.
 | --- | --- | --- |
 | P2 | Delivery/churn model card | Model amacı, veri sızıntısı riski, split yöntemi ve sınırlar netleşir. |
 | P2 | Review text NLP deneyi | Portekizce yorumlardan sınırlı ama açıklanabilir issue bucket'ları çıkarılabilir. |
-| P2 | Dashboard ekran görüntüleri | Sadece yerel veri ve Browser QA sonrası eklenmeli. |
+| P2 | Category/geolocation analytics | Olist'in kategori ve konum tabloları dashboard/analiz tarafında daha iyi kullanılabilir. |

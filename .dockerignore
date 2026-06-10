@@ -5,24 +5,37 @@
 # Data (Volume ile bağlanacak)
 data/
 olist-intelligence/data/
+olist-intelligence/olist-dataset/
+olist-intelligence/olist.db
+olist-intelligence/*.db
 
 # Secrets
 .env
 olist-intelligence/.env
+**/.env
+**/.env.*
+!.env.example
+!olist-intelligence/.env.example
 
 # Python
 venv/
+.venv/
 __pycache__/
+**/__pycache__/
 *.pyc
 .ipynb_checkpoints/
+**/.ipynb_checkpoints/
 *.egg-info/
+.pytest_cache/
+**/.pytest_cache/
 
 # Models & Logs (Volume ile bağlanacak)
 mlruns/
 olist-intelligence/mlruns/
 models/
 olist-intelligence/models/
+olist-intelligence/catboost_info/
+olist-intelligence/store/
 
-# Docs
-*.pdf
-*.md
+# Large local reports are not needed in image builds
+olist-intelligence/docs/reports/*.pdf
