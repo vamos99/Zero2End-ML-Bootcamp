@@ -10,6 +10,10 @@ def _metric_value(metrics, key, default=0):
     return metrics.get(key, default)
 
 
+def _format_pct(value):
+    return f"{value:.1f}%"
+
+
 def render_home_view(metrics, executive_data=None):
     executive_data = executive_data or {}
 
@@ -98,6 +102,147 @@ def render_home_view(metrics, executive_data=None):
             st.plotly_chart(fig, width="stretch")
         else:
             st.info("Review and delivery diagnostics are available after review tables are loaded.")
+
+    st.markdown("---")
+
+    st.subheader("Executive operating signals")
+    signal_col1, signal_col2 = st.columns(2)
+
+    payment_mix = executive_data.get("payment_mix")
+    with signal_col1:
+        st.markdown("**Payment mix**")
+        if payment_mix is not None and not payment_mix.empty:
+            payment_mix = payment_mix.copy()
+            total_payment_value = payment_mix["payment_value"].sum()
+            payment_mix["payment_share"] = 0.0
+            if total_payment_value:
+                payment_mix["payment_share"] = payment_mix["payment_value"] / total_payment_value * 100
+            fig = px.bar(
+                payment_mix,
+                x="payment_type",
+                y="payment_value",
+                color="orders",
+                labels={
+                    "payment_type": "Payment type",
+                    "payment_value": "Payment value (BRL)",
+                    "orders": "Orders",
+                },
+                title="Payment value by method",
+            )
+            st.plotly_chart(fig, width="stretch")
+            st.dataframe(
+                payment_mix[["payment_type", "orders", "payment_share", "avg_installments"]]
+                .rename(
+                    columns={
+                        "payment_type": "Payment type",
+                        "orders": "Orders",
+                        "payment_share": "Value share",
+                        "avg_installments": "Avg. installments",
+                    }
+                )
+                .style.format({"Orders": "{:,.0f}", "Value share": _format_pct, "Avg. installments": "{:.2f}"}),
+                width="stretch",
+                hide_index=True,
+            )
+        else:
+            st.info("Payment mix is available after SQL views are applied to the local database.")
+
+    cohort_retention = executive_data.get("cohort_retention")
+    with signal_col2:
+        st.markdown("**Customer cohort retention**")
+        if cohort_retention is not None and not cohort_retention.empty:
+            heatmap_data = cohort_retention.pivot(
+                index="cohort_month",
+                columns="months_since_first_order",
+                values="retention_rate",
+            ).sort_index(ascending=False)
+            fig = px.imshow(
+                heatmap_data,
+                aspect="auto",
+                color_continuous_scale="Blues",
+                text_auto=".1f",
+                labels={
+                    "x": "Months since first order",
+                    "y": "Cohort month",
+                    "color": "Retention %",
+                },
+                title="Retention by first-purchase cohort",
+            )
+            fig.update_layout(coloraxis_colorbar_ticksuffix="%")
+            st.plotly_chart(fig, width="stretch")
+        else:
+            st.info("Cohort retention is available after the cohort SQL mart is applied.")
+
+    seller_sla_watchlist = executive_data.get("seller_sla_watchlist")
+    st.markdown("**Seller SLA watchlist**")
+    if seller_sla_watchlist is not None and not seller_sla_watchlist.empty:
+        fig = px.scatter(
+            seller_sla_watchlist,
+            x="orders",
+            y="late_delivery_rate",
+            size="product_revenue",
+            color="avg_review_score",
+            hover_name="seller_label",
+            labels={
+                "orders": "Delivered orders",
+                "late_delivery_rate": "Late delivery rate (%)",
+                "product_revenue": "Product revenue (BRL)",
+                "avg_review_score": "Avg. review score",
+            },
+            title="High-volume sellers with SLA risk",
+        )
+        st.plotly_chart(fig, width="stretch")
+
+        display_columns = [
+            "seller_label",
+            "seller_state",
+            "orders",
+            "product_revenue",
+            "avg_review_score",
+            "avg_delivery_days",
+            "late_delivery_rate",
+        ]
+        st.dataframe(
+            seller_sla_watchlist[display_columns]
+            .rename(
+                columns={
+                    "seller_label": "Seller",
+                    "seller_state": "State",
+                    "orders": "Orders",
+                    "product_revenue": "Product revenue",
+                    "avg_review_score": "Avg. review",
+                    "avg_delivery_days": "Avg. delivery days",
+                    "late_delivery_rate": "Late delivery",
+                }
+            )
+            .style.format(
+                {
+                    "Orders": "{:,.0f}",
+                    "Product revenue": "{:,.0f} BRL",
+                    "Avg. review": "{:.2f}",
+                    "Avg. delivery days": "{:.1f}",
+                    "Late delivery": _format_pct,
+                }
+            ),
+            width="stretch",
+            hide_index=True,
+        )
+        st.caption("Seller SLA is a full-dataset view; the page date filter applies to order-window charts.")
+    else:
+        st.info("Seller SLA watchlist is available after SQL views are applied to the local database.")
+
+    with st.expander("Dashboard data sources"):
+        st.markdown(
+            """
+            | Dashboard block | Source |
+            | --- | --- |
+            | Revenue by customer state | `orders`, `order_items`, `customers` |
+            | Review score vs. delivery quality | `orders`, `order_reviews` |
+            | Payment mix | `payment_mix_summary` |
+            | Customer cohort retention | `customer_cohort_retention` |
+            | Seller SLA watchlist | `seller_sla_summary` |
+            """
+        )
 
     st.markdown("---")
 

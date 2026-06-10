@@ -41,13 +41,23 @@ def test_get_executive_dashboard_data(mock_repository):
     """Test executive dashboard chart data preparation."""
     state_df = pd.DataFrame({"customer_state": ["SP"], "revenue": [1000], "order_count": [10]})
     quality_df = pd.DataFrame({"review_score": [5], "late_delivery_rate": [2.5], "order_count": [10]})
+    payment_df = pd.DataFrame({"payment_type": ["credit_card"], "payment_value": [1000], "orders": [10]})
+    cohort_df = pd.DataFrame({"cohort_month": ["2017-01"], "months_since_first_order": [1], "retention_rate": [2.5]})
+    seller_df = pd.DataFrame({"seller_id": ["seller_123456789"], "late_delivery_rate": [45.0], "orders": [25]})
+
     mock_repository.get_revenue_by_state.return_value = state_df
     mock_repository.get_review_delivery_matrix.return_value = quality_df
+    mock_repository.get_payment_mix_summary.return_value = payment_df
+    mock_repository.get_cohort_retention_matrix.return_value = cohort_df
+    mock_repository.get_seller_sla_watchlist.return_value = seller_df
 
     result = analytics_service.get_executive_dashboard_data("2017-01-01", "2017-01-31")
 
     assert result["revenue_by_state"].equals(state_df)
     assert result["review_delivery_matrix"].equals(quality_df)
+    assert result["payment_mix"].equals(payment_df)
+    assert result["cohort_retention"].equals(cohort_df)
+    assert result["seller_sla_watchlist"].iloc[0]["seller_label"] == "Seller seller_1..."
 
 @patch('src.services.analytics_service.repository')
 def test_get_logistics_data(mock_repository):

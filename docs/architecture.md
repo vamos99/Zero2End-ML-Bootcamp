@@ -45,7 +45,7 @@ için temel veriyi sağlar, fakat tüm dashboard sayfalarının dolması için n
 
 | Alan | Durum | Dosyalar |
 | --- | --- | --- |
-| Executive dashboard | Sipariş, ürün geliri, müşteri, gecikme ve review metrikleri var | `olist-intelligence/src/views/home_view.py` |
+| Executive dashboard | Sipariş, ürün geliri, müşteri, gecikme, review, payment mix, cohort retention ve seller SLA sinyalleri var | `olist-intelligence/src/views/home_view.py` |
 | SQL metrik katmanı | Order summary, delivery quality, payment mix, review-delivery, seller SLA, cohort retention, seller performance ve segment view'ları var | `olist-intelligence/sql/views/` |
 | Kaynak sözleşmesi | Kaggle 9 CSV / 52 kolon beklentisi ve DB kalite kontrolleri var | `olist-intelligence/src/data_contract.py`, `olist-intelligence/tests/test_data_contract.py` |
 | SQL mutabakatı | Küçük SQLite fixture ile mart kontrolleri var | `olist-intelligence/tests/test_sql_views.py` |
@@ -59,7 +59,6 @@ referans olacak kısa teknik nottur.
 
 | Öncelik | İş | Neden önemli |
 | --- | --- | --- |
-| P1 | Dashboard chart -> SQL mart eşlemesi | Yönetici ekranındaki metriklerin hangi view'dan geldiği izlenebilir olur. |
 | P2 | Delivery/churn model card | Model amacı, veri sızıntısı riski, split yöntemi ve sınırlar netleşir. |
 | P2 | Review text NLP deneyi | Portekizce yorumlardan sınırlı ama açıklanabilir issue bucket'ları çıkarılabilir. |
 | P2 | Dashboard ekran görüntüleri | Sadece yerel veri ve Browser QA sonrası eklenmeli. |

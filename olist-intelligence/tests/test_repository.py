@@ -95,3 +95,62 @@ class TestRepository:
             assert result['avg_review_score'] == 3.5
             assert result['late_delivery_rate'] == 50.0
             assert result['review_count'] == 2
+
+    @patch('src.database.repository.engine')
+    def test_get_payment_mix_summary(self, mock_engine):
+        """Test payment mix mart retrieval."""
+        from src.database.repository import get_payment_mix_summary
+
+        mock_df = pd.DataFrame({
+            'payment_type': ['credit_card'],
+            'orders': [10],
+            'payment_records': [12],
+            'payment_value': [1000.0],
+            'avg_installments': [2.5],
+        })
+
+        with patch('pandas.read_sql', return_value=mock_df):
+            result = get_payment_mix_summary('2024-01-01', '2024-01-31')
+
+            assert result.iloc[0]['payment_type'] == 'credit_card'
+            assert result.iloc[0]['payment_value'] == 1000.0
+
+    @patch('src.database.repository.engine')
+    def test_get_cohort_retention_matrix(self, mock_engine):
+        """Test cohort retention mart retrieval."""
+        from src.database.repository import get_cohort_retention_matrix
+
+        mock_df = pd.DataFrame({
+            'cohort_month': ['2024-01', '2024-01'],
+            'months_since_first_order': [0, 1],
+            'cohort_customers': [100, 100],
+            'active_customers': [100, 12],
+            'retention_rate': [100.0, 12.0],
+        })
+
+        with patch('pandas.read_sql', return_value=mock_df):
+            result = get_cohort_retention_matrix('2024-01-01', '2024-03-31')
+
+            assert list(result['months_since_first_order']) == [0, 1]
+            assert result.iloc[1]['retention_rate'] == 12.0
+
+    @patch('src.database.repository.engine')
+    def test_get_seller_sla_watchlist(self, mock_engine):
+        """Test seller SLA watchlist mart retrieval."""
+        from src.database.repository import get_seller_sla_watchlist
+
+        mock_df = pd.DataFrame({
+            'seller_id': ['s1'],
+            'seller_state': ['SP'],
+            'orders': [25],
+            'product_revenue': [5000.0],
+            'avg_review_score': [3.8],
+            'avg_delivery_days': [11.2],
+            'late_delivery_rate': [42.0],
+        })
+
+        with patch('pandas.read_sql', return_value=mock_df):
+            result = get_seller_sla_watchlist()
+
+            assert result.iloc[0]['seller_id'] == 's1'
+            assert result.iloc[0]['late_delivery_rate'] == 42.0

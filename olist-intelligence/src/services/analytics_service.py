@@ -21,10 +21,22 @@ def get_executive_dashboard_data(start_date, end_date):
     """Prepares summary charts for the executive home page."""
     revenue_by_state = repository.get_revenue_by_state(start_date, end_date)
     review_delivery_matrix = repository.get_review_delivery_matrix(start_date, end_date)
+    payment_mix = repository.get_payment_mix_summary(start_date, end_date)
+    cohort_retention = repository.get_cohort_retention_matrix(start_date, end_date)
+    seller_sla_watchlist = repository.get_seller_sla_watchlist()
+
+    if not seller_sla_watchlist.empty and "seller_id" in seller_sla_watchlist.columns:
+        seller_sla_watchlist = seller_sla_watchlist.copy()
+        seller_sla_watchlist["seller_label"] = seller_sla_watchlist["seller_id"].apply(
+            lambda value: f"Seller {str(value)[:8]}..."
+        )
 
     return {
         "revenue_by_state": revenue_by_state,
         "review_delivery_matrix": review_delivery_matrix,
+        "payment_mix": payment_mix,
+        "cohort_retention": cohort_retention,
+        "seller_sla_watchlist": seller_sla_watchlist,
     }
 
 def get_logistics_data(start_date, end_date):
