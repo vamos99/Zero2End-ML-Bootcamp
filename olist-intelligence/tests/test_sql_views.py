@@ -41,7 +41,13 @@ def _seed_metric_fixture(database_url: str):
                 payment_value REAL
             )
         """))
-        conn.execute(text("CREATE TABLE customers (customer_id TEXT, customer_state TEXT)"))
+        conn.execute(text("""
+            CREATE TABLE customers (
+                customer_id TEXT,
+                customer_unique_id TEXT,
+                customer_state TEXT
+            )
+        """))
         conn.execute(text("CREATE TABLE sellers (seller_id TEXT, seller_state TEXT)"))
         conn.execute(text("""
             CREATE TABLE customer_segments (
@@ -55,7 +61,9 @@ def _seed_metric_fixture(database_url: str):
         conn.execute(text("""
             INSERT INTO orders VALUES
                 ('o1', 'c1', '2024-01-01', '2024-01-05', '2024-01-06', 'delivered'),
-                ('o2', 'c2', '2024-01-01', '2024-01-08', '2024-01-06', 'delivered')
+                ('o2', 'c2', '2024-01-01', '2024-01-08', '2024-01-06', 'delivered'),
+                ('o3', 'c3', '2024-02-10', '2024-02-15', '2024-02-18', 'delivered'),
+                ('o4', 'c4', '2024-03-15', NULL, '2024-03-25', 'canceled')
         """))
         conn.execute(text("""
             INSERT INTO order_items VALUES
@@ -68,7 +76,13 @@ def _seed_metric_fixture(database_url: str):
                 ('o1', 1, 'credit_card', 1, 110.0),
                 ('o2', 1, 'voucher', 1, 55.0)
         """))
-        conn.execute(text("INSERT INTO customers VALUES ('c1', 'SP'), ('c2', 'RJ')"))
+        conn.execute(text("""
+            INSERT INTO customers VALUES
+                ('c1', 'u1', 'SP'),
+                ('c2', 'u2', 'RJ'),
+                ('c3', 'u1', 'SP'),
+                ('c4', 'u4', 'MG')
+        """))
         conn.execute(text("INSERT INTO sellers VALUES ('s1', 'SP')"))
         conn.execute(text("""
             INSERT INTO customer_segments VALUES
@@ -92,6 +106,7 @@ def test_sql_views_reconcile_core_metrics(tmp_path):
     assert skipped == []
     assert set(applied) == {
         "customer_segment_summary.sql",
+        "customer_cohort_retention.sql",
         "delivery_quality.sql",
         "executive_order_summary.sql",
         "payment_mix_summary.sql",
@@ -100,7 +115,10 @@ def test_sql_views_reconcile_core_metrics(tmp_path):
         "seller_sla_summary.sql",
     }
 
-    executive = pd.read_sql(text("SELECT * FROM executive_order_summary"), engine).iloc[0]
+    executive = pd.read_sql(
+        text("SELECT * FROM executive_order_summary WHERE order_date = '2024-01-01'"),
+        engine,
+    ).iloc[0]
     assert executive["orders"] == 2
     assert executive["customers"] == 2
     assert executive["product_revenue"] == pytest.approx(150.0)
@@ -144,6 +162,30 @@ def test_sql_views_reconcile_core_metrics(tmp_path):
     ).iloc[0]
     assert segment["customers"] == 2
     assert segment["avg_monetary"] == pytest.approx(75.0)
+
+    cohort_month_zero = pd.read_sql(
+        text("""
+            SELECT * FROM customer_cohort_retention
+            WHERE cohort_month = '2024-01-01' AND months_since_first_order = 0
+        """),
+        engine,
+    ).iloc[0]
+    assert cohort_month_zero["cohort_customers"] == 2
+    assert cohort_month_zero["active_customers"] == 2
+    assert cohort_month_zero["orders"] == 2
+    assert cohort_month_zero["retention_rate"] == pytest.approx(100.0)
+
+    cohort_month_one = pd.read_sql(
+        text("""
+            SELECT * FROM customer_cohort_retention
+            WHERE cohort_month = '2024-01-01' AND months_since_first_order = 1
+        """),
+        engine,
+    ).iloc[0]
+    assert cohort_month_one["cohort_customers"] == 2
+    assert cohort_month_one["active_customers"] == 1
+    assert cohort_month_one["orders"] == 1
+    assert cohort_month_one["retention_rate"] == pytest.approx(50.0)
 
 
 def test_apply_sql_views_can_replace_existing_view(tmp_path):
