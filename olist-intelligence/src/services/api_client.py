@@ -69,7 +69,7 @@ class APIClient:
         result = self._handle_request(
             "POST",
             "/recommend",
-            json={"customer_unique_id": customer_id, "n_recommendations": n},
+            json={"customer_id": customer_id, "top_k": n},
             timeout=5
         )
         return result.get("recommendations", []) if result else []
