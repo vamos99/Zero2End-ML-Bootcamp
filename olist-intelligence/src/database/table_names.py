@@ -1,0 +1,7 @@
+ORDERS_TABLE = "orders"
+ORDER_ITEMS_TABLE = "order_items"
+PRODUCTS_TABLE = "products"
+CUSTOMERS_TABLE = "customers"
+SELLERS_TABLE = "sellers"
+PAYMENTS_TABLE = "order_payments"
+REVIEWS_TABLE = "order_reviews"
