@@ -221,6 +221,26 @@ def get_customer_segment(customer_unique_id: str, db: Session = Depends(get_db))
         segment=result[5]
     )
 
+@app.get("/segments")
+def get_segment_distribution(db: Session = Depends(get_db)):
+    """Return customer counts by segment for dashboard summary cards."""
+    query = text("""
+        SELECT "Segment", COUNT(*) AS customer_count
+        FROM customer_segments
+        GROUP BY "Segment"
+        ORDER BY customer_count DESC
+    """)
+    rows = db.execute(query, {}).fetchall()
+    segments = [
+        {"segment": row[0], "customer_count": int(row[1])}
+        for row in rows
+    ]
+
+    return {
+        "segments": segments,
+        "total_customers": sum(item["customer_count"] for item in segments),
+    }
+
 @app.post("/recommend")
 def recommend_products(
     data: RecommendationInput,
