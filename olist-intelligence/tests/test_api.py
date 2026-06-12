@@ -2,12 +2,15 @@ from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
 import asyncio
 
+import numpy as np
 import pytest
 from fastapi import HTTPException
+from unittest.mock import patch
 
 from src.app import app, get_db
 
 client = TestClient(app)
+API_HEADERS = {"X-API-KEY": "test-key"}
 
 # Helper to override DB dependency
 def override_get_db():
@@ -64,6 +67,20 @@ def test_api_key_verification_requires_config(monkeypatch):
 
     assert exc_info.value.status_code == 503
 
+
+def test_protected_inference_endpoint_rejects_missing_api_key(monkeypatch):
+    import src.app as api_app
+
+    monkeypatch.setattr(api_app, "API_KEY", "test-key")
+
+    response = client.post(
+        "/predict/churn",
+        json={"days_since_last_order": 10, "frequency": 5, "monetary": 1000},
+    )
+
+    assert response.status_code == 401
+
+
 def test_get_order_prediction():
     response = client.get("/orders/ORD-123/prediction")
     assert response.status_code == 200
@@ -79,9 +96,12 @@ def test_get_customer_segment():
     assert data["segment"] == "Loyal"
     assert data["recency"] == 120
 
-from unittest.mock import patch
 
-def test_predict_delivery_real():
+def test_predict_delivery_real(monkeypatch):
+    import src.app as api_app
+
+    monkeypatch.setattr(api_app, "API_KEY", "test-key")
+
     # Mock the loaded models in app.models
     with patch("src.app.models") as mock_models:
         # Setup Mock Model
@@ -97,13 +117,17 @@ def test_predict_delivery_real():
             "product_description_lenght": 100.0
         }
         
-        response = client.post("/predict/delivery", json=payload)
+        response = client.post("/predict/delivery", json=payload, headers=API_HEADERS)
         assert response.status_code == 200
         data = response.json()
         assert data["predicted_days"] == 7.5
         assert data["risk_level"] == "Low"
 
-def test_predict_churn_real():
+def test_predict_churn_real(monkeypatch):
+    import src.app as api_app
+
+    monkeypatch.setattr(api_app, "API_KEY", "test-key")
+
     with patch("src.app.models") as mock_models:
         # Setup Mock Model
         mock_churn = MagicMock()
@@ -119,14 +143,18 @@ def test_predict_churn_real():
             "monetary": 1000
         }
         
-        response = client.post("/predict/churn", json=payload)
+        response = client.post("/predict/churn", json=payload, headers=API_HEADERS)
         assert response.status_code == 200
         data = response.json()
         assert data["churn_probability"] is not None
         assert "risk_level" in data
-import numpy as np
 
-def test_recommend_products():
+
+def test_recommend_products(monkeypatch):
+    import src.app as api_app
+
+    monkeypatch.setattr(api_app, "API_KEY", "test-key")
+
     with patch("src.app.models") as mock_models:
         # Setup Mock Recommender Artifact
         mock_artifact = {
@@ -149,7 +177,7 @@ def test_recommend_products():
         
         # Test Case 1: Known User
         payload = {"customer_id": "USER_1", "top_k": 2}
-        response = client.post("/recommend", json=payload)
+        response = client.post("/recommend", json=payload, headers=API_HEADERS)
         assert response.status_code == 200
         data = response.json()
         assert data["method"] == "personalized_svd"
@@ -157,7 +185,7 @@ def test_recommend_products():
         
         # Test Case 2: Unknown User (Cold Start)
         payload = {"customer_id": "UNKNOWN_USER", "top_k": 5}
-        response = client.post("/recommend", json=payload)
+        response = client.post("/recommend", json=payload, headers=API_HEADERS)
         assert response.status_code == 200
         data = response.json()
         assert "popularity_fallback" in data["method"]
