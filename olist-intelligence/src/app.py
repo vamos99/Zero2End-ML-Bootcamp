@@ -13,14 +13,12 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from src.config import DATABASE_URL
 
-# Add project root to path
-# (Required for local debugging if running script directly)
+# Required for local debugging if running this module directly.
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
 logger = logging.getLogger(__name__)
 
-# ============== API KEY SECURITY ==============
 API_KEY = os.getenv("API_KEY")
 api_key_header = APIKeyHeader(name="X-API-KEY", auto_error=False)
 
@@ -31,8 +29,6 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
     if api_key is None or api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API Key")
     return api_key
-
-# ============================================
 
 # Database Setup
 engine = create_engine(DATABASE_URL)
@@ -78,19 +74,13 @@ async def lifespan(app: FastAPI):
     yield
     models.clear()
 
-# ... (Previous Code)
-
-
-
 # FastAPI App
 app = FastAPI(
     title="Olist Intelligence API",
     description="API for Logistics Predictions and Customer Churn Risk",
-    version="2.0.0", # Real Inference Update
+    version="2.0.0",
     lifespan=lifespan
 )
-
-# ... (Previous Pydantic Models)
 
 class DeliveryInput(BaseModel):
     """10-Feature Delivery Prediction Input (RMSE 7.58)"""
@@ -110,10 +100,8 @@ class ChurnInput(BaseModel):
     frequency: float
     monetary: float
 
-# ... (Previous Endpoints)
-
 @app.post("/predict/delivery")
-def predict_delivery(data: DeliveryInput):
+def predict_delivery(data: DeliveryInput, _api_key: str = Depends(verify_api_key)):
     """
     Real-time delivery duration prediction using CatBoost.
     """
@@ -132,7 +120,7 @@ def predict_delivery(data: DeliveryInput):
     }
 
 @app.post("/predict/churn")
-def predict_churn(data: ChurnInput):
+def predict_churn(data: ChurnInput, _api_key: str = Depends(verify_api_key)):
     """
     Real-time churn risk prediction.
     """
@@ -163,7 +151,6 @@ def predict_churn(data: ChurnInput):
         logger.exception("Churn prediction failed: %s", e)
         raise HTTPException(status_code=500, detail="Prediction Error")
 
-# Pydantic Models
 class LogisticsPrediction(BaseModel):
     order_id: str
     customer_id: str
@@ -181,8 +168,6 @@ class CustomerSegment(BaseModel):
 class RecommendationInput(BaseModel):
     customer_id: str
     top_k: int = 5
-
-# Endpoints
 
 @app.get("/")
 def read_root():
@@ -236,10 +221,12 @@ def get_customer_segment(customer_unique_id: str, db: Session = Depends(get_db))
         segment=result[5]
     )
 
-
-
 @app.post("/recommend")
-def recommend_products(data: RecommendationInput, db: Session = Depends(get_db)):
+def recommend_products(
+    data: RecommendationInput,
+    db: Session = Depends(get_db),
+    _api_key: str = Depends(verify_api_key),
+):
     """
     Personalized Product Recommendation using SVD (Collaborative Filtering).
     Falls back to popularity-based recommendation if user is unknown.
