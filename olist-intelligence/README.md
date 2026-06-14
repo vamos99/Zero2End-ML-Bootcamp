@@ -67,6 +67,20 @@ Bu proje production seviyesinde bir veri platformu iddiası taşımaz; bootcamp 
 
 ![Olist data flow architecture](../docs/diagrams/olist-data-flow.png)
 
+Proje durumunu ve teknik sınırları doğrulamak için:
+
+- [Dataset ve local data politikası](docs/DATASET.md)
+- [Güncel mimari ve modül sorumlulukları](docs/ARCHITECTURE.md)
+- [Tamamlanan işler ve gelecek roadmap](docs/ROADMAP.md)
+- [Validation komutları](docs/VALIDATION.md)
+
+Testler raw dataset veya aktif API anahtarı gerektirmeyen mock/fixture
+sözleşmeleriyle CI üzerinde çalışır:
+
+```bash
+pytest tests/ -v --tb=short
+```
+
 | Katman | Bu Projede Karşılığı |
 |--------|-----------------------|
 | **Raw data** | Kaggle Olist CSV dosyaları (`data/raw`, Git'e dahil değil) |

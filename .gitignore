@@ -2,6 +2,7 @@
 data/
 olist-intelligence/data/
 olist-intelligence/olist-dataset/
+olist-intelligence/data/raw/
 *.csv
 *.parquet
 *.zip
