@@ -10,7 +10,7 @@ from src.database.repository_columns import (
     REVIEW_DELIVERY_MATRIX_COLUMNS,
 )
 from src.database.repository_defaults import EMPTY_REVIEW_DELIVERY, EMPTY_TOTALS
-from src.database import ranking_repository
+from src.database import action_repository, ranking_repository
 
 engine = get_db_connection()
 
@@ -399,44 +399,16 @@ def get_target_audience(cluster_id=None, limit=500):
         return pd.DataFrame(columns=["customer_unique_id", "Recency", "Frequency", "Monetary", "Cluster"])
 
 def log_action_to_db(action_type, description, impact_value):
-    # Fix for numpy types
-    if hasattr(impact_value, 'item'):
-        impact_value = impact_value.item()
-        
-    with engine.connect() as conn:
-        conn.execute(text("""
-            INSERT INTO action_logs (action_type, description, impact_value)
-            VALUES (:type, :desc, :val)
-        """), {"type": action_type, "desc": description, "val": impact_value})
-        conn.commit()
+    """Backward-compatible facade for action logging."""
+    return action_repository.log_action_to_db(action_type, description, impact_value)
 
 def get_recent_actions(limit=5):
-    return pd.read_sql(text("SELECT * FROM action_logs ORDER BY timestamp DESC LIMIT :limit"), engine, params={"limit": limit})
+    """Backward-compatible facade for recent actions."""
+    return action_repository.get_recent_actions(limit)
 
 def init_bi_tables():
-    dialect = engine.dialect.name
-    
-    if dialect == 'sqlite':
-        id_col = "id INTEGER PRIMARY KEY AUTOINCREMENT"
-        timestamp_col = "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP"
-    else:
-        # PostgreSQL
-        id_col = "id SERIAL PRIMARY KEY"
-        timestamp_col = "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-        
-    create_sql = f"""
-            CREATE TABLE IF NOT EXISTS action_logs (
-                {id_col},
-                action_type VARCHAR(50),
-                description TEXT,
-                impact_value FLOAT,
-                {timestamp_col}
-            )
-    """
-    
-    with engine.connect() as conn:
-        conn.execute(text(create_sql))
-        conn.commit()
+    """Backward-compatible facade for action table initialization."""
+    return action_repository.init_bi_tables()
 
 def get_top_products(limit=20, start_date=None, end_date=None):
     """Backward-compatible facade for product category rankings."""

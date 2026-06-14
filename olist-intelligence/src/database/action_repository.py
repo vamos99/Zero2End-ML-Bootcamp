@@ -2,6 +2,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from src.database.db_client import get_db_connection
+from src.database.query_limits import clamp_limit
 
 engine = get_db_connection()
 
@@ -29,6 +30,7 @@ def log_action_to_db(action_type, description, impact_value):
 
 
 def get_recent_actions(limit=5):
+    limit = clamp_limit(limit, default=5)
     return pd.read_sql(
         text("SELECT * FROM action_logs ORDER BY timestamp DESC LIMIT :limit"),
         engine,
