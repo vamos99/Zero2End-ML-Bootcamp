@@ -1,6 +1,10 @@
 import pandas as pd
 from sqlalchemy import text
+from src.database.dataframe_factory import empty_frame
 from src.database.db_client import get_db_connection
+from src.database.query_limits import clamp_limit
+from src.database.repository_columns import PAYMENT_MIX_COLUMNS
+from src.database.repository_defaults import EMPTY_REVIEW_DELIVERY, EMPTY_TOTALS
 
 engine = get_db_connection()
 
@@ -44,20 +48,10 @@ def get_revenue_metrics(start_date, end_date):
     try:
         df = pd.read_sql(query, engine, params={"start_date": start_date, "end_date": end_date})
     except Exception:
-        return {
-            "total_revenue": 0.0,
-            "avg_order_value": 0.0,
-            "unique_customers": 0,
-            "revenue_per_customer": 0.0,
-        }
+        return EMPTY_TOTALS.copy()
 
     if df.empty:
-        return {
-            "total_revenue": 0.0,
-            "avg_order_value": 0.0,
-            "unique_customers": 0,
-            "revenue_per_customer": 0.0,
-        }
+        return EMPTY_TOTALS.copy()
 
     total_orders = df["order_id"].nunique()
     unique_customers = df["customer_id"].nunique()
@@ -92,10 +86,10 @@ def get_review_delivery_quality(start_date, end_date):
     try:
         df = pd.read_sql(query, engine, params={"start_date": start_date, "end_date": end_date})
     except Exception:
-        return {"avg_review_score": 0.0, "late_delivery_rate": 0.0, "review_count": 0}
+        return EMPTY_REVIEW_DELIVERY.copy()
 
     if df.empty:
-        return {"avg_review_score": 0.0, "late_delivery_rate": 0.0, "review_count": 0}
+        return EMPTY_REVIEW_DELIVERY.copy()
 
     delivered = df[df["is_late"].notna()]
 
@@ -165,6 +159,7 @@ def get_review_delivery_matrix(start_date, end_date):
 
 def get_payment_mix_summary(start_date, end_date, limit=6):
     """Returns payment-method mix from the reusable payment mart."""
+    limit = clamp_limit(limit, default=6)
     query = text("""
     SELECT
         payment_type,
@@ -186,9 +181,7 @@ def get_payment_mix_summary(start_date, end_date, limit=6):
             params={"start_date": start_date, "end_date": end_date, "limit": limit},
         )
     except Exception:
-        return pd.DataFrame(
-            columns=["payment_type", "orders", "payment_records", "payment_value", "avg_installments"]
-        )
+        return empty_frame(PAYMENT_MIX_COLUMNS)
 
 def get_cohort_retention_matrix(start_date, end_date, max_cohorts=8, max_months=6, min_cohort_size=100):
     """Returns recent customer cohort retention rows for a dashboard heatmap."""
