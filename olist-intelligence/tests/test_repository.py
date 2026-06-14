@@ -64,6 +64,21 @@ class TestRepository:
             result = get_top_sellers(10)
             assert not result.empty
 
+    def test_ranking_facade_delegates_without_breaking_legacy_imports(self):
+        """Legacy repository imports delegate to the focused ranking module."""
+        from src.database.repository import get_category_performance, get_top_products
+
+        expected = pd.DataFrame({"product_category": ["books"]})
+        with patch(
+            "src.database.repository.ranking_repository.get_top_products",
+            return_value=expected,
+        ) as get_top_products_impl:
+            result = get_top_products(7, "2024-01-01", "2024-01-31")
+
+        assert result is expected
+        get_top_products_impl.assert_called_once_with(7, "2024-01-01", "2024-01-31")
+        assert callable(get_category_performance)
+
     @patch('src.database.repository.engine')
     def test_get_revenue_metrics(self, mock_engine):
         """Test executive revenue metric calculation."""

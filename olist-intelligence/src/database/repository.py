@@ -10,6 +10,7 @@ from src.database.repository_columns import (
     REVIEW_DELIVERY_MATRIX_COLUMNS,
 )
 from src.database.repository_defaults import EMPTY_REVIEW_DELIVERY, EMPTY_TOTALS
+from src.database import ranking_repository
 
 engine = get_db_connection()
 
@@ -437,122 +438,17 @@ def init_bi_tables():
         conn.execute(text(create_sql))
         conn.commit()
 
-# ============== NEW: RANKING FUNCTIONS WITH DATE FILTERS (DB AGNOSTIC) ==============
-
 def get_top_products(limit=20, start_date=None, end_date=None):
-    """Get top selling products by category with revenue."""
-    
-    # In SQLite/Pandas approach: Fetch raw, Aggregate in Python
-    query = """
-    SELECT 
-        COALESCE(t.product_category_name_english, p.product_category_name, 'Diğer') as product_category,
-        oi.order_id,
-        oi.price,
-        o.order_purchase_timestamp
-    FROM order_items oi
-    JOIN products p ON oi.product_id = p.product_id
-    JOIN orders o ON oi.order_id = o.order_id
-    LEFT JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
-    """
-    
-    df = pd.read_sql(text(query), engine)
-    
-    if start_date and end_date:
-        df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
-        df = df[(df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & 
-                (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))]
-    
-    # Group By
-    res = df.groupby('product_category').agg(
-        order_count=('order_id', 'nunique'),
-        total_sales=('price', 'sum')
-    ).reset_index().sort_values('total_sales', ascending=False).head(limit)
-    
-    return res
+    """Backward-compatible facade for product category rankings."""
+    return ranking_repository.get_top_products(limit, start_date, end_date)
 
 def get_top_sellers(limit=20, start_date=None, end_date=None):
-    """Get top sellers with performance metrics."""
-    query = """
-    SELECT 
-        s.seller_id,
-        oi.order_id,
-        oi.price,
-        r.review_score,
-        o.order_delivered_customer_date,
-        o.order_estimated_delivery_date,
-        o.order_purchase_timestamp
-    FROM sellers s
-    JOIN order_items oi ON s.seller_id = oi.seller_id
-    JOIN orders o ON oi.order_id = o.order_id
-    LEFT JOIN order_reviews r ON o.order_id = r.order_id
-    WHERE o.order_status = 'delivered'
-    """
-    
-    df = pd.read_sql(text(query), engine)
-    
-    if start_date and end_date:
-        df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
-        df = df[(df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & 
-                (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))]
-        
-    if df.empty:
-        return pd.DataFrame()
-        
-    # Calculate On-Time per row
-    df['order_delivered_customer_date'] = pd.to_datetime(df['order_delivered_customer_date'])
-    df['order_estimated_delivery_date'] = pd.to_datetime(df['order_estimated_delivery_date'])
-    df['is_on_time'] = df['order_delivered_customer_date'] <= df['order_estimated_delivery_date']
-    
-    # Group By
-    res = df.groupby('seller_id').agg(
-        order_count=('order_id', 'nunique'),
-        total_revenue=('price', 'sum'),
-        avg_rating=('review_score', 'mean'),
-        on_time_count=('is_on_time', 'sum'),
-        total_rows=('order_id', 'count')
-    ).reset_index()
-    
-    # Correct On-Time Rate calculation
-    res['on_time_rate'] = (res['on_time_count'] / res['total_rows']) * 100
-    
-    # Filter min 5 orders
-    res = res[res['order_count'] >= 5]
-    
-    return res.sort_values('total_revenue', ascending=False).head(limit)
+    """Backward-compatible facade for seller rankings."""
+    return ranking_repository.get_top_sellers(limit, start_date, end_date)
 
 def get_category_performance(start_date=None, end_date=None):
-    """Get category performance with revenue and ratings."""
-    query = """
-    SELECT 
-        COALESCE(t.product_category_name_english, p.product_category_name, 'Diğer') as category,
-        oi.price,
-        r.review_score,
-        oi.order_id,
-        o.order_purchase_timestamp
-    FROM order_items oi
-    JOIN products p ON oi.product_id = p.product_id
-    JOIN orders o ON oi.order_id = o.order_id
-    LEFT JOIN order_reviews r ON o.order_id = r.order_id
-    LEFT JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
-    WHERE o.order_status = 'delivered'
-    """
-    
-    df = pd.read_sql(text(query), engine)
-    
-    if start_date and end_date:
-        df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
-        df = df[(df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & 
-                (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))]
-    
-    # Group
-    res = df.groupby('category').agg(
-        revenue=('price', 'sum'),
-        avg_review=('review_score', 'mean'),
-        order_count=('order_id', 'nunique')
-    ).reset_index()
-    
-    res = res[res['revenue'] > 1000].sort_values('revenue', ascending=False).head(30)
-    return res
+    """Backward-compatible facade for category performance."""
+    return ranking_repository.get_category_performance(start_date, end_date)
 
 
 def get_random_customer_id():
