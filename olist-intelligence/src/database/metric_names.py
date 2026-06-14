@@ -1,0 +1,5 @@
+REVENUE = "total_revenue"
+ORDER_COUNT = "order_count"
+CUSTOMER_COUNT = "customer_count"
+RETENTION_RATE = "retention_rate"
+LATE_DELIVERY_RATE = "late_delivery_rate"
