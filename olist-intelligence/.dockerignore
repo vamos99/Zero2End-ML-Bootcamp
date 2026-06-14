@@ -24,6 +24,7 @@ htmlcov/
 # Local data and databases are mounted or generated outside the image
 data/
 olist-dataset/
+data/raw/
 olist.db
 *.db
 
