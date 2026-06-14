@@ -2,6 +2,8 @@
 import pytest
 from unittest.mock import patch
 import pandas as pd
+from src.database.repository_columns import PAYMENT_MIX_COLUMNS
+from src.database.repository_defaults import EMPTY_REVIEW_DELIVERY, EMPTY_TOTALS
 
 
 class TestRepository:
@@ -77,6 +79,19 @@ class TestRepository:
             assert result['unique_customers'] == 1
 
     @patch('src.database.repository.engine')
+    def test_get_revenue_metrics_returns_fresh_default_on_error(self, mock_engine):
+        """Repository errors return a stable fallback without exposing shared state."""
+        from src.database.repository import get_revenue_metrics
+
+        with patch('pandas.read_sql', side_effect=RuntimeError('db unavailable')):
+            first = get_revenue_metrics('2024-01-01', '2024-01-31')
+            second = get_revenue_metrics('2024-01-01', '2024-01-31')
+
+        assert first == EMPTY_TOTALS
+        assert first is not EMPTY_TOTALS
+        assert first is not second
+
+    @patch('src.database.repository.engine')
     def test_get_review_delivery_quality(self, mock_engine):
         """Test delivery and review quality metric calculation."""
         from src.database.repository import get_review_delivery_quality
@@ -97,6 +112,17 @@ class TestRepository:
             assert result['review_count'] == 2
 
     @patch('src.database.repository.engine')
+    def test_get_review_delivery_quality_returns_default_for_empty_result(self, mock_engine):
+        """Empty query results preserve the review-quality fallback contract."""
+        from src.database.repository import get_review_delivery_quality
+
+        with patch('pandas.read_sql', return_value=pd.DataFrame()):
+            result = get_review_delivery_quality('2024-01-01', '2024-01-31')
+
+        assert result == EMPTY_REVIEW_DELIVERY
+        assert result is not EMPTY_REVIEW_DELIVERY
+
+    @patch('src.database.repository.engine')
     def test_get_payment_mix_summary(self, mock_engine):
         """Test payment mix mart retrieval."""
         from src.database.repository import get_payment_mix_summary
@@ -109,11 +135,24 @@ class TestRepository:
             'avg_installments': [2.5],
         })
 
-        with patch('pandas.read_sql', return_value=mock_df):
-            result = get_payment_mix_summary('2024-01-01', '2024-01-31')
+        with patch('pandas.read_sql', return_value=mock_df) as mock_read_sql:
+            result = get_payment_mix_summary('2024-01-01', '2024-01-31', limit=500)
 
             assert result.iloc[0]['payment_type'] == 'credit_card'
             assert result.iloc[0]['payment_value'] == 1000.0
+            assert mock_read_sql.call_args.kwargs['params']['limit'] == 100
+
+    @patch('src.database.repository.engine')
+    def test_get_payment_mix_summary_uses_contract_fallback_and_default_limit(self, mock_engine):
+        """Invalid limits are normalized and DB errors return the shared column contract."""
+        from src.database.repository import get_payment_mix_summary
+
+        with patch('pandas.read_sql', side_effect=RuntimeError('mart unavailable')) as mock_read_sql:
+            result = get_payment_mix_summary('2024-01-01', '2024-01-31', limit='invalid')
+
+        assert result.columns.tolist() == PAYMENT_MIX_COLUMNS
+        assert result.empty
+        assert mock_read_sql.call_args.kwargs['params']['limit'] == 6
 
     @patch('src.database.repository.engine')
     def test_get_cohort_retention_matrix(self, mock_engine):
