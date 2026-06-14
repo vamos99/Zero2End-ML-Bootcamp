@@ -3,7 +3,12 @@ from sqlalchemy import text
 from src.database.dataframe_factory import empty_frame
 from src.database.db_client import get_db_connection
 from src.database.query_limits import clamp_limit
-from src.database.repository_columns import PAYMENT_MIX_COLUMNS
+from src.database.repository_columns import (
+    COHORT_RETENTION_COLUMNS,
+    PAYMENT_MIX_COLUMNS,
+    REVENUE_BY_STATE_COLUMNS,
+    REVIEW_DELIVERY_MATRIX_COLUMNS,
+)
 from src.database.repository_defaults import EMPTY_REVIEW_DELIVERY, EMPTY_TOTALS
 
 engine = get_db_connection()
@@ -101,6 +106,7 @@ def get_review_delivery_quality(start_date, end_date):
 
 def get_revenue_by_state(start_date, end_date, limit=12):
     """Returns customer-state revenue ranking for the executive dashboard."""
+    limit = clamp_limit(limit, default=12)
     query = text("""
     WITH order_value AS (
         SELECT
@@ -129,7 +135,7 @@ def get_revenue_by_state(start_date, end_date, limit=12):
             params={"start_date": start_date, "end_date": end_date, "limit": limit},
         )
     except Exception:
-        return pd.DataFrame(columns=["customer_state", "order_count", "revenue"])
+        return empty_frame(REVENUE_BY_STATE_COLUMNS)
 
 def get_review_delivery_matrix(start_date, end_date):
     """Returns review-score delivery quality for a simple driver chart."""
@@ -155,7 +161,7 @@ def get_review_delivery_matrix(start_date, end_date):
     try:
         return pd.read_sql(query, engine, params={"start_date": start_date, "end_date": end_date})
     except Exception:
-        return pd.DataFrame(columns=["review_score", "order_count", "late_delivery_rate"])
+        return empty_frame(REVIEW_DELIVERY_MATRIX_COLUMNS)
 
 def get_payment_mix_summary(start_date, end_date, limit=6):
     """Returns payment-method mix from the reusable payment mart."""
@@ -185,6 +191,8 @@ def get_payment_mix_summary(start_date, end_date, limit=6):
 
 def get_cohort_retention_matrix(start_date, end_date, max_cohorts=8, max_months=6, min_cohort_size=100):
     """Returns recent customer cohort retention rows for a dashboard heatmap."""
+    max_cohorts = clamp_limit(max_cohorts, default=8)
+    max_months = clamp_limit(max_months, default=6)
     query = text("""
     WITH selected_cohorts AS (
         SELECT cohort_month
@@ -220,15 +228,7 @@ def get_cohort_retention_matrix(start_date, end_date, max_cohorts=8, max_months=
             },
         )
     except Exception:
-        return pd.DataFrame(
-            columns=[
-                "cohort_month",
-                "months_since_first_order",
-                "cohort_customers",
-                "active_customers",
-                "retention_rate",
-            ]
-        )
+        return empty_frame(COHORT_RETENTION_COLUMNS)
 
 def get_seller_sla_watchlist(limit=10, min_orders=20):
     """Returns sellers with enough delivered orders and high SLA risk."""

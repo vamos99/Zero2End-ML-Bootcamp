@@ -2,7 +2,12 @@
 import pytest
 from unittest.mock import patch
 import pandas as pd
-from src.database.repository_columns import PAYMENT_MIX_COLUMNS
+from src.database.repository_columns import (
+    COHORT_RETENTION_COLUMNS,
+    PAYMENT_MIX_COLUMNS,
+    REVENUE_BY_STATE_COLUMNS,
+    REVIEW_DELIVERY_MATRIX_COLUMNS,
+)
 from src.database.repository_defaults import EMPTY_REVIEW_DELIVERY, EMPTY_TOTALS
 
 
@@ -172,6 +177,32 @@ class TestRepository:
 
             assert list(result['months_since_first_order']) == [0, 1]
             assert result.iloc[1]['retention_rate'] == 12.0
+
+    @patch('src.database.repository.engine')
+    def test_repository_rankings_normalize_limits_and_use_contract_fallbacks(self, mock_engine):
+        """Ranking-style queries clamp limits and retain stable empty schemas."""
+        from src.database.repository import (
+            get_cohort_retention_matrix,
+            get_revenue_by_state,
+            get_review_delivery_matrix,
+        )
+
+        with patch('pandas.read_sql', side_effect=RuntimeError('db unavailable')) as mock_read_sql:
+            revenue = get_revenue_by_state('2024-01-01', '2024-01-31', limit=500)
+            review = get_review_delivery_matrix('2024-01-01', '2024-01-31')
+            cohort = get_cohort_retention_matrix(
+                '2024-01-01',
+                '2024-03-31',
+                max_cohorts='invalid',
+                max_months=500,
+            )
+
+        assert revenue.columns.tolist() == REVENUE_BY_STATE_COLUMNS
+        assert review.columns.tolist() == REVIEW_DELIVERY_MATRIX_COLUMNS
+        assert cohort.columns.tolist() == COHORT_RETENTION_COLUMNS
+        assert mock_read_sql.call_args_list[0].kwargs['params']['limit'] == 100
+        assert mock_read_sql.call_args_list[2].kwargs['params']['max_cohorts'] == 8
+        assert mock_read_sql.call_args_list[2].kwargs['params']['max_months'] == 100
 
     @patch('src.database.repository.engine')
     def test_get_seller_sla_watchlist(self, mock_engine):
