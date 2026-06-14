@@ -14,7 +14,9 @@ not replace issues or project cards.
   segment reporting
 - Dashboard operating signals for payment mix, cohort retention, and seller SLA
 - GitHub Actions syntax and test checks
-- Initial repository helper modules and first real helper-integration batch
+- Shared repository contracts and two real helper-integration batches
+- Complete ranking repository behavior with stable fallback contracts
+- Backward-compatible ranking and action domain splits
 - API key/config and SQL-view reconciliation tests
 - Architecture overview and local onboarding instructions
 
@@ -22,8 +24,8 @@ not replace issues or project cards.
 
 - Continue wiring shared schemas, fallbacks, and bounded limits into a few
   repository functions per PR
-- Expand `ranking_repository.py` while preserving old imports
-- Split one repository domain at a time behind compatibility wrappers
+- Split the next repository domain only after defining its contracts and tests
+- Review remaining logistics and customer limits/fallbacks in small batches
 - Add behavior tests for SQL parameters, fallback shapes, and legacy imports
 - Keep project board, docs, and actual code status aligned
 
