@@ -79,6 +79,20 @@ class TestRepository:
         get_top_products_impl.assert_called_once_with(7, "2024-01-01", "2024-01-31")
         assert callable(get_category_performance)
 
+    def test_action_facade_delegates_without_breaking_service_imports(self):
+        """Action service imports continue through the repository facade."""
+        from src.database.repository import get_recent_actions
+
+        expected = pd.DataFrame({"action_type": ["refresh"]})
+        with patch(
+            "src.database.repository.action_repository.get_recent_actions",
+            return_value=expected,
+        ) as get_recent_actions_impl:
+            result = get_recent_actions(8)
+
+        assert result is expected
+        get_recent_actions_impl.assert_called_once_with(8)
+
     @patch('src.database.repository.engine')
     def test_get_revenue_metrics(self, mock_engine):
         """Test executive revenue metric calculation."""
