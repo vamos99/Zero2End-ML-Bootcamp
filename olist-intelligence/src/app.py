@@ -7,11 +7,12 @@ from pathlib import Path
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
-from pydantic import BaseModel
-from sqlalchemy import create_engine, text
+from pydantic import BaseModel, Field
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.config import DATABASE_URL
+from src.ml.recommender import recommend_from_artifact
 
 # Required for local debugging if running this module directly.
 project_root = Path(__file__).parent.parent
@@ -42,6 +43,21 @@ def get_db():
         db.close()
 
 models = {}
+
+
+def table_exists(table_name: str) -> bool:
+    """Return whether a runtime table exists without querying its contents."""
+    return table_name in set(inspect(engine).get_table_names())
+
+
+def require_table(table_name: str):
+    """Return a controlled service-unavailable response for optional outputs."""
+    if not table_exists(table_name):
+        raise HTTPException(
+            status_code=503,
+            detail=f"Required generated table is not available: {table_name}",
+        )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -167,7 +183,7 @@ class CustomerSegment(BaseModel):
 
 class RecommendationInput(BaseModel):
     customer_id: str
-    top_k: int = 5
+    top_k: int = Field(default=5, ge=1, le=20)
 
 @app.get("/")
 def read_root():
@@ -175,7 +191,7 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    """Return a small readiness snapshot without touching external services."""
+    """Return a lightweight liveness snapshot."""
     return {
         "status": "ok",
         "database_configured": bool(DATABASE_URL),
@@ -183,11 +199,29 @@ def health_check():
         "loaded_models": sorted(models),
     }
 
+
+@app.get("/ready")
+def readiness_check():
+    """Report optional generated outputs separately from API liveness."""
+    generated_tables = {
+        "logistics_predictions": table_exists("logistics_predictions"),
+        "customer_segments": table_exists("customer_segments"),
+    }
+    return {
+        "status": "ready" if all(generated_tables.values()) else "partial",
+        "database_configured": bool(DATABASE_URL),
+        "api_key_configured": bool(API_KEY),
+        "generated_tables": generated_tables,
+        "loaded_models": sorted(models),
+    }
+
+
 @app.get("/orders/{order_id}/prediction", response_model=LogisticsPrediction)
 def get_order_prediction(order_id: str, db: Session = Depends(get_db)):
     """
     Get logistics prediction for a specific order.
     """
+    require_table("logistics_predictions")
     query = text("SELECT order_id, customer_id, predicted_delivery_days, delivery_days FROM logistics_predictions WHERE order_id = :order_id")
     result = db.execute(query, {"order_id": order_id}).fetchone()
     
@@ -206,6 +240,7 @@ def get_customer_segment(customer_unique_id: str, db: Session = Depends(get_db))
     """
     Get segment info for a specific customer.
     """
+    require_table("customer_segments")
     query = text("SELECT customer_unique_id, \"Recency\", \"Frequency\", \"Monetary\", \"Cluster\", \"Segment\" FROM customer_segments WHERE customer_unique_id = :id")
     result = db.execute(query, {"id": customer_unique_id}).fetchone()
     
@@ -224,6 +259,7 @@ def get_customer_segment(customer_unique_id: str, db: Session = Depends(get_db))
 @app.get("/segments")
 def get_segment_distribution(db: Session = Depends(get_db)):
     """Return customer counts by segment for dashboard summary cards."""
+    require_table("customer_segments")
     query = text("""
         SELECT "Segment", COUNT(*) AS customer_count
         FROM customer_segments
@@ -258,32 +294,15 @@ def recommend_products(
     if "recommender" in models:
         try:
             artifact = models["recommender"]
-            user_map = artifact.get("user_map", {})
-            reverse_product_map = artifact.get("reverse_product_map", {})
-            matrix_reduced = artifact.get("matrix_reduced")
-            product_components = artifact.get("product_components")
-            
-            if data.customer_id in user_map:
-                # Get User Vector
-                user_idx = user_map[data.customer_id]
-                user_vector = matrix_reduced[user_idx]
-                
-                # Compute Scores
-                scores = user_vector @ product_components
-                # Get Top Indices
-                top_indices = scores.argsort()[::-1][:data.top_k].tolist()
-                
-                recommended_ids = []
-                for i in top_indices:
-                    key = int(i)
-                    val = reverse_product_map.get(key, "Unknown Product")
-                    recommended_ids.append(val)
-                
-                # Skip DB lookup for categories to avoid Mock issues in tests
-                final_recommendations = recommended_ids
-                
+            final_recommendations = recommend_from_artifact(
+                artifact,
+                data.customer_id,
+                top_k=data.top_k,
+            )
+            if final_recommendations:
                 return {
                     "method": "personalized_svd",
+                    "item_type": "product_id",
                     "recommendations": final_recommendations
                 }
         except Exception as e:
@@ -317,5 +336,6 @@ def recommend_products(
     return {
         "customer_id": data.customer_id,
         "recommendations": recommendations,
-        "method": method
+        "method": method,
+        "item_type": "product_category",
     }

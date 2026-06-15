@@ -39,6 +39,11 @@ def override_get_db():
 
 app.dependency_overrides[get_db] = override_get_db
 
+
+@pytest.fixture(autouse=True)
+def generated_tables_available(monkeypatch):
+    monkeypatch.setattr("src.app.table_exists", lambda _table_name: True)
+
 def test_read_root():
     response = client.get("/")
     assert response.status_code == 200
@@ -52,6 +57,20 @@ def test_health_check_reports_readiness_without_secrets():
     assert "database_configured" in data
     assert "api_key_configured" in data
     assert "loaded_models" in data
+
+
+def test_readiness_reports_generated_output_state(monkeypatch):
+    monkeypatch.setattr(
+        "src.app.table_exists",
+        lambda table_name: table_name == "customer_segments",
+    )
+    response = client.get("/ready")
+    assert response.status_code == 200
+    assert response.json()["status"] == "partial"
+    assert response.json()["generated_tables"] == {
+        "logistics_predictions": False,
+        "customer_segments": True,
+    }
 
 def test_api_key_verification_requires_config(monkeypatch):
     import src.app as api_app
@@ -96,6 +115,13 @@ def test_get_segment_distribution():
         {"segment": "Dormant", "customer_count": 2},
     ]
     assert data["total_customers"] == 5
+
+
+def test_generated_output_endpoint_returns_controlled_503(monkeypatch):
+    monkeypatch.setattr("src.app.table_exists", lambda _table_name: False)
+    response = client.get("/segments")
+    assert response.status_code == 503
+    assert "customer_segments" in response.json()["detail"]
 
 
 def test_predict_delivery_real(monkeypatch):

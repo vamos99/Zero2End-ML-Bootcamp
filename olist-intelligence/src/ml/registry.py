@@ -1,20 +1,24 @@
-"""MLflow Model Registry utilities for model versioning."""
-import mlflow
-from mlflow.tracking import MlflowClient
+"""MLflow model registry utilities with a local pickle fallback."""
 from pathlib import Path
 import pickle
 import os
 from src.config import MODELS_PATH
 
+try:
+    import mlflow
+    from mlflow.tracking import MlflowClient
+except ImportError:
+    mlflow = None
+    MlflowClient = None
 
 import requests
 from requests.exceptions import ConnectionError, Timeout
 
-def check_mlflow_connection(tracking_uri: str, timeout: int = 15) -> bool:
+def check_mlflow_connection(tracking_uri: str, timeout: int = 2) -> bool:
     """
     Check if MLflow server is reachable with a short timeout.
     Prevents API hang if MLflow is down.
-    User requested 15s timeout.
+    Keep local startup responsive when MLflow is not running.
     """
     if "localhost" not in tracking_uri and "127.0.0.1" not in tracking_uri:
          # Skip check for remote/databricks URIs usually, or keep it.
@@ -33,6 +37,9 @@ def check_mlflow_connection(tracking_uri: str, timeout: int = 15) -> bool:
 
 def get_mlflow_client():
     """Get MLflow client with proper tracking URI."""
+    if mlflow is None or MlflowClient is None:
+        raise RuntimeError("MLflow is not installed")
+
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     
     # Pre-check connection to avoid hang
@@ -64,6 +71,13 @@ def register_model(model, model_name: str, metrics: dict, params: dict = None, f
         model_version: Version number of registered model
     """
     try:
+        if mlflow is None:
+            raise RuntimeError("MLflow is not installed")
+        tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+        mlflow.set_tracking_uri(tracking_uri)
+        if not check_mlflow_connection(tracking_uri):
+            raise ConnectionError("MLflow Server Unreachable")
+
         with mlflow.start_run(run_name=f"{model_name}_training"):
             # Log parameters
             if params:
@@ -129,6 +143,8 @@ def load_production_model(model_name: str, flavor: str = "sklearn"):
         Loaded model object
     """
     try:
+        if mlflow is None:
+            raise RuntimeError("MLflow is not installed")
         client = get_mlflow_client()
         model_uri = f"models:/olist-{model_name}/Production"
         

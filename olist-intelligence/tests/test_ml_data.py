@@ -34,6 +34,9 @@ def test_logistics_data_binds_limit_and_returns_sorted_timestamps():
         features, target, timestamps = get_logistics_data(limit=5, include_timestamps=True)
 
     assert read_sql.call_args.kwargs["params"] == {"limit": 5}
+    assert "ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING" in str(
+        read_sql.call_args.args[0]
+    )
     assert timestamps.tolist() == sorted(timestamps.tolist())
     assert target.tolist() == [2.0, 3.0]
     assert features.columns.tolist() == [

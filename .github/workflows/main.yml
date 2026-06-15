@@ -39,6 +39,13 @@ jobs:
           pytest tests/ -v --tb=short
           python scripts/validate_notebooks.py
 
+      - name: Validate local service configuration
+        env:
+          API_KEY: ci-placeholder-key
+        run: |
+          docker compose config --quiet
+          bash -n run_local.sh
+
   lint:
     runs-on: ubuntu-latest
     defaults:

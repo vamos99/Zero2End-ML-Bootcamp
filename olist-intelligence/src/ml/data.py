@@ -35,12 +35,27 @@ def get_logistics_data(limit=None, include_timestamps=False):
         LEFT JOIN geolocation g ON c.customer_zip_code_prefix = g.geolocation_zip_code_prefix
         GROUP BY customer_zip_code_prefix
     ),
-    seller_ratings AS (
-        SELECT oi2.seller_id, AVG(r.review_score) as seller_avg_rating
+    seller_order_reviews AS (
+        SELECT
+            oi2.seller_id,
+            oi2.order_id,
+            o2.order_purchase_timestamp,
+            AVG(r.review_score) AS review_score
         FROM order_items oi2
-        JOIN order_reviews r ON oi2.order_id = r.order_id
-        GROUP BY oi2.seller_id
-        HAVING COUNT(*) >= 5
+        JOIN orders o2 ON oi2.order_id = o2.order_id
+        LEFT JOIN order_reviews r ON oi2.order_id = r.order_id
+        GROUP BY oi2.seller_id, oi2.order_id, o2.order_purchase_timestamp
+    ),
+    seller_history AS (
+        SELECT
+            seller_id,
+            order_id,
+            AVG(review_score) OVER (
+                PARTITION BY seller_id
+                ORDER BY order_purchase_timestamp, order_id
+                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+            ) AS seller_avg_rating
+        FROM seller_order_reviews
     )
     SELECT 
         o.order_purchase_timestamp,
@@ -64,7 +79,7 @@ def get_logistics_data(limit=None, include_timestamps=False):
     JOIN sellers s ON oi.seller_id = s.seller_id
     LEFT JOIN seller_geo sg ON s.seller_zip_code_prefix = sg.seller_zip_code_prefix
     LEFT JOIN customer_geo cg ON c.customer_zip_code_prefix = cg.customer_zip_code_prefix
-    LEFT JOIN seller_ratings sr ON s.seller_id = sr.seller_id
+    LEFT JOIN seller_history sr ON oi.order_id = sr.order_id AND oi.seller_id = sr.seller_id
     WHERE o.order_status = 'delivered'
     AND o.order_delivered_customer_date IS NOT NULL
     ORDER BY o.order_purchase_timestamp
