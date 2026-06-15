@@ -83,7 +83,7 @@ app = FastAPI(
 )
 
 class DeliveryInput(BaseModel):
-    """10-Feature Delivery Prediction Input (RMSE 7.58)"""
+    """Ten-feature delivery prediction input."""
     freight_value: float
     price: float
     product_weight_g: float
