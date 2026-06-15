@@ -21,3 +21,28 @@ COHORT_RETENTION_COLUMNS = [
     "active_customers",
     "retention_rate",
 ]
+
+SELLER_SLA_COLUMNS = [
+    "seller_id",
+    "seller_state",
+    "orders",
+    "product_revenue",
+    "avg_review_score",
+    "avg_delivery_days",
+    "late_delivery_rate",
+]
+
+LOGISTICS_DETAILS_COLUMNS = [
+    "customer_id",
+    "Tahmini Süre (Gün)",
+    "Gerçekleşen (Gün)",
+    "order_purchase_timestamp",
+]
+
+TARGET_AUDIENCE_COLUMNS = [
+    "customer_unique_id",
+    "Recency",
+    "Frequency",
+    "Monetary",
+    "Cluster",
+]

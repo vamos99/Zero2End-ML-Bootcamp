@@ -99,7 +99,7 @@ def test_sql_views_reconcile_core_metrics(tmp_path):
 
     applied, skipped = apply_sql_views(
         database_url=database_url,
-        sql_dir=Path("sql/views"),
+        sql_dir=Path(__file__).resolve().parents[1] / "sql" / "views",
         strict=True,
     )
 

@@ -4,9 +4,12 @@ from unittest.mock import patch
 import pandas as pd
 from src.database.repository_columns import (
     COHORT_RETENTION_COLUMNS,
+    LOGISTICS_DETAILS_COLUMNS,
     PAYMENT_MIX_COLUMNS,
     REVENUE_BY_STATE_COLUMNS,
     REVIEW_DELIVERY_MATRIX_COLUMNS,
+    SELLER_SLA_COLUMNS,
+    TARGET_AUDIENCE_COLUMNS,
 )
 from src.database.repository_defaults import EMPTY_REVIEW_DELIVERY, EMPTY_TOTALS
 
@@ -253,3 +256,24 @@ class TestRepository:
 
             assert result.iloc[0]['seller_id'] == 's1'
             assert result.iloc[0]['late_delivery_rate'] == 42.0
+
+    @patch('src.database.repository.engine')
+    def test_remaining_repository_limits_and_fallbacks_use_contracts(self, mock_engine):
+        """Seller, logistics, and audience queries use bounded limits and stable schemas."""
+        from src.database.repository import (
+            get_logistics_details,
+            get_seller_sla_watchlist,
+            get_target_audience,
+        )
+
+        with patch('pandas.read_sql', side_effect=RuntimeError('db unavailable')) as read_sql:
+            sellers = get_seller_sla_watchlist(limit=500)
+            logistics = get_logistics_details('2024-01-01', '2024-01-31', limit='invalid')
+            audience = get_target_audience(limit=5000)
+
+        assert sellers.columns.tolist() == SELLER_SLA_COLUMNS
+        assert logistics.columns.tolist() == LOGISTICS_DETAILS_COLUMNS
+        assert audience.columns.tolist() == TARGET_AUDIENCE_COLUMNS
+        assert read_sql.call_args_list[0].kwargs['params']['limit'] == 100
+        assert read_sql.call_args_list[1].kwargs['params']['limit'] == 10
+        assert read_sql.call_args_list[2].kwargs['params']['limit'] == 500
