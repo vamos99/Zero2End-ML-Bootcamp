@@ -19,15 +19,17 @@ not replace issues or project cards.
 - Backward-compatible ranking and action domain splits
 - API key/config and SQL-view reconciliation tests
 - Architecture overview and local onboarding instructions
+- Deterministic local demo build and generated-output contracts
+- Dashboard empty-state/readiness semantics and relative segment labels
+- Delivery seller-rating leakage guardrail and model cards
+- Logistics and customer repository domain splits with compatibility wrappers
+- Recommender leave-one-out evaluation and unseen-product inference guardrail
 
-## Current Cleanup Phase
+## Remaining Cleanup Before New Analytics
 
-- Continue wiring shared schemas, fallbacks, and bounded limits into a few
-  repository functions per PR
-- Split the next repository domain only after defining its contracts and tests
-- Review remaining logistics and customer limits/fallbacks in small batches
-- Add behavior tests for SQL parameters, fallback shapes, and legacy imports
-- Keep project board, docs, and actual code status aligned
+- Split remaining executive/revenue/review domains behind compatibility wrappers.
+- Add focused ingest, registry, and Docker startup tests.
+- Keep project board, docs, screenshots, and actual code status aligned.
 
 ## Next Analytics Phases
 

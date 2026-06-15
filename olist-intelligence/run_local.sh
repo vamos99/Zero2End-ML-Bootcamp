@@ -9,13 +9,22 @@ echo -e "${BLUE}🚀 Olist Intelligence Local Başlatıcı${NC}"
 echo "========================================"
 
 # Python ortamı kontrolü
-if [ -d "venv" ]; then
+if [ -d ".venv" ]; then
+    echo -e "${GREEN}✅ .venv aktif ediliyor...${NC}"
+    source .venv/bin/activate
+elif [ -d "venv" ]; then
     echo -e "${GREEN}✅ venv aktif ediliyor...${NC}"
     source venv/bin/activate
 else
-    echo "⚠️ venv bulunamadı! Lütfen önce kurulum adımlarını yapın."
+    echo "⚠️ .venv veya venv bulunamadı. Önce kurulum adımlarını uygulayın."
     exit 1
 fi
+
+python scripts/validate_olist_schema.py --target db || exit 1
+python scripts/validate_olist_schema.py --target generated || {
+    echo "Generated dashboard tabloları eksik. Çalıştırın: python scripts/build_local_demo.py"
+    exit 1
+}
 
 # 1. MLflow Başlat (Arka Planda)
 echo -e "${BLUE}📊 MLflow (Port 5000) başlatılıyor...${NC}"

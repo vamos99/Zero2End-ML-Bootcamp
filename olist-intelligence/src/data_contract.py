@@ -102,6 +102,24 @@ EXPECTED_TABLE_SCHEMAS: dict[str, list[str]] = {
     for file_name, columns in EXPECTED_CSV_SCHEMAS.items()
 }
 
+GENERATED_TABLE_SCHEMAS: dict[str, list[str]] = {
+    "logistics_predictions": [
+        "order_id",
+        "customer_id",
+        "predicted_delivery_days",
+        "delivery_days",
+        "prediction_source",
+    ],
+    "customer_segments": [
+        "customer_unique_id",
+        "Recency",
+        "Frequency",
+        "Monetary",
+        "Cluster",
+        "Segment",
+    ],
+}
+
 PRIMARY_KEY_CHECKS: dict[str, list[str]] = {
     "orders": ["order_id"],
     "customers": ["customer_id"],
@@ -477,5 +495,79 @@ def validate_database_quality(database_url: str) -> list[SchemaIssue]:
         issues.extend(_validate_primary_keys(conn))
         issues.extend(_validate_referential_integrity(conn))
         issues.extend(_validate_domain_rules(conn))
+
+    return issues
+
+
+def validate_generated_outputs(database_url: str) -> list[SchemaIssue]:
+    """Validate optional dashboard outputs after notebooks or local demo build."""
+    engine = create_engine(database_url)
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    issues: list[SchemaIssue] = []
+
+    for table_name, expected_columns in GENERATED_TABLE_SCHEMAS.items():
+        if table_name not in table_names:
+            issues.append(SchemaIssue("generated", table_name, "missing_table", table_name))
+            continue
+        actual_columns = [column["name"] for column in inspector.get_columns(table_name)]
+        issues.extend(
+            _compare_columns(
+                scope="generated",
+                name=table_name,
+                expected=expected_columns,
+                actual=actual_columns,
+                strict_extra=False,
+            )
+        )
+
+    if issues:
+        return issues
+
+    with engine.connect() as conn:
+        for table_name in GENERATED_TABLE_SCHEMAS:
+            if _count_query(conn, f"SELECT COUNT(*) FROM {table_name}") == 0:
+                issues.append(
+                    SchemaIssue("generated", table_name, "empty_table", "expected at least one row")
+                )
+
+        duplicate_predictions = _count_query(
+            conn,
+            """
+            SELECT COUNT(*) FROM (
+                SELECT order_id
+                FROM logistics_predictions
+                GROUP BY order_id
+                HAVING COUNT(*) > 1
+            ) duplicate_orders
+            """,
+        )
+        if duplicate_predictions:
+            issues.append(
+                SchemaIssue(
+                    "generated",
+                    "logistics_predictions",
+                    "duplicate_key",
+                    f"order_id: {duplicate_predictions} duplicated key groups",
+                )
+            )
+
+        invalid_segments = _count_query(
+            conn,
+            """
+            SELECT COUNT(*)
+            FROM customer_segments
+            WHERE "Segment" IS NULL OR "Cluster" IS NULL
+            """,
+        )
+        if invalid_segments:
+            issues.append(
+                SchemaIssue(
+                    "generated",
+                    "customer_segments",
+                    "missing_segment_assignment",
+                    f"{invalid_segments} rows",
+                )
+            )
 
     return issues

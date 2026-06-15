@@ -8,8 +8,20 @@ load_dotenv()
 # Project Paths
 # src/config.py -> src/ -> olist-intelligence/
 PROJECT_ROOT = Path(__file__).parent.parent
-DATA_RAW_PATH = PROJECT_ROOT / "data" / "raw"
 MODELS_PATH = PROJECT_ROOT / "models"
+
+configured_data_path = os.getenv("DATA_RAW_PATH")
+if configured_data_path:
+    candidate_data_path = Path(configured_data_path).expanduser()
+    DATA_RAW_PATH = (
+        candidate_data_path
+        if candidate_data_path.is_absolute()
+        else PROJECT_ROOT / candidate_data_path
+    )
+elif (PROJECT_ROOT / "olist-dataset").exists() and not (PROJECT_ROOT / "data" / "raw").exists():
+    DATA_RAW_PATH = PROJECT_ROOT / "olist-dataset"
+else:
+    DATA_RAW_PATH = PROJECT_ROOT / "data" / "raw"
 
 # Database Configuration
 # Default to SQLite for portability, allows override via Env Var (e.g. for Docker/Postgres)
