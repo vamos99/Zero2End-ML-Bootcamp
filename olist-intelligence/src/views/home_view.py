@@ -28,6 +28,9 @@ def render_home_view(metrics, executive_data=None):
     unique_customers = _metric_value(metrics, "unique_customers")
     late_delivery_rate = _metric_value(metrics, "late_delivery_rate")
     avg_review_score = _metric_value(metrics, "avg_review_score")
+    generated_outputs = metrics.get("generated_outputs", {})
+    logistics_available = generated_outputs.get("logistics_predictions", False)
+    segments_available = generated_outputs.get("customer_segments", False)
 
     row1 = st.columns(4)
     row1[0].metric("Orders", f"{total_orders:,}", help="Orders in the selected date range.")
@@ -38,13 +41,13 @@ def render_home_view(metrics, executive_data=None):
     row2 = st.columns(4)
     row2[0].metric(
         "Logistics Risk",
-        f"{_metric_value(metrics, 'risk_logistics'):,} orders",
+        f"{_metric_value(metrics, 'risk_logistics'):,} orders" if logistics_available else "Not built",
         help="Orders with a predicted delivery duration above the risk threshold.",
     )
     row2[1].metric(
         "Churn Risk Snapshot",
-        f"{_metric_value(metrics, 'risk_churn'):,} customers",
-        help="Current at-risk customer count from the segmentation output.",
+        f"{_metric_value(metrics, 'risk_churn'):,} customers" if segments_available else "Not built",
+        help="Current relative At Risk profile count from the segmentation output.",
     )
     row2[2].metric(
         "Late Delivery Rate",
@@ -247,15 +250,19 @@ def render_home_view(metrics, executive_data=None):
     st.markdown("---")
 
     st.subheader("Recommended next checks")
-    if _metric_value(metrics, "risk_logistics") > 0:
+    if not logistics_available:
+        st.info("Operations: build the logistics prediction output before interpreting delivery risk.")
+    elif _metric_value(metrics, "risk_logistics") > 0:
         st.warning("Operations: inspect delayed-order risk and prioritize customer communication.")
     else:
         st.success("Operations: no high-risk delivery backlog is visible for this window.")
 
-    if _metric_value(metrics, "risk_churn") > 0:
+    if not segments_available:
+        st.info("Customer: build the segmentation output before interpreting the At Risk snapshot.")
+    elif _metric_value(metrics, "risk_churn") > 0:
         st.info("Customer: review the at-risk segment before launching retention actions.")
     else:
-        st.info("Customer: segmentation outputs are needed for the churn-risk snapshot.")
+        st.info("Customer: no customers are currently labeled At Risk in the generated segment snapshot.")
 
     st.caption(
         "This overview is designed as a decision surface, not a full BI layer. "

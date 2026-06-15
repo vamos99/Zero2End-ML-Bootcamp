@@ -4,48 +4,47 @@ from src.services.api_client import api_client
 
 def render_logistics_view(risk_count, metrics, df_details):
     st.title("📦 Operasyon Merkezi")
+    available = metrics.get("available", False)
     
     # KPI Row
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("🚨 Gecikme Riski Olanlar", f"{risk_count} Sipariş", help="Tahmini teslimat süresi, söz verilen süreyi geçen sipariş sayısı.")
+        st.metric("🚨 Uzun Teslimat Tahmini", f"{risk_count} Sipariş" if available else "Hazır değil", help="Tahmini teslimat süresi 10 günden uzun olan sipariş sayısı.")
     with col2:
-        st.metric("✅ Zamanında Teslimat Oranı", f"%{metrics['on_time_rate']:.1f}", help="Söz verilen tarihte veya öncesinde teslim edilen siparişlerin oranı.")
+        st.metric("✅ Model Karşılama Oranı", f"%{metrics['on_time_rate']:.1f}" if available else "Hazır değil", help="Gerçek teslimat süresi model tahminini aşmayan siparişlerin oranı; SLA metriği değildir.")
     with col3:
-        st.metric("⏱️ Ort. Teslimat Süresi", f"{metrics['avg_time']:.1f} Gün", help="Sipariş veriliş tarihinden teslimat tarihine kadar geçen ortalama süre.")
+        st.metric("⏱️ Ort. Teslimat Süresi", f"{metrics['avg_time']:.1f} Gün" if available else "Hazır değil", help="Sipariş veriliş tarihinden teslimat tarihine kadar geçen ortalama süre.")
 
     st.markdown("---")
 
     # BI Action Section
-    if risk_count > 0:
-        # Dynamic Impact Calculation
-        complaint_rate = metrics['complaint_rate']
-        potential_complaints = int(risk_count * (complaint_rate / 100.0))
-        
-        st.warning(f"⚠️ **Analiz:** {risk_count} siparişin gecikmesi, tahmini **{potential_complaints} Müşteri Şikayeti** yaratabilir (Beklenen Şikayet Oranı: %{complaint_rate:.1f}).")
+    if not available:
+        st.info("Lojistik tahmin çıktısı bulunamadı. `logistics_predictions` tablosunu local build veya Logistics notebook ile üretin.")
+    elif risk_count > 0:
+        low_review_rate = metrics['low_review_rate']
+        st.warning(f"Risk grubundaki siparişlerin %{low_review_rate:.1f} kadarı 1-2 yıldızlı review ile ilişkilidir. Bu ilişki nedensel etki değildir.")
         
         c1, c2 = st.columns([3, 1])
         with c1:
-            st.markdown("**Önerilen Aksiyon:** Otomatik bilgilendirme e-postası gönder.")
-            st.caption(f"Beklenen Etki: {int(potential_complaints * 0.8)} müşterinin şikayet etmesini önler.")
+            st.markdown("**Deney Hipotezi:** Proaktif bilgilendirme düşük review oranını azaltabilir.")
+            st.caption("Beklenen etki ölçülmemiştir; önce holdout gruplu iletişim deneyi tasarlanmalıdır.")
             
         with c2:
-            if st.button("📧 E-Posta Gönder", key="logistics_btn"):
-                action_service.execute_action("EMAIL_CAMPAIGN", f"{risk_count} riskli sipariş için bilgilendirme yapıldı.", risk_count)
-                st.success("Aksiyon Başarılı! İşlem günlüğe kaydedildi.")
-                st.balloons()
+            if st.button("İletişim Deney Taslağını Kaydet", key="logistics_btn"):
+                action_service.execute_action("LOGISTICS_EXPERIMENT_DRAFT", f"{risk_count} sipariş için iletişim deney taslağı.", risk_count)
+                st.success("İletişim deney taslağı işlem günlüğüne kaydedildi; gerçek mesaj gönderilmedi.")
 
         # Detailed Table
-        st.subheader("📋 Müdahale Gerektiren Siparişler")
+        st.subheader("📋 İncelenecek Siparişler")
         st.dataframe(df_details.style.highlight_max(axis=0, color='#ffcdd2'), width="stretch")
     else:
-        st.success("Harika! Şu an riskli bir sipariş görünmüyor.")
+        st.success("Seçili tarih aralığında 10 günden uzun teslimat tahmini görünmüyor.")
 
     st.markdown("---")
 
     # NEW: Prediction Simulator
-    st.markdown("### 🤖 Yapay Zeka Teslimat Tahmini (Simülasyon)")
+    st.markdown("### 🤖 Teslimat Modeli Simülatörü")
     
     with st.expander("🚚 Yeni Bir Sipariş İçin Tahmin Yap", expanded=False):
         with st.form("logistics_prediction_form"):
@@ -66,7 +65,7 @@ def render_logistics_view(risk_count, metrics, df_details):
             submitted = st.form_submit_button("Tahmin Et ⏱️")
             
         if submitted:
-            with st.spinner("Model çalışıyor..."):
+            with st.spinner("Yüklü model kontrol ediliyor..."):
                 # Call API
                 result = api_client.predict_delivery(
                     freight=freight,

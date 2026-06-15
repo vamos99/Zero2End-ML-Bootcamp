@@ -22,13 +22,30 @@ class TestRepository:
         """Test total orders retrieval."""
         from src.database.repository import get_total_orders
         
-        # Add required timestamp column
-        mock_df = pd.DataFrame({
-            'order_purchase_timestamp': ['2024-01-15', '2024-01-20']
-        })
-        with patch('pandas.read_sql', return_value=mock_df):
+        mock_df = pd.DataFrame({0: [2]})
+        with patch('pandas.read_sql', return_value=mock_df) as mock_read_sql:
             result = get_total_orders('2024-01-01', '2024-01-31')
             assert result == 2
+            assert mock_read_sql.call_args.kwargs["params"] == {
+                "start_date": "2024-01-01",
+                "end_date": "2024-01-31",
+            }
+
+    @patch('src.database.repository.engine')
+    def test_generated_output_status_reports_optional_tables(self, mock_engine):
+        from src.database.repository import get_generated_output_status
+
+        with patch("src.database.repository.inspect") as mock_inspect:
+            mock_inspect.return_value.get_table_names.return_value = [
+                "orders",
+                "customer_segments",
+            ]
+            result = get_generated_output_status()
+
+        assert result == {
+            "logistics_predictions": False,
+            "customer_segments": True,
+        }
     
     @patch('src.database.repository.engine')
     def test_get_top_products(self, mock_engine):

@@ -45,4 +45,5 @@ TARGET_AUDIENCE_COLUMNS = [
     "Frequency",
     "Monetary",
     "Cluster",
+    "Segment",
 ]

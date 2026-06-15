@@ -8,11 +8,13 @@ def get_daily_pulse(start_date, end_date):
     risk_churn = repository.get_churn_risk_count()
     revenue_metrics = repository.get_revenue_metrics(start_date, end_date)
     quality_metrics = repository.get_review_delivery_quality(start_date, end_date)
+    generated_outputs = repository.get_generated_output_status()
     
     return {
         "total_orders": total_orders,
         "risk_logistics": risk_logistics,
         "risk_churn": risk_churn,
+        "generated_outputs": generated_outputs,
         **revenue_metrics,
         **quality_metrics,
     }
@@ -55,30 +57,14 @@ def get_logistics_data(start_date, end_date):
 def get_segmentation_data():
     """Prepares data for Growth View."""
     df_growth = repository.get_customer_segments_stats()
-    
-    segment_map = {
-        0: "💎 Sadık Müşteriler (Loyal)",
-        1: "🌱 Yeni Potansiyeller (New)",
-        2: "⚠️ Kayıp Riski (At Risk)",
-        3: "🏆 Şampiyonlar (Champions)",
-        4: "💤 Uyuyanlar (Hibernating)"
-    }
-    
-    df_growth["Segment Adı"] = df_growth["Cluster"].map(segment_map).fillna("Diğer")
+    if not df_growth.empty:
+        df_growth["Segment Adı"] = df_growth["Segment"].fillna("Unlabeled")
     return df_growth
 
 def get_target_audience_data(segment_name):
     """Prepares data for Target Audience export."""
-    cluster_map_reverse = {
-        "💎 Sadık Müşteriler": 0,
-        "🌱 Yeni Potansiyeller": 1,
-        "⚠️ Kayıp Riski": 2,
-        "🏆 Şampiyonlar": 3,
-        "💤 Uyuyanlar": 4
-    }
-    
-    cluster_id = cluster_map_reverse.get(segment_name) if segment_name != "Tümü" else None
-    df_target = repository.get_target_audience(cluster_id)
+    selected_segment = None if segment_name == "Tümü" else segment_name
+    df_target = repository.get_target_audience(selected_segment)
     
     # Masking Logic
     if not df_target.empty:
