@@ -8,6 +8,9 @@ from src.database.repository_columns import (
     PAYMENT_MIX_COLUMNS,
     REVENUE_BY_STATE_COLUMNS,
     REVIEW_DELIVERY_MATRIX_COLUMNS,
+    LOGISTICS_DETAILS_COLUMNS,
+    SELLER_SLA_COLUMNS,
+    TARGET_AUDIENCE_COLUMNS,
 )
 from src.database.repository_defaults import EMPTY_REVIEW_DELIVERY, EMPTY_TOTALS
 from src.database import action_repository, ranking_repository
@@ -233,6 +236,7 @@ def get_cohort_retention_matrix(start_date, end_date, max_cohorts=8, max_months=
 
 def get_seller_sla_watchlist(limit=10, min_orders=20):
     """Returns sellers with enough delivered orders and high SLA risk."""
+    limit = clamp_limit(limit, default=10)
     query = text("""
     SELECT
         seller_id,
@@ -251,17 +255,7 @@ def get_seller_sla_watchlist(limit=10, min_orders=20):
     try:
         return pd.read_sql(query, engine, params={"limit": limit, "min_orders": min_orders})
     except Exception:
-        return pd.DataFrame(
-            columns=[
-                "seller_id",
-                "seller_state",
-                "orders",
-                "product_revenue",
-                "avg_review_score",
-                "avg_delivery_days",
-                "late_delivery_rate",
-            ]
-        )
+        return empty_frame(SELLER_SLA_COLUMNS)
 
 def get_logistics_metrics(start_date, end_date):
     """Calculates dynamic KPIs for Logistics (DB Agnostic)."""
@@ -279,7 +273,7 @@ def get_logistics_metrics(start_date, end_date):
     
     try:
         df = pd.read_sql(text(query), engine)
-    except Exception as e:
+    except Exception:
         # Table might not exist yet
         return {"on_time_rate": 0, "avg_time": 0, "complaint_rate": 0}
         
@@ -325,10 +319,11 @@ def get_logistics_risk_count(start_date, end_date):
     """
     try:
         df = pd.read_sql(text(query), engine)
-    except:
+    except Exception:
         return 0
         
-    if df.empty: return 0
+    if df.empty:
+        return 0
     
     df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
     
@@ -343,10 +338,11 @@ def get_churn_risk_count():
     # Snapshot metric, no date filter for now
     try:
         return pd.read_sql("SELECT COUNT(*) FROM customer_segments WHERE \"Cluster\" IN (2, 3)", engine).iloc[0, 0]
-    except:
+    except Exception:
         return 0
 
 def get_logistics_details(start_date, end_date, limit=10):
+    limit = clamp_limit(limit, default=10)
     query = text("""
     SELECT 
         o.customer_id, 
@@ -356,23 +352,20 @@ def get_logistics_details(start_date, end_date, limit=10):
     FROM logistics_predictions lp
     JOIN orders o ON lp.order_id = o.order_id
     WHERE lp.predicted_delivery_days > 10
-    LIMIT 50
+      AND DATE(o.order_purchase_timestamp) BETWEEN DATE(:start_date) AND DATE(:end_date)
+    LIMIT :limit
     """)
     
     try:
-        df = pd.read_sql(query, engine)
-    except Exception as e:
-        print(f"⚠️ Warning: Could not fetch logistics details (Table missing?): {e}")
-        # Return empty DF with expected columns to prevent UI crash
-        return pd.DataFrame(columns=["customer_id", "Tahmini Süre (Gün)", "Gerçekleşen (Gün)", "order_purchase_timestamp"])
-        
-    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
-    
-    mask = (df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & \
-           (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))
-           
-    res = df[mask].head(limit)
-    return res.drop(columns=['order_purchase_timestamp'])
+        df = pd.read_sql(
+            query,
+            engine,
+            params={"start_date": start_date, "end_date": end_date, "limit": limit},
+        )
+    except Exception:
+        return empty_frame(LOGISTICS_DETAILS_COLUMNS)
+
+    return df.drop(columns=['order_purchase_timestamp'])
 
 def get_customer_segments_stats():
     query = "SELECT \"Cluster\", COUNT(*) as count, AVG(\"Monetary\") as avg_spend, AVG(\"Recency\") as avg_recency, AVG(\"Frequency\") as avg_freq FROM customer_segments GROUP BY \"Cluster\""
@@ -382,6 +375,7 @@ def get_customer_segments_stats():
         return pd.DataFrame()
 
 def get_target_audience(cluster_id=None, limit=500):
+    limit = clamp_limit(limit, default=100, maximum=500)
     base_query = """
     SELECT customer_unique_id, "Recency", "Frequency", "Monetary", "Cluster"
     FROM customer_segments
@@ -396,7 +390,7 @@ def get_target_audience(cluster_id=None, limit=500):
     try:
         return pd.read_sql(text(query), engine, params=params)
     except Exception:
-        return pd.DataFrame(columns=["customer_unique_id", "Recency", "Frequency", "Monetary", "Cluster"])
+        return empty_frame(TARGET_AUDIENCE_COLUMNS)
 
 def log_action_to_db(action_type, description, impact_value):
     """Backward-compatible facade for action logging."""
@@ -426,5 +420,5 @@ def get_category_performance(start_date=None, end_date=None):
 def get_random_customer_id():
     try:
         return pd.read_sql('SELECT customer_unique_id FROM customers ORDER BY RANDOM() LIMIT 1', engine).iloc[0, 0]
-    except:
+    except Exception:
         return '871766c5855e863f6eccc05f988b23'
