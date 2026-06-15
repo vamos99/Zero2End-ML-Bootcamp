@@ -37,6 +37,7 @@ jobs:
         # Tests use mocks, no DB required
         run: |
           pytest tests/ -v --tb=short
+          python scripts/validate_notebooks.py
 
   lint:
     runs-on: ubuntu-latest

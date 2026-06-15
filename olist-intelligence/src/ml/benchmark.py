@@ -1,39 +1,27 @@
-import pandas as pd
 import numpy as np
 import optuna
-import mlflow
 import time
 import pickle
-from pathlib import Path
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score
+from sklearn.model_selection import TimeSeriesSplit, train_test_split, cross_val_score
+from sklearn.metrics import balanced_accuracy_score, mean_squared_error, roc_auc_score
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from catboost import CatBoostRegressor, CatBoostClassifier
 from xgboost import XGBClassifier
 from src.config import MODELS_PATH
 from src.ml.data import get_logistics_data, get_churn_data
-
-# Dependencies are handled in data.py now
-
-MLFLOW_AVAILABLE = False
-try:
-    mlflow.set_tracking_uri("http://mlflow:5000")
-    mlflow.set_experiment("Olist_Model_Wars")
-    MLFLOW_AVAILABLE = True
-except Exception as e:
-    print(f"⚠️ MLflow setup failed: {e}")
-    print("⚠️ Continuing without MLflow logging...")
-
+from src.ml.evaluation import has_usable_class_balance, temporal_train_test_split
 
 def benchmark_logistics():
     """Run logistics model benchmark with Optuna optimization."""
     print("\n📦 --- Logistics Model Benchmark ---")
-    X, y = get_logistics_data(limit=20000)
+    X, y, timestamps = get_logistics_data(limit=20000, include_timestamps=True)
     
     print(f"Logistics Data: {len(X)} orders, {X.shape[1]} features")
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = temporal_train_test_split(
+        X, y, timestamps, test_size=0.2
+    )
     
     results = {}
     
@@ -79,7 +67,13 @@ def benchmark_logistics():
             'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 5)
         }
         model = RandomForestRegressor(**params, random_state=42, n_jobs=-1)
-        scores = cross_val_score(model, X_train, y_train, cv=3, scoring='neg_root_mean_squared_error')
+        scores = cross_val_score(
+            model,
+            X_train,
+            y_train,
+            cv=TimeSeriesSplit(n_splits=3),
+            scoring='neg_root_mean_squared_error',
+        )
         return -scores.mean()
     
     study = optuna.create_study(direction='minimize')
@@ -110,14 +104,20 @@ def benchmark_churn():
     X, y = get_churn_data(limit=50000)
     
     print(f"Churn Data: {len(X)} customers, Churn Rate: {y.mean()*100:.1f}%")
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    if not has_usable_class_balance(y):
+        print(f"⚠️ Benchmark skipped: class balance is not evaluation-ready ({y.value_counts().sort_index().to_dict()}).")
+        return {}
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
     
     models = {
         'LogisticRegression': LogisticRegression(max_iter=1000, random_state=42),
         'RandomForest': RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, n_jobs=-1),
-        'CatBoost': CatBoostClassifier(iterations=200, depth=6, verbose=0, random_seed=42),
-        'XGBoost': XGBClassifier(n_estimators=100, max_depth=6, random_state=42, use_label_encoder=False, eval_metric='logloss')
+        'CatBoost': CatBoostClassifier(iterations=200, depth=6, verbose=0, random_seed=42, auto_class_weights='Balanced'),
+        'XGBoost': XGBClassifier(n_estimators=100, max_depth=6, random_state=42, eval_metric='logloss')
     }
     
     results = {}
@@ -126,10 +126,10 @@ def benchmark_churn():
         pred = model.predict(X_test)
         pred_proba = model.predict_proba(X_test)[:, 1]
         
-        acc = accuracy_score(y_test, pred)
+        balanced_acc = balanced_accuracy_score(y_test, pred)
         auc = roc_auc_score(y_test, pred_proba)
-        results[name] = {'auc': auc, 'acc': acc, 'model': model}
-        print(f"👉 {name}: AUC={auc:.4f}, ACC={acc:.4f}")
+        results[name] = {'auc': auc, 'balanced_accuracy': balanced_acc, 'model': model}
+        print(f"👉 {name}: AUC={auc:.4f}, Balanced ACC={balanced_acc:.4f}")
     
     winner = max(results, key=lambda k: results[k]['auc'])
     print(f"🏆 Winner: {winner}")

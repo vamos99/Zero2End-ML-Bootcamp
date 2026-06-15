@@ -39,7 +39,8 @@ Proje bootcamp bitirme kapsamını karşılar; production seviyesinde servis vey
 
 ### Problem 1: Teslimat Gecikmesi
 **Sorun:** Müşteriler siparişlerin ne zaman geleceğini bilemiyor, gecikmeler şikayete dönüşüyor.  
-**Çözüm:** CatBoost modeli ile teslimat süresi tahmini prototipi. Notebook çıktılarında yaklaşık 7.6 gün RMSE raporlanmıştır; bu değer raw veriyle yeniden çalıştırılarak doğrulanmalıdır.
+**Çözüm:** CatBoost modeli ile teslimat süresi tahmini prototipi. Performans
+değeri yalnızca zaman bazlı holdout yeniden çalıştırıldığında raporlanır.
 
 **Neden Bu Yaklaşım?**
 *   Haversine mesafe (satıcı-müşteri arası) en önemli faktör
@@ -50,16 +51,17 @@ Proje bootcamp bitirme kapsamını karşılar; production seviyesinde servis vey
 **Sorun:** Hangi müşterilerin platformu terk edeceğini önceden tahmin edemiyoruz.  
 **Tanım Nedir?:** *Churn*, bir müşterinin platformu kullanmayı bırakması (terk etmesi) demektir.  
 **Bizdeki Karşılığı:** 90 gün boyunca hiç sipariş vermeyen müşteri, analizde **riskli/kaybedilmiş** olarak etiketlenir.
-**Çözüm:** CatBoost Classifier ile churn risk prototipi. Bu bölüm production churn modeli değil, metodoloji ve dashboard anlatımı için kullanılan bir deneydir.
+**Çözüm:** Gelecek 90 günlük tekrar satın alma etiketiyle modelleme uygunluğu
+denetlenir. Sınıflar aşırı dengesizse model eğitimi ve artefact kaydı atlanır.
 
 **Neden Bu Yaklaşım?**
 *   `customer_unique_id`, tekrar satın alma ve retention analizinde `customer_id`'den daha anlamlıdır
-*   90 gün kuralı pratik bir risk tanımıdır; zaman bazlı train/test ayrımıyla yeniden doğrulanmalıdır
-*   Mevcut feature/target tasarımı target-proxy riski taşıdığı için model sonuçları dikkatli yorumlanmalıdır
+*   90 gün kuralı gerçek churn değil, operasyonel tekrar-satın-alma etiketidir
+*   Mevcut Olist dağılımında azınlık sınıfı çok küçükse predictive model yerine cohort retention analitiği tercih edilir
 
 ### Problem 3: Müşteri Tek Tip Görülüyor
 **Sorun:** Tüm müşterilere aynı pazarlama yapılıyor.  
-**Çözüm:** RFM + K-Means ile segmentasyon (5 segment)
+**Çözüm:** RFM + K-Means ile dört göreli segmentasyon profili
 
 ## Analytics & Data Engineering Açısı
 
@@ -128,20 +130,20 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 ## Özellikler
 
 ### Lojistik Tahmin
-*   **RMSE:** Notebook çıktısında yaklaşık 7.60 gün
+*   **RMSE:** Zaman bazlı holdout yeniden çalıştırıldığında üretilir
 *   **Özellikler:** Mesafe, kargo, fiyat, ağırlık, satıcı puanı
 
 ### Churn Tahmini
-*   **Tanım:** 90 gün sipariş yok = churn/risk etiketi
-*   **Not:** Bu bölüm predictive model iddiasından çok risk skoru ve metodoloji prototipi olarak okunmalıdır
+*   **Tanım:** Gelecek 90 günde sipariş yok = tekrar-satın-alma risk etiketi
+*   **Not:** Sınıf dengesi uygun değilse model bilinçli olarak üretilmez
 
 ### Müşteri Segmentasyonu
-*   **5 Segment:** Şampiyonlar, Sadıklar, Potansiyeller, Riskli, Uyuyanlar
+*   **4 Göreli Profil:** Champions, Loyal, Developing, At Risk
 
 ### Dashboard
 *   **5 Sayfa:** Executive overview, Operasyon, Müşteri, Segmentasyon, Ranking
 *   **Executive signals:** Payment mix, cohort retention ve seller SLA chart'ları SQL martlardan beslenir
-*   **ROI Simülasyonu:** Kampanya maliyet/getiri analizi
+*   **Aksiyon hipotezleri:** Kampanya fikirleri ölçülmüş ROI değil, deney backlog'udur
 
 ### API
 *   **4 Endpoint:** `/predict/delivery`, `/predict/churn`, `/recommend`, `/segments`
@@ -251,18 +253,23 @@ Bu adımlar geçince ham Olist tabloları ve SQL analitik view'ları yerel
 veritabanında hazır olur.
 
 ### Adım 5: Notebooklar ve Modeller
-Proje açıldığında API çalışır (`.pkl` modelleri hazır gelir). Ancak **Dashboard grafiklerinin** dolması için geçmiş tahminlerin üretilmesi gerekir.
+API ve dashboard, raw tablolar hazırken başlatılabilir; model endpointleri ve
+üretilen dashboard tabloları için ilgili local artefact'ların ayrıca oluşturulması gerekir.
 
 **Sırayla Çalıştırın:**
 1.  `notebooks/1_general_eda_and_prep.ipynb`: **(Zorunlu)** Veritabanı boşsa [Kaggle Olist Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) verisini indirir ve SQL tablolarını kurar.
 2.  `notebooks/2_logistics_engine.ipynb`: **(Gerekli)** Dashboard'daki "Operasyon" ekranının dolması için lojistik tahminlerini veritabanına yazar.
-3.  `notebooks/3_customer_sentinel.ipynb`: **(Gerekli)** Churn modelini eğitir ve analiz eder.
+3.  `notebooks/3_customer_sentinel.ipynb`: **(Denetim)** Tekrar satın alma etiketinin modellemeye uygunluğunu ölçer; uygun değilse model üretmez.
 4.  `notebooks/4_growth_engine.ipynb`: **(Gerekli)** Dashboard'daki "Müşteri" ekranının dolması için segmentasyon verilerini veritabanına yazar.
 
 **İsteğe Bağlı Analizler (Opsiyonel):**
-*   `notebooks/5_final_evaluation.ipynb`: Tüm modellerin toplu performans karşılaştırması.
-*   `notebooks/6_executive_pipeline.ipynb`: Yeni gelen haftalık verinin nasıl işleneceğini simüle eden pipeline.
+*   `notebooks/5_final_evaluation.ipynb`: Model aileleri için validation backlog'u.
+*   `notebooks/6_executive_pipeline.ipynb`: Executive karar ve kanıt kontrol şablonu.
 *Not: Veritabanı (`olist.db`) bu işlem sonunda dolacaktır.*
+
+Notebook kaynakları Git'te kayıtlı output olmadan tutulur. Çalıştırma sırası,
+leakage guardrail'leri ve doğrulama kuralları için
+[`docs/NOTEBOOKS.md`](docs/NOTEBOOKS.md) dosyasına bakın.
 
 ### Seçenek A: Docker ile Başlatma (Önerilen)
 Tüm servisleri (API, Dashboard, MLflow) tek komutla başlatın.
@@ -328,7 +335,7 @@ src/
 notebooks/
 ├── 1_general_eda_and_prep.ipynb  # Veri keşfi ve Yükleme
 ├── 2_logistics_engine.ipynb      # Teslimat modeli eğitimi
-├── 3_customer_sentinel.ipynb     # Churn analizi
+├── 3_customer_sentinel.ipynb     # Repeat-purchase uygunluk denetimi
 ├── 4_growth_engine.ipynb         # Segmentasyon modeli
 └── ...
 
@@ -343,9 +350,9 @@ scripts/            # Lokal yardımcı scriptler
 
 | Model | Algoritma | Metrik | Değer |
 |-------|-----------|--------|-------|
-| **Lojistik** | CatBoost Regressor | RMSE | Notebook çıktısında ~7.6 gün |
-| **Churn** | CatBoost Classifier | Accuracy | Notebook çıktısı; imbalanced veri ve target-proxy riskiyle yorumlanmalı |
-| **Recommender** | SVD | Coverage | Notebook çıktısı; cold-start/evaluation detayları sınırlı |
+| **Lojistik** | CatBoost Regressor | Temporal holdout RMSE | Notebook yeniden çalıştırıldığında üretilir |
+| **Repeat purchase** | CatBoost adayı | Sınıf dengesi kapısı | Mevcut snapshot aşırı dengesizse model üretilmez |
+| **Recommender** | SVD | Coverage | Cold-start ve offline evaluation henüz eksik |
 
 Bu değerler portföy/prototip bağlamında tutulur. Raw Kaggle verisi ve yerel `olist.db`
 ile yeniden çalıştırılmadan güncel model performansı olarak sunulmamalıdır.
@@ -356,8 +363,8 @@ ile yeniden çalıştırılmadan güncel model performansı olarak sunulmamalıd
 
 *   **API Bağlantı Hatası:** MacOS kullanıcıları `localhost` yerine `127.0.0.1` kullanmalıdır (Projede varsayılan olarak ayarlanmıştır).
 *   **Grafikler/Tablolar Boş Görünüyor:**
-    *   **Durum:** API ve Simülasyonlar çalışıyor (`.pkl` modelleri hazır geldiği için).
-    *   **Çözüm:** Dashboard'daki *"Operasyon Merkezi"* ve segmentasyon ekranlarının dolması için veritabanında tahmin/segment tablolarının oluşması şarttır. Bunu sağlamak için **Notebook 2 (Lojistik)** ve **Notebook 4 (Growth/Segmentasyon)** dosyalarını bir kez çalıştırmanız gerekir.
+    *   **Durum:** Raw Olist tabloları tek başına generated prediction/segment panellerini doldurmaz.
+    *   **Çözüm:** Dashboard'daki *"Operasyon Merkezi"* ve segmentasyon ekranlarının dolması için **Notebook 2 (Lojistik)** ve **Notebook 4 (Growth/Segmentasyon)** dosyalarını bir kez çalıştırmanız gerekir.
 *   **Docker Port Hatası:** Yerelde çalışan servisleri (`Ctrl+C`) kapatıp `docker-compose`'u yeniden başlatın.
 
 ---

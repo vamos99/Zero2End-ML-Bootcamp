@@ -1,36 +1,38 @@
-import pandas as pd
-import pickle
 import numpy as np
-from pathlib import Path
 from catboost import CatBoostRegressor, CatBoostClassifier
 from sklearn.decomposition import TruncatedSVD
 from scipy.sparse import csr_matrix
-from sklearn.metrics import mean_squared_error, accuracy_score
+from sklearn.metrics import balanced_accuracy_score, mean_squared_error, roc_auc_score
+from sklearn.model_selection import train_test_split
 from src.config import MODELS_PATH
 from src.ml.data import get_logistics_data, get_churn_data, get_recommender_data
+from src.ml.evaluation import has_usable_class_balance, temporal_train_test_split
 from src.ml.registry import register_model, save_model_locally
 
 MODELS_PATH.mkdir(parents=True, exist_ok=True)
 
 def train_logistics_model():
     """
-    10-Feature Logistics Model (RMSE ~7.58)
-    Uses centralized data loader.
+    Logistics model using the centralized data loader and held-out evaluation.
     """
     print("📦 Eğitim Verisi Hazırlanıyor: Lojistik (10 özellik)...")
     
-    X, y = get_logistics_data(limit=50000)
+    X, y, timestamps = get_logistics_data(limit=50000, include_timestamps=True)
     
     print(f"📦 Model Eğitiliyor (Veri: {len(X)} satır, {X.shape[1]} özellik)...")
     model = CatBoostRegressor(iterations=200, depth=8, learning_rate=0.1, verbose=0, random_seed=42)
-    model.fit(X, y)
-    
-    # Evaluate for metrics logging
-    pred = model.predict(X)
-    rmse = np.sqrt(mean_squared_error(y, pred))
+    X_train, X_test, y_train, y_test = temporal_train_test_split(
+        X, y, timestamps, test_size=0.2
+    )
+    model.fit(X_train, y_train)
+
+    pred = model.predict(X_test)
+    rmse = np.sqrt(mean_squared_error(y_test, pred))
     metrics = {"rmse": rmse}
     params = {"iterations": 200, "depth": 8, "learning_rate": 0.1}
     
+    model.fit(X, y)
+
     # Register to MLflow (fallback to local if fails)
     register_model(model, "logistics", metrics, params, flavor="catboost")
     
@@ -48,21 +50,39 @@ def train_churn_model():
         print(f"⚠️ Veri hatası: {e}")
         return
 
+    if not has_usable_class_balance(y):
+        counts = y.value_counts().sort_index().to_dict()
+        print(f"⚠️ Churn model skipped: class balance is not evaluation-ready ({counts}).")
+        return
+
     print(f"🔥 Model Eğitiliyor (Veri: {len(X)} satır)...")
-    model = CatBoostClassifier(iterations=100, depth=4, learning_rate=0.1, verbose=0)
-    model.fit(X, y)
-    
-    # Metrics
-    pred = model.predict(X)
-    acc = accuracy_score(y, pred)
-    metrics = {"accuracy": acc}
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    model = CatBoostClassifier(
+        iterations=100,
+        depth=4,
+        learning_rate=0.1,
+        verbose=0,
+        random_seed=42,
+        auto_class_weights="Balanced",
+    )
+    model.fit(X_train, y_train)
+
+    pred = model.predict(X_test)
+    pred_proba = model.predict_proba(X_test)[:, 1]
+    balanced_acc = balanced_accuracy_score(y_test, pred)
+    auc = roc_auc_score(y_test, pred_proba)
+    metrics = {"balanced_accuracy": balanced_acc, "roc_auc": auc}
     params = {"iterations": 100, "depth": 4}
     
+    model.fit(X, y)
+
     # Register
     register_model(model, "churn", metrics, params, flavor="catboost")
     save_model_locally(model, "churn")
         
-    print(f"✅ Churn Modeli Tamamlandı (Acc: {acc:.4f})")
+    print(f"✅ Churn Modeli Tamamlandı (Balanced Acc: {balanced_acc:.4f}, AUC: {auc:.4f})")
 
 def train_recommender_model():
     print("🛍️ Eğitim Verisi Hazırlanıyor: Ürün Öneri Sistemi...")

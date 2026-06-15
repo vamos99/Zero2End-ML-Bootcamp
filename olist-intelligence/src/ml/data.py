@@ -1,73 +1,27 @@
 import pandas as pd
 from sqlalchemy import text, create_engine
 from src.config import DATABASE_URL
+from src.database.query_limits import clamp_limit
 from src.ml.features import haversine_distance
+
 
 def get_db_engine():
     return create_engine(DATABASE_URL)
 
-def get_logistics_data(limit=None):
+
+def _optional_limit(limit, maximum=100_000):
+    return None if limit is None else clamp_limit(limit, default=maximum, maximum=maximum)
+
+
+def get_logistics_data(limit=None, include_timestamps=False):
     """
     Fetches data for logistics model (delivery time prediction).
-    Returns X (features DataFrame) and y (target Series).
+    Returns X (features DataFrame) and y (target Series). When requested,
+    purchase timestamps are returned as a third value for temporal evaluation.
     Logic moved to Pandas for SQLite compatibility.
     """
-    limit_clause = f"LIMIT {limit}" if limit else ""
-    
-    # Raw data query (DB Agnostic)
-    query = f"""
-    SELECT 
-        o.order_purchase_timestamp,
-        o.order_delivered_customer_date,
-        oi.freight_value,
-        oi.price,
-        p.product_weight_g,
-        p.product_description_lenght,
-        p.product_photos_qty,
-        p.product_length_cm,
-        p.product_height_cm,
-        p.product_width_cm,
-        s.seller_zip_code_prefix,
-        s.seller_state,
-        s.seller_id,
-        c.customer_zip_code_prefix,
-        c.customer_state
-    FROM orders o
-    JOIN order_items oi ON o.order_id = oi.order_id
-    JOIN products p ON oi.product_id = p.product_id
-    JOIN customers c ON o.customer_id = c.customer_id
-    JOIN sellers s ON oi.seller_id = s.seller_id
-    WHERE o.order_status = 'delivered'
-    AND o.order_delivered_customer_date IS NOT NULL
-    {limit_clause}
-    """
-    
-    engine = get_db_engine()
-    with engine.connect() as conn:
-        df = pd.read_sql(text(query), conn).dropna()
-
-    # Load aux tables for merging (Seller Ratings & Geolocation)
-    # We do this separately to avoid complex joins in SQLite/Polars
-    with engine.connect() as conn:
-        reviews = pd.read_sql(text("SELECT order_id, review_score FROM order_reviews"), conn)
-        # Note: We need order_items to link seller -> order -> review, but we can approximate
-        # For simplicity in this demo refactor, we re-query seller ratings if needed or calculate here.
-        
-        # Better approach: Calculate seller ratings from full order_items + reviews dump
-        # But for performance let's keep it simple. If table is huge, this is slow.
-        # SQLite doesn't support complex lateral joins easily.
-        
-        # Let's fetch pre-calculated geolocation if possible, or calculate on fly.
-        # For this refactor, we will load full geolocation table? It is 1M rows. Too big.
-        # We will use a simplified approach: Group inputs by zip code in Python? No.
-        
-        # Compromise: Keep the JOINs simple in SQL
-        pass
-
-    # REVISIT: The original query used subqueries for Geolocation. 
-    # SQLite SUPPORTS subqueries. The problem was EXTRACT and ::timestamp.
-    # So we can keep the structure but fix the DATE math.
-    
+    normalized_limit = _optional_limit(limit)
+    limit_clause = "LIMIT :limit" if normalized_limit is not None else ""
     query = f"""
     WITH seller_geo AS (
         SELECT seller_zip_code_prefix, AVG(geolocation_lat) as lat, AVG(geolocation_lng) as lng
@@ -112,11 +66,18 @@ def get_logistics_data(limit=None):
     LEFT JOIN customer_geo cg ON c.customer_zip_code_prefix = cg.customer_zip_code_prefix
     LEFT JOIN seller_ratings sr ON s.seller_id = sr.seller_id
     WHERE o.order_status = 'delivered'
+    AND o.order_delivered_customer_date IS NOT NULL
+    ORDER BY o.order_purchase_timestamp
     {limit_clause}
     """
-    
+
+    engine = get_db_engine()
     with engine.connect() as conn:
-        df = pd.read_sql(text(query), conn).dropna()
+        df = pd.read_sql(
+            text(query),
+            conn,
+            params={"limit": normalized_limit} if normalized_limit is not None else None,
+        ).dropna()
         
     # --- Python Logic for Date Calculation (DB Agnostic) ---
     df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
@@ -150,19 +111,23 @@ def get_logistics_data(limit=None):
         'product_volume',          # 9
         'freight_ratio'            # 10
     ]
-    
-    return df[feature_cols], df['target_days']
+
+    df = df.sort_values('order_purchase_timestamp').reset_index(drop=True)
+    features = df[feature_cols]
+    target = df['target_days']
+    if include_timestamps:
+        return features, target, df['order_purchase_timestamp']
+    return features, target
 
 def get_churn_data(limit=None):
     """
-    Fetches data for churn model.
-    Returns X (features DataFrame) and y (target Series).
-    Logic moved to Pandas for SQLite compatibility.
+    Build a temporal churn dataset.
+
+    Features are calculated at a cutoff 90 days before the dataset end. The
+    target indicates whether the customer made no delivered purchase during
+    the following 90-day label window.
     """
-    limit_clause = f"LIMIT {limit}" if limit else ""
-    
-    # 1. Fetch Customer Orders
-    query_orders = f"""
+    query_orders = """
     SELECT 
         c.customer_unique_id,
         o.order_purchase_timestamp,
@@ -172,33 +137,49 @@ def get_churn_data(limit=None):
     JOIN orders o ON c.customer_id = o.customer_id
     JOIN order_items oi ON o.order_id = oi.order_id
     WHERE o.order_status = 'delivered'
-    {limit_clause}
     """
-    
-    # 2. Fetch Dataset End Date (Global Max)
-    query_max_date = "SELECT MAX(order_purchase_timestamp) FROM orders"
+    query_max_date = """
+    SELECT MAX(order_purchase_timestamp)
+    FROM orders
+    WHERE order_status = 'delivered'
+    """
     
     engine = get_db_engine()
     with engine.connect() as conn:
         df = pd.read_sql(text(query_orders), conn)
         max_date_str = pd.read_sql(text(query_max_date), conn).iloc[0, 0]
         
-    # --- Python Logic ---
     df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
     dataset_end = pd.to_datetime(max_date_str)
-    
-    # Aggregation
-    customer_group = df.groupby('customer_unique_id').agg(
+    feature_cutoff = dataset_end - pd.Timedelta(days=90)
+
+    feature_orders = df[df['order_purchase_timestamp'] <= feature_cutoff]
+    label_orders = df[
+        (df['order_purchase_timestamp'] > feature_cutoff)
+        & (df['order_purchase_timestamp'] <= dataset_end)
+    ]
+
+    customer_group = feature_orders.groupby('customer_unique_id').agg(
         last_order_date=('order_purchase_timestamp', 'max'),
         frequency=('order_id', 'nunique'),
         monetary=('price', 'sum')
     ).reset_index()
+
+    active_in_label_window = set(label_orders['customer_unique_id'].unique())
+    customer_group['recency'] = (
+        feature_cutoff - customer_group['last_order_date']
+    ).dt.days
+    customer_group['churned'] = (
+        ~customer_group['customer_unique_id'].isin(active_in_label_window)
+    ).astype(int)
+
+    normalized_limit = _optional_limit(limit)
+    if normalized_limit and len(customer_group) > normalized_limit:
+        customer_group = customer_group.sample(n=normalized_limit, random_state=42)
+
+    customer_group = customer_group.reset_index(drop=True)
     
-    # Churn Calculation
-    customer_group['days_since_last_order'] = (dataset_end - customer_group['last_order_date']).dt.days
-    customer_group['churned'] = (customer_group['days_since_last_order'] > 90).astype(int)
-    
-    feature_cols = ['days_since_last_order', 'frequency', 'monetary']
+    feature_cols = ['recency', 'frequency', 'monetary']
     
     return customer_group[feature_cols], customer_group['churned']
 
@@ -207,7 +188,8 @@ def get_recommender_data(limit=None):
     Fetches user-item interaction data for recommender system.
     Returns DataFrame with [customer_id, product_id, purchase_count].
     """
-    limit_clause = f"LIMIT {limit}" if limit else ""
+    normalized_limit = _optional_limit(limit)
+    limit_clause = "LIMIT :limit" if normalized_limit is not None else ""
     
     query = f"""
     SELECT 
@@ -223,7 +205,11 @@ def get_recommender_data(limit=None):
     
     engine = get_db_engine()
     try:
-        data = pd.read_sql(text(query), engine)
+        data = pd.read_sql(
+            text(query),
+            engine,
+            params={"limit": normalized_limit} if normalized_limit is not None else None,
+        )
         return data
     except Exception as e:
         print(f"⚠️ Veri çekme hatası: {e}")
