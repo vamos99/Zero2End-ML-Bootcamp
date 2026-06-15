@@ -86,6 +86,7 @@ The following are planned, not implemented as completed features:
   behavior.
 - Repository responsibilities are not fully split by domain.
 - Some broad exception fallbacks remain and should be improved in small PRs.
-- Delivery and churn model claims require leakage-aware, time-based validation.
+- Delivery claims require strict temporal validation; repeat-purchase modeling
+  is skipped when the class-balance gate fails.
 - SQLite-oriented date functions in some views require review before a database
   portability claim.

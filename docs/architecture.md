@@ -60,6 +60,6 @@ referans olacak kısa teknik nottur.
 
 | Öncelik | İş | Neden önemli |
 | --- | --- | --- |
-| P2 | Delivery/churn model card | Model amacı, veri sızıntısı riski, split yöntemi ve sınırlar netleşir. |
+| P2 | Delivery/repeat-purchase model card | Temporal split, sınıf dengesi kapısı ve model üretmeme kararı belgelenir. |
 | P2 | Review text NLP deneyi | Portekizce yorumlardan sınırlı ama açıklanabilir issue bucket'ları çıkarılabilir. |
 | P2 | Category/geolocation analytics | Olist'in kategori ve konum tabloları dashboard/analiz tarafında daha iyi kullanılabilir. |
