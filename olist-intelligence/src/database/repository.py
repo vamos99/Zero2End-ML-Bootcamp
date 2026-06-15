@@ -1,5 +1,5 @@
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from src.database.dataframe_factory import empty_frame
 from src.database.db_client import get_db_connection
 from src.database.query_limits import clamp_limit
@@ -8,24 +8,39 @@ from src.database.repository_columns import (
     PAYMENT_MIX_COLUMNS,
     REVENUE_BY_STATE_COLUMNS,
     REVIEW_DELIVERY_MATRIX_COLUMNS,
-    LOGISTICS_DETAILS_COLUMNS,
     SELLER_SLA_COLUMNS,
-    TARGET_AUDIENCE_COLUMNS,
 )
 from src.database.repository_defaults import EMPTY_REVIEW_DELIVERY, EMPTY_TOTALS
-from src.database import action_repository, ranking_repository
+from src.database import action_repository, customer_repository, logistics_repository, ranking_repository
 
 engine = get_db_connection()
 
+
+def get_generated_output_status():
+    """Report whether notebook/model-generated dashboard tables are available."""
+    table_names = set(inspect(engine).get_table_names())
+    return {
+        "logistics_predictions": "logistics_predictions" in table_names,
+        "customer_segments": "customer_segments" in table_names,
+    }
+
+
 def get_total_orders(start_date, end_date):
-    query = "SELECT order_purchase_timestamp FROM orders"
-    df = pd.read_sql(text(query), engine)
-    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
-    
-    mask = (df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & \
-           (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))
-    
-    return len(df[mask])
+    query = text("""
+    SELECT COUNT(DISTINCT order_id)
+    FROM orders
+    WHERE DATE(order_purchase_timestamp) BETWEEN DATE(:start_date) AND DATE(:end_date)
+    """)
+    try:
+        return int(
+            pd.read_sql(
+                query,
+                engine,
+                params={"start_date": start_date, "end_date": end_date},
+            ).iloc[0, 0]
+        )
+    except Exception:
+        return 0
 
 def get_date_range():
     query = "SELECT MIN(order_purchase_timestamp), MAX(order_purchase_timestamp) FROM orders"
@@ -258,139 +273,33 @@ def get_seller_sla_watchlist(limit=10, min_orders=20):
         return empty_frame(SELLER_SLA_COLUMNS)
 
 def get_logistics_metrics(start_date, end_date):
-    """Calculates dynamic KPIs for Logistics (DB Agnostic)."""
-    # 1. Fetch Raw Data needed for KPIs
-    query = """
-    SELECT 
-        CAST(JULIANDAY(o.order_delivered_customer_date) - JULIANDAY(o.order_purchase_timestamp) AS INTEGER) as delivery_days,
-        lp.predicted_delivery_days,
-        o.order_purchase_timestamp,
-        r.review_score
-    FROM logistics_predictions lp
-    JOIN orders o ON lp.order_id = o.order_id
-    LEFT JOIN order_reviews r ON o.order_id = r.order_id
-    """
-    
-    try:
-        df = pd.read_sql(text(query), engine)
-    except Exception:
-        # Table might not exist yet
-        return {"on_time_rate": 0, "avg_time": 0, "complaint_rate": 0}
-        
-    if df.empty:
-         return {"on_time_rate": 0, "avg_time": 0, "complaint_rate": 0}
+    """Backward-compatible facade for logistics metrics."""
+    return logistics_repository.get_logistics_metrics(start_date, end_date)
 
-    # 2. Process in Python
-    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
-    mask = (df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & \
-           (df['order_purchase_timestamp'] <= pd.to_datetime(end_date))
-    
-    filtered = df[mask]
-    
-    if filtered.empty:
-        return {"on_time_rate": 0, "avg_time": 0, "complaint_rate": 0}
-
-    # KPI 1: On-Time Rate
-    on_time = filtered[filtered['delivery_days'] <= filtered['predicted_delivery_days']]
-    on_time_rate = (len(on_time) / len(filtered)) * 100
-    
-    # KPI 2: Avg Time
-    avg_time = filtered['delivery_days'].mean()
-    
-    # KPI 3: Risky Orders Complaint Rate
-    risky_orders = filtered[filtered['predicted_delivery_days'] > 10]
-    if not risky_orders.empty:
-        complaints = risky_orders[risky_orders['review_score'] <= 2]
-        complaint_rate = (len(complaints) / len(risky_orders)) * 100
-    else:
-        complaint_rate = 0.0
-
-    return {
-        "on_time_rate": on_time_rate,
-        "avg_time": avg_time,
-        "complaint_rate": complaint_rate
-    }
 
 def get_logistics_risk_count(start_date, end_date):
-    query = """
-    SELECT lp.predicted_delivery_days, o.order_purchase_timestamp
-    FROM logistics_predictions lp
-    JOIN orders o ON lp.order_id = o.order_id
-    """
-    try:
-        df = pd.read_sql(text(query), engine)
-    except Exception:
-        return 0
-        
-    if df.empty:
-        return 0
-    
-    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
-    
-    # Filter
-    mask = (df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) & \
-           (df['order_purchase_timestamp'] <= pd.to_datetime(end_date)) & \
-           (df['predicted_delivery_days'] > 10)
-           
-    return len(df[mask])
+    """Backward-compatible facade for logistics risk counts."""
+    return logistics_repository.get_logistics_risk_count(start_date, end_date)
 
-def get_churn_risk_count():
-    # Snapshot metric, no date filter for now
-    try:
-        return pd.read_sql("SELECT COUNT(*) FROM customer_segments WHERE \"Cluster\" IN (2, 3)", engine).iloc[0, 0]
-    except Exception:
-        return 0
 
 def get_logistics_details(start_date, end_date, limit=10):
-    limit = clamp_limit(limit, default=10)
-    query = text("""
-    SELECT 
-        o.customer_id, 
-        lp.predicted_delivery_days as "Tahmini Süre (Gün)",
-        CAST(JULIANDAY(o.order_delivered_customer_date) - JULIANDAY(o.order_purchase_timestamp) AS INTEGER) as "Gerçekleşen (Gün)",
-        o.order_purchase_timestamp
-    FROM logistics_predictions lp
-    JOIN orders o ON lp.order_id = o.order_id
-    WHERE lp.predicted_delivery_days > 10
-      AND DATE(o.order_purchase_timestamp) BETWEEN DATE(:start_date) AND DATE(:end_date)
-    LIMIT :limit
-    """)
-    
-    try:
-        df = pd.read_sql(
-            query,
-            engine,
-            params={"start_date": start_date, "end_date": end_date, "limit": limit},
-        )
-    except Exception:
-        return empty_frame(LOGISTICS_DETAILS_COLUMNS)
+    """Backward-compatible facade for logistics detail rows."""
+    return logistics_repository.get_logistics_details(start_date, end_date, limit)
 
-    return df.drop(columns=['order_purchase_timestamp'])
+
+def get_churn_risk_count():
+    """Backward-compatible facade for the relative At Risk segment count."""
+    return customer_repository.get_churn_risk_count()
+
 
 def get_customer_segments_stats():
-    query = "SELECT \"Cluster\", COUNT(*) as count, AVG(\"Monetary\") as avg_spend, AVG(\"Recency\") as avg_recency, AVG(\"Frequency\") as avg_freq FROM customer_segments GROUP BY \"Cluster\""
-    try:
-        return pd.read_sql(query, engine)
-    except Exception:
-        return pd.DataFrame()
+    """Backward-compatible facade for generated segment summaries."""
+    return customer_repository.get_customer_segments_stats()
 
-def get_target_audience(cluster_id=None, limit=500):
-    limit = clamp_limit(limit, default=100, maximum=500)
-    base_query = """
-    SELECT customer_unique_id, "Recency", "Frequency", "Monetary", "Cluster"
-    FROM customer_segments
-    """
-    if cluster_id is not None:
-        query = f"{base_query} WHERE \"Cluster\" = :cluster_id ORDER BY \"Monetary\" DESC LIMIT :limit"
-        params = {"cluster_id": cluster_id, "limit": limit}
-    else:
-        query = f"{base_query} ORDER BY \"Monetary\" DESC LIMIT :limit"
-        params = {"limit": limit}
-    
-    try:
-        return pd.read_sql(text(query), engine, params=params)
-    except Exception:
-        return empty_frame(TARGET_AUDIENCE_COLUMNS)
+
+def get_target_audience(segment_name=None, limit=500):
+    """Backward-compatible facade for target-audience exports."""
+    return customer_repository.get_target_audience(segment_name, limit)
 
 def log_action_to_db(action_type, description, impact_value):
     """Backward-compatible facade for action logging."""
@@ -418,7 +327,5 @@ def get_category_performance(start_date=None, end_date=None):
 
 
 def get_random_customer_id():
-    try:
-        return pd.read_sql('SELECT customer_unique_id FROM customers ORDER BY RANDOM() LIMIT 1', engine).iloc[0, 0]
-    except Exception:
-        return '871766c5855e863f6eccc05f988b23'
+    """Backward-compatible facade for dashboard customer sampling."""
+    return customer_repository.get_random_customer_id()

@@ -17,6 +17,7 @@ from src.data_contract import (  # noqa: E402
     validate_csv_directory,
     validate_database_quality,
     validate_database_schema,
+    validate_generated_outputs,
 )
 
 
@@ -29,7 +30,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Validate Olist source schema.")
     parser.add_argument(
         "--target",
-        choices=("csv", "db", "quality", "both", "all"),
+        choices=("csv", "db", "quality", "generated", "both", "all"),
         default="both",
         help="Validate raw CSV headers, database schema, database quality checks, or all checks.",
     )
@@ -67,8 +68,12 @@ def main() -> int:
     if args.target == "quality":
         issues.extend(validate_database_quality(args.database_url))
 
+    if args.target == "generated":
+        issues.extend(validate_generated_outputs(args.database_url))
+
     if args.target == "all" and not db_schema_issues:
         issues.extend(validate_database_quality(args.database_url))
+        issues.extend(validate_generated_outputs(args.database_url))
 
     if issues:
         print(

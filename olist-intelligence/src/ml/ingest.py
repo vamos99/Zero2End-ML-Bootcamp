@@ -3,10 +3,17 @@ import glob
 import pandas as pd
 import polars as pl
 from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
 from typing import List
 import logging
-from tenacity import retry, stop_after_attempt, wait_exponential, before_log
+from tenacity import before_log, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 from src.config import DATABASE_URL, DATA_RAW_PATH
+from src.data_contract import (
+    table_name_from_csv,
+    validate_csv_directory,
+    validate_database_quality,
+    validate_database_schema,
+)
 from pathlib import Path
 
 # Configure Logging
@@ -62,15 +69,12 @@ class OlistIngestor:
             logger.error("❌ 'kaggle' library not installed. Add it to requirements.txt.")
             raise
         except Exception as e:
-            print(f"❌ Failed to download from Kaggle: {e}")
-            print("👉 Please set KAGGLE_USERNAME and KAGGLE_KEY environment variables.")
-            # Don't crash immediately, functionality might be limited
-            
-            # Cleanup bad file
             if zip_file.exists():
                 zip_file.unlink()
-                logger.info("🗑️ Removed corrupted zip file.")
-            pass
+                logger.info("Removed corrupted zip file.")
+            raise RuntimeError(
+                "Kaggle download failed. Configure Kaggle credentials or place the 9 CSV files manually."
+            ) from e
 
     def load_predictions_from_csv(self):
         """Loads pre-calculated predictions if available (Streamlit Cloud support)."""
@@ -94,7 +98,7 @@ class OlistIngestor:
                 print("✅ Service restored: Growth Engine")
                 
         except Exception as e:
-            print(f"⚠️ Failed to load static predictions: {e}")
+            logger.warning("Optional static prediction load failed: %s", e)
 
     def get_csv_files(self) -> List[str]:
         """Scans the data directory for CSV files. Downloads if empty."""
@@ -109,37 +113,42 @@ class OlistIngestor:
             logger.warning(f"No CSV files found in {self.data_path}. Attempting download...")
             self.download_from_kaggle()
             files = glob.glob(search_pattern)
-            
-        return files
+
+        if not files:
+            raise FileNotFoundError(f"No Olist CSV files found in {self.data_path}")
+
+        issues = validate_csv_directory(self.data_path)
+        if issues:
+            summary = "; ".join(f"{issue.name}:{issue.issue}" for issue in issues[:5])
+            raise ValueError(f"Olist CSV contract validation failed: {summary}")
+
+        return sorted(files)
 
     def _extract_table_name(self, file_path: str) -> str:
         """Extracts a clean table name from the filename."""
         file_name = os.path.basename(file_path)
-        clean_name = file_name.replace("olist_", "").replace("_dataset.csv", "").replace(".csv", "")
-        return clean_name
+        return table_name_from_csv(file_name)
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), before=before_log(logger, logging.INFO))
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=4),
+        retry=retry_if_exception_type((OperationalError, ConnectionError)),
+        before=before_log(logger, logging.INFO),
+        reraise=True,
+    )
     def ingest_file(self, file_path: str):
         """Reads a single CSV and writes it to the database."""
         table_name = self._extract_table_name(file_path)
         logger.info(f"Processing {os.path.basename(file_path)} -> Table: {table_name}")
 
-        try:
-            # Read with Polars
-            df = pl.read_csv(file_path, ignore_errors=True)
-            
-            # Write to Database
-            # SQLite connection string handling for Polars might differ, relying on SQLAlchemy connector
-            df.write_database(
-                table_name=table_name,
-                connection=self.engine, # Polars accepts engine object too
-                if_table_exists="replace",
-                engine="sqlalchemy"
-            )
-            logger.info(f"✅ Successfully wrote {df.shape[0]} rows to '{table_name}'")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to ingest {file_path}: {e}")
+        df = pl.read_csv(file_path)
+        df.write_database(
+            table_name=table_name,
+            connection=self.engine,
+            if_table_exists="replace",
+            engine="sqlalchemy",
+        )
+        logger.info("Successfully wrote %s rows to '%s'", df.shape[0], table_name)
 
     def run(self):
         """Executes the full ingestion process."""
@@ -148,24 +157,25 @@ class OlistIngestor:
         # Check if DB is SQLite and already exists (Optimization)
         if "sqlite" in self.db_url:
             db_file = self.db_url.replace("sqlite:///", "")
-            if os.path.exists(db_file) and os.path.getsize(db_file) > 1000: # Simple check
-                 logger.info(f"ℹ️ SQLite DB '{db_file}' already exists. Skipping ingestion.")
-                 # IMPORTANT: Return here to start faster. 
-                 # Set FORCE_INGEST=1 env var to override.
-                 if not os.getenv("FORCE_INGEST"):
-                     return
+            if os.path.exists(db_file) and not os.getenv("FORCE_INGEST"):
+                schema_issues = validate_database_schema(self.db_url)
+                if not schema_issues:
+                    logger.info("Validated SQLite DB '%s'. Skipping ingestion.", db_file)
+                    return
+                logger.warning("Existing SQLite DB failed schema validation; rebuilding it.")
 
         csv_files = self.get_csv_files()
         
-        if not csv_files:
-            logger.error("❌ No data found and download failed. Getting data is required.")
-            return
-
         for file_path in csv_files:
             self.ingest_file(file_path)
-        
+
+        quality_issues = validate_database_quality(self.db_url)
+        if quality_issues:
+            summary = "; ".join(f"{issue.name}:{issue.issue}" for issue in quality_issues[:5])
+            raise RuntimeError(f"Ingested database quality validation failed: {summary}")
+
         self.load_predictions_from_csv()
-        logger.info("✨ Data Ingestion Complete.")
+        logger.info("Data ingestion complete.")
 
 if __name__ == "__main__":
     ingestor = OlistIngestor(db_url=DATABASE_URL, data_path=str(DATA_RAW_PATH))

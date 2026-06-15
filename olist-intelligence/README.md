@@ -75,6 +75,7 @@ Proje durumunu ve teknik sınırları doğrulamak için:
 - [Güncel mimari ve modül sorumlulukları](docs/ARCHITECTURE.md)
 - [Tamamlanan işler ve gelecek roadmap](docs/ROADMAP.md)
 - [Validation komutları](docs/VALIDATION.md)
+- [Model kartları ve sınırlamalar](docs/MODEL_CARDS.md)
 
 Testler raw dataset veya aktif API anahtarı gerektirmeyen mock/fixture
 sözleşmeleriyle CI üzerinde çalışır:
@@ -108,6 +109,8 @@ Veri ve tablo kalitesini kontrol etmek için:
 python scripts/validate_olist_schema.py --target csv
 python scripts/validate_olist_schema.py --target db
 python scripts/validate_olist_schema.py --target quality
+python scripts/build_local_demo.py
+python scripts/validate_olist_schema.py --target generated
 ```
 
 Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştır; önce Kaggle verisi indirilip ingest akışı çalıştırılmalıdır.
@@ -146,7 +149,8 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 *   **Aksiyon hipotezleri:** Kampanya fikirleri ölçülmüş ROI değil, deney backlog'udur
 
 ### API
-*   **4 Endpoint:** `/predict/delivery`, `/predict/churn`, `/recommend`, `/segments`
+*   **Liveness/readiness:** `/health`, `/ready`
+*   **Serving:** `/predict/delivery`, `/predict/churn`, `/recommend`, `/segments`
 *   **Güvenlik:** X-API-KEY koruması
 
 ### Data Quality
@@ -210,6 +214,8 @@ cp .env.example .env
 copy .env.example .env
 ```
 Ardından `.env` dosyasını açıp **KAGGLE_USERNAME** ve **KAGGLE_KEY** bilgilerinizi ekleyin (Veri indirmek için gereklidir).
+Yerel API ve dashboard için aynı `API_KEY` değerini kullanın. Dataset farklı
+bir klasördeyse `DATA_RAW_PATH` ile göreli veya mutlak yolu belirtebilirsiniz.
 
 ### Adım 4: Dataset ve Veritabanı Hazırlığı
 Proje raw dataset veya `olist.db` dosyasını GitHub'a yüklemez. Yeni indiren
@@ -256,6 +262,17 @@ veritabanında hazır olur.
 API ve dashboard, raw tablolar hazırken başlatılabilir; model endpointleri ve
 üretilen dashboard tabloları için ilgili local artefact'ların ayrıca oluşturulması gerekir.
 
+**Dashboard için deterministik local demo build:**
+
+```bash
+python scripts/build_local_demo.py
+python scripts/validate_olist_schema.py --target generated
+```
+
+Bu build, Notebook 4 ile aynı göreli RFM segment mantığını ve Olist estimated
+delivery tarihine dayanan şeffaf bir lojistik baseline'ını oluşturur. Lojistik
+baseline, eğitilmiş ML modeli değildir ve dashboard'da bu şekilde etiketlenir.
+
 **Sırayla Çalıştırın:**
 1.  `notebooks/1_general_eda_and_prep.ipynb`: **(Zorunlu)** Veritabanı boşsa [Kaggle Olist Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) verisini indirir ve SQL tablolarını kurar.
 2.  `notebooks/2_logistics_engine.ipynb`: **(Gerekli)** Dashboard'daki "Operasyon" ekranının dolması için lojistik tahminlerini veritabanına yazar.
@@ -289,11 +306,11 @@ chmod +x run_local.sh
 ### Seçenek C: Manuel (Adım Adım)
 Eğer her servisi ayrı terminalde görmek isterseniz:
 
-1. **Terminal 1: MLflow Arayüzü (Zorunlu)**
+1. **Terminal 1: MLflow Arayüzü (Model registry kullanılıyorsa)**
    ```bash
    mlflow ui --port 5000
    ```
-   *(Bunu başlatmazsanız API modelleri yükleyemez ve açılmaz)*
+   *(MLflow olmadan API açılır; registry tabanlı model yükleme devre dışı kalır.)*
 
 2. **Terminal 2: API**
    ```bash
@@ -352,7 +369,7 @@ scripts/            # Lokal yardımcı scriptler
 |-------|-----------|--------|-------|
 | **Lojistik** | CatBoost Regressor | Temporal holdout RMSE | Notebook yeniden çalıştırıldığında üretilir |
 | **Repeat purchase** | CatBoost adayı | Sınıf dengesi kapısı | Mevcut snapshot aşırı dengesizse model üretilmez |
-| **Recommender** | SVD | Coverage | Cold-start ve offline evaluation henüz eksik |
+| **Recommender** | SVD | Leave-one-out hit rate / coverage | Yalnızca uygun repeat-user holdout grubu üzerinde eğitim sırasında üretilir |
 
 Bu değerler portföy/prototip bağlamında tutulur. Raw Kaggle verisi ve yerel `olist.db`
 ile yeniden çalıştırılmadan güncel model performansı olarak sunulmamalıdır.
@@ -364,7 +381,7 @@ ile yeniden çalıştırılmadan güncel model performansı olarak sunulmamalıd
 *   **API Bağlantı Hatası:** MacOS kullanıcıları `localhost` yerine `127.0.0.1` kullanmalıdır (Projede varsayılan olarak ayarlanmıştır).
 *   **Grafikler/Tablolar Boş Görünüyor:**
     *   **Durum:** Raw Olist tabloları tek başına generated prediction/segment panellerini doldurmaz.
-    *   **Çözüm:** Dashboard'daki *"Operasyon Merkezi"* ve segmentasyon ekranlarının dolması için **Notebook 2 (Lojistik)** ve **Notebook 4 (Growth/Segmentasyon)** dosyalarını bir kez çalıştırmanız gerekir.
+    *   **Çözüm:** `python scripts/build_local_demo.py` çalıştırın veya model/segment deneyi için ilgili notebookları yeniden üretin.
 *   **Docker Port Hatası:** Yerelde çalışan servisleri (`Ctrl+C`) kapatıp `docker-compose`'u yeniden başlatın.
 
 ---

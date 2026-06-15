@@ -8,11 +8,13 @@ from sqlalchemy import create_engine, text
 from src.data_contract import (
     EXPECTED_CSV_SCHEMAS,
     EXPECTED_TABLE_SCHEMAS,
+    GENERATED_TABLE_SCHEMAS,
     expected_column_count,
     table_name_from_csv,
     validate_csv_directory,
     validate_database_quality,
     validate_database_schema,
+    validate_generated_outputs,
 )
 
 
@@ -103,6 +105,7 @@ def _seed_valid_olist_contract(engine):
 def test_expected_schema_matches_kaggle_file_and_column_counts():
     assert len(EXPECTED_CSV_SCHEMAS) == 9
     assert expected_column_count() == 52
+    assert set(GENERATED_TABLE_SCHEMAS) == {"logistics_predictions", "customer_segments"}
 
 
 @pytest.mark.parametrize(
@@ -238,3 +241,48 @@ def test_validate_database_quality_reports_domain_rule_violations(tmp_path):
     assert "invalid_payment_type" in issue_names
     assert "negative_payment_value" in issue_names
     assert "invalid_review_score" in issue_names
+
+
+def test_validate_generated_outputs_accepts_dashboard_contract(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'generated.db'}"
+    engine = create_engine(database_url)
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE logistics_predictions (
+                order_id TEXT,
+                customer_id TEXT,
+                predicted_delivery_days REAL,
+                delivery_days REAL,
+                prediction_source TEXT
+            )
+        """))
+        conn.execute(text("""
+            INSERT INTO logistics_predictions VALUES ('o1', 'c1', 5.0, 4.0, 'baseline')
+        """))
+        conn.execute(text("""
+            CREATE TABLE customer_segments (
+                customer_unique_id TEXT,
+                "Recency" REAL,
+                "Frequency" REAL,
+                "Monetary" REAL,
+                "Cluster" INTEGER,
+                "Segment" TEXT
+            )
+        """))
+        conn.execute(text("""
+            INSERT INTO customer_segments VALUES ('u1', 10, 2, 100, 0, 'At Risk')
+        """))
+
+    assert validate_generated_outputs(database_url) == []
+
+
+def test_validate_generated_outputs_reports_missing_tables(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'generated.db'}"
+    create_engine(database_url)
+
+    issues = validate_generated_outputs(database_url)
+
+    assert {issue.name for issue in issues} == {
+        "logistics_predictions",
+        "customer_segments",
+    }

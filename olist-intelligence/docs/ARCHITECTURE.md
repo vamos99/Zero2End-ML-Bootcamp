@@ -23,8 +23,9 @@ artifacts remain local.
 6. `src/services/` packages repository results for consumers.
 7. `src/views/` and `src/dashboard.py` render dashboard views; `src/app.py`
    exposes FastAPI endpoints.
-8. Notebook workflows may create local `logistics_predictions` and
-   `customer_segments` tables used by selected dashboard pages.
+8. `scripts/build_local_demo.py` deterministically creates a transparent
+   estimated-date logistics baseline and the same relative RFM profiles used by
+   notebook 4. Notebook/model workflows may replace these local outputs.
 
 Editable diagram source:
 [`architecture.excalidraw`](architecture.excalidraw)
@@ -39,6 +40,7 @@ The existing rendered overview remains available at
 | `src/data_contract.py` | Canonical raw-file, table, and quality contract |
 | `src/ml/ingest.py` | Local CSV-to-database ingestion |
 | `scripts/validate_olist_schema.py` | CLI validation entry point |
+| `scripts/build_local_demo.py` | Deterministic local dashboard-output build |
 | `sql/views/` | Reusable analytics marts/views |
 | `src/database/db_client.py` | Database engine creation |
 | `src/database/repository.py` | Backward-compatible repository facade and remaining legacy functions |
@@ -54,8 +56,9 @@ The repository layer is being cleaned in small PRs. Existing imports and return
 shapes must remain compatible while functions gradually move into focused
 modules.
 
-Current extracted modules include `action_repository.py` and
-`ranking_repository.py`. Shared helper modules define query limits, empty
+Current extracted modules include `action_repository.py`,
+`ranking_repository.py`, `logistics_repository.py`, and
+`customer_repository.py`. Shared helper modules define query limits, empty
 DataFrame schemas, metric/table names, dates, and fallback values.
 
 `repository.py` remains the compatibility facade until callers are migrated and
@@ -84,6 +87,8 @@ The following are planned, not implemented as completed features:
 
 - Local raw data and generated tables are required for complete dashboard
   behavior.
+- The deterministic logistics demo output is an estimated-date baseline, not a
+  trained model prediction.
 - Repository responsibilities are not fully split by domain.
 - Some broad exception fallbacks remain and should be improved in small PRs.
 - Delivery claims require strict temporal validation; repeat-purchase modeling

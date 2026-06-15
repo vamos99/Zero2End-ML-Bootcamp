@@ -34,6 +34,7 @@ services:
       - DATABASE_URL=sqlite:////app/olist.db
       - KAGGLE_USERNAME=${KAGGLE_USERNAME}
       - KAGGLE_KEY=${KAGGLE_KEY}
+      - API_KEY=${API_KEY:?Set API_KEY in .env before starting Docker services}
     depends_on:
       - mlflow
     volumes:
@@ -58,6 +59,7 @@ services:
       - API_URL=http://api:8000
       - KAGGLE_USERNAME=${KAGGLE_USERNAME}
       - KAGGLE_KEY=${KAGGLE_KEY}
+      - API_KEY=${API_KEY:?Set API_KEY in .env before starting Docker services}
     depends_on:
       - mlflow
     volumes:

@@ -3,44 +3,56 @@ from src.services import action_service, analytics_service
 from src.database import repository
 from src.services.api_client import api_client
 
-def render_customer_view(risk_churn):
+def render_customer_view(metrics):
     st.title("🤝 Müşteri Sadakati (Retention)")
+
+    risk_churn = metrics.get("risk_churn", 0)
+    segments_available = metrics.get("generated_outputs", {}).get("customer_segments", False)
+    observed_value = risk_churn * metrics.get("revenue_per_customer", 0)
     
-    # Calculate dynamic at-risk revenue (avg customer value * risk count)
-    avg_customer_value = 150  # Average order value in BRL
-    at_risk_revenue = risk_churn * avg_customer_value * 3  # Estimate 3 orders/year
-    
-    # KPI
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("🔥 Churn Riski (Yüksek)", f"{risk_churn} Müşteri", help="Bizi terk etme olasılığı (Churn Score) yüksek olan müşteriler.")
+        st.metric(
+            "At Risk Segmenti",
+            f"{risk_churn} müşteri" if segments_available else "Hazır değil",
+            help="Growth notebook tarafından göreli RFM profili olarak At Risk etiketi verilen müşteri sayısı.",
+        )
     with col2:
-        st.metric("💰 Risk Altındaki Ciro", f"{at_risk_revenue:,.0f} BRL", help="Riskli müşterilerin toplam yıllık harcama potansiyeli.")
+        st.metric(
+            "Gözlenen Değer Göstergesi",
+            f"{observed_value:,.0f} BRL" if segments_available else "Hazır değil",
+            help="At Risk müşteri sayısı ile seçili dönemde gözlenen müşteri başı ürün cirosunun çarpımı; tahmin veya yıllık gelir değildir.",
+        )
+
+    if not segments_available:
+        st.info("Segmentasyon çıktısı bulunamadı. `customer_segments` tablosunu local build veya Growth notebook ile üretin.")
         
     st.markdown("---")
     
-    st.subheader("🎯 Hedefli Kampanya Simülasyonu")
+    st.subheader("🎯 Kampanya Deney Taslağı")
     
     action = st.radio("Aksiyon Seçiniz:", ["%15 İndirim Tanımla", "Sadakat Puanı Yükle", "Müşteri Temsilcisi Arasın"], horizontal=True)
     
     sim = action_service.simulate_impact(action)
     
-    k1, k2, k3 = st.columns(3)
-    k1.metric("Tahmini Maliyet", f"{sim['cost']} BRL", delta="Yatırım", delta_color="inverse")
-    k2.metric("Kurtarılan Ciro", f"{sim['saved']} BRL", delta="Kazanç")
-    k3.metric("Tahmini ROI", sim['roi'])
+    st.info(
+        f"Ölçülecek ana sonuç: **{sim['hypothesis']}**. "
+        "Maliyet, uplift ve ROI ancak kontrol gruplu deney sonrasında raporlanmalıdır."
+    )
     
-    if st.button("Kampanyayı Başlat 🚀", key="churn_btn"):
-        action_service.execute_action("CHURN_CAMPAIGN", f"{action} kampanyası başlatıldı.", sim['saved'])
-        st.balloons()
-        st.success(f"Kampanya başlatıldı! Tahmini {sim['saved']} BRL ciro kurtarılacak.")
+    if st.button("Deney Taslağını Günlüğe Kaydet", key="churn_btn"):
+        action_service.execute_action("RETENTION_EXPERIMENT_DRAFT", f"{action} deney taslağı oluşturuldu.", 0)
+        st.success("Deney taslağı işlem günlüğüne kaydedildi; gerçek kampanya başlatılmadı.")
     
     st.markdown("---")
     
     # Target Audience Builder
     st.markdown("### 🔍 Hedef Kitle Oluşturucu")
     
-    selected_segment = st.selectbox("Segment Seçiniz:", ["Tümü", "💎 Sadık Müşteriler", "🏆 Şampiyonlar", "⚠️ Kayıp Riski", "🌱 Yeni Potansiyeller"])
+    selected_segment = st.selectbox(
+        "Segment Seçiniz:",
+        ["Tümü", "💎 Champions", "🏆 Loyal", "⚠️ At Risk", "🌱 Developing"],
+    )
     
     try:
         df_target = analytics_service.get_target_audience_data(selected_segment)
@@ -63,10 +75,10 @@ def render_customer_view(risk_churn):
     st.markdown("---")
     
     # NEW: Recommender System UI
-    st.markdown("### 🔮 Kişiselleştirilmiş Ürün Önerileri (Smart Recommender)")
+    st.markdown("### 🔮 Ürün Öneri Prototipi")
     
     with st.expander("🛍️ Müşteri Öneri Motoru", expanded=True):
-        st.info("Bu modül, SVD (Singular Value Decomposition) algoritması kullanarak müşteriye özel ürün önerileri sunar.")
+        st.info("SVD modeli varsa kişiselleştirilmiş ürün kimlikleri, yoksa popüler kategori fallback'i döner.")
         
         # Random ID Logic
         col_in, col_btn = st.columns([3, 1])
@@ -92,8 +104,7 @@ def render_customer_view(risk_churn):
             if "error" in rec_result:
                 st.error(rec_result["error"])
             else:
-                st.success(f"Yöntem: {rec_result.get('method', 'Bilinmiyor')}")
-                st.write("**Önerilen Ürünler:**")
+                st.write("**Öneri çıktıları:**")
                 
                 # Cards layout for products
                 cols = st.columns(5)
@@ -104,14 +115,15 @@ def render_customer_view(risk_churn):
                         with cols[i]:
                             # Clean string just in case
                             prod_str = str(prod).strip()
-                            st.image("https://placehold.co/150x150?text=Product", caption=prod_str)
+                            st.code(prod_str)
 
     st.markdown("---")
     
     # NEW: Churn Calculator
-    st.markdown("### 🔥 Churn Riski Hesaplayıcı (Simülasyon)")
+    st.markdown("### 🔥 Repeat-Purchase Model Sandbox")
     
     with st.expander("👤 Tekil Müşteri Analizi Yap", expanded=False):
+        st.caption("Yalnızca değerlendirme eşiğini geçen yerel model artefact'ı yüklüyse sonuç üretir.")
         with st.form("churn_prediction_form"):
             c1, c2, c3 = st.columns(3)
             

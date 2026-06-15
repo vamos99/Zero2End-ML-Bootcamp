@@ -92,10 +92,8 @@ elif page == "📦 Operasyon Merkezi":
     logistics_view.render_logistics_view(risk_count, metrics, df_details)
 
 elif page == "🤝 Müşteri Sadakati":
-    # Churn risk is currently a snapshot, passing total count
-    # Ideally should filter by date if prediction dates were available
-    risk_churn = analytics_service.get_daily_pulse(start_date, end_date)["risk_churn"]
-    customer_view.render_customer_view(risk_churn)
+    customer_metrics = analytics_service.get_daily_pulse(start_date, end_date)
+    customer_view.render_customer_view(customer_metrics)
 
 elif page == "📊 Segmentasyon Analizi":
     df_growth = analytics_service.get_segmentation_data()

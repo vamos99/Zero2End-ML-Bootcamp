@@ -36,3 +36,35 @@ def has_usable_class_balance(target, minimum_share=0.05, minimum_count=20):
     if len(counts) < 2:
         return False
     return counts.min() >= minimum_count and counts.min() / counts.sum() >= minimum_share
+
+
+def expanding_temporal_splits(features, target, timestamps, n_splits=3, test_size=0.1):
+    """Return expanding-window splits for multi-cutoff model validation."""
+    if n_splits < 1:
+        raise ValueError("n_splits must be at least 1")
+    if not 0 < test_size < 1:
+        raise ValueError("test_size must be between 0 and 1")
+    if not len(features) == len(target) == len(timestamps):
+        raise ValueError("features, target, and timestamps must have equal lengths")
+
+    ordered = np.argsort(pd.to_datetime(timestamps).to_numpy())
+    test_rows = max(1, int(len(ordered) * test_size))
+    initial_train_rows = len(ordered) - (n_splits * test_rows)
+    if initial_train_rows < 1:
+        raise ValueError("not enough rows for requested temporal splits")
+
+    splits = []
+    for split_index in range(n_splits):
+        train_end = initial_train_rows + split_index * test_rows
+        test_end = train_end + test_rows
+        train_index = ordered[:train_end]
+        test_index = ordered[train_end:test_end]
+        splits.append(
+            (
+                features.iloc[train_index],
+                features.iloc[test_index],
+                target.iloc[train_index],
+                target.iloc[test_index],
+            )
+        )
+    return splits

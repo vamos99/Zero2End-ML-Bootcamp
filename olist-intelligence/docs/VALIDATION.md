@@ -16,4 +16,11 @@ python scripts/validate_olist_schema.py --target csv
 python -m src.ml.ingest
 python scripts/validate_olist_schema.py --target db
 python scripts/validate_olist_schema.py --target quality
+python scripts/build_local_demo.py
+python scripts/validate_olist_schema.py --target generated
+python scripts/validate_olist_schema.py --target all
 ```
+
+`--target generated` validates `logistics_predictions` and
+`customer_segments`. The local demo builder fails when raw database quality or
+generated-output contracts fail.

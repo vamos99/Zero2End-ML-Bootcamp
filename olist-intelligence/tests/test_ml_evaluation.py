@@ -1,7 +1,11 @@
 import pandas as pd
 import pytest
 
-from src.ml.evaluation import has_usable_class_balance, temporal_train_test_split
+from src.ml.evaluation import (
+    expanding_temporal_splits,
+    has_usable_class_balance,
+    temporal_train_test_split,
+)
 
 
 def test_temporal_split_uses_latest_rows_for_holdout():
@@ -40,3 +44,22 @@ def test_temporal_split_keeps_equal_timestamps_in_same_partition():
 def test_class_balance_gate_rejects_extreme_imbalance():
     assert not has_usable_class_balance(pd.Series([1] * 99 + [0]))
     assert has_usable_class_balance(pd.Series([1] * 20 + [0] * 20))
+
+
+def test_expanding_temporal_splits_use_later_non_overlapping_holdouts():
+    features = pd.DataFrame({"value": list(range(10))})
+    target = pd.Series(list(range(10)))
+    timestamps = pd.Series(pd.date_range("2024-01-01", periods=10))
+
+    splits = expanding_temporal_splits(features, target, timestamps, n_splits=3, test_size=0.2)
+
+    assert [split[0]["value"].tolist() for split in splits] == [
+        [0, 1, 2, 3],
+        [0, 1, 2, 3, 4, 5],
+        [0, 1, 2, 3, 4, 5, 6, 7],
+    ]
+    assert [split[1]["value"].tolist() for split in splits] == [
+        [4, 5],
+        [6, 7],
+        [8, 9],
+    ]

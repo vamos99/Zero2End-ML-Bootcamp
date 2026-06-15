@@ -7,6 +7,10 @@ def render_growth_view(df_growth):
     **Amaç:** Müşteri tabanını segmentlere ayırarak her gruba özel pazarlama stratejileri geliştirmek.
     """)
     
+    if df_growth.empty:
+        st.info("Segmentasyon çıktısı bulunamadı. `customer_segments` tablosunu local build veya Growth notebook ile üretin.")
+        return
+
     col1, col2 = st.columns(2)
     
     with col1:
@@ -17,17 +21,17 @@ def render_growth_view(df_growth):
         fig2 = px.bar(df_growth, x="Segment Adı", y="avg_spend", title="Ortalama Harcama (Segment Bazlı)", color="Segment Adı")
         st.plotly_chart(fig2, width=600)
         
-    st.subheader("💡 Stratejik Aksiyon Planı")
+    st.subheader("💡 Deney Hipotezleri")
     
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.info("**🏆 Şampiyonlar**\n\n*Özel VIP destek hattı verin.*")
+        st.info("**💎 Champions**\n\n*Erken erişim teklifini kontrollü deneyle test et.*")
     with c2:
-        st.success("**💎 Sadık Müşteriler**\n\n*Sadakat programına dahil edin.*")
+        st.success("**🏆 Loyal**\n\n*Cross-sell teklifini holdout grupla ölç.*")
     with c3:
-        st.warning("**🌱 Yeni Potansiyeller**\n\n*Hoşgeldin indirimi tanımlayın.*")
+        st.warning("**🌱 Developing**\n\n*İkinci sipariş onboarding deneyini test et.*")
     with c4:
-        st.error("**⚠️ Kayıp Riski**\n\n*Sizi özledik kuponu gönderin.*")
+        st.error("**⚠️ At Risk**\n\n*Düşük maliyetli reaktivasyon mesajını test et.*")
         
     st.markdown("---")
     st.subheader("📊 Detaylı Metrikler")

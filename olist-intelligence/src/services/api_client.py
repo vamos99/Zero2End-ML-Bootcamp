@@ -81,7 +81,7 @@ class APIClient:
     def health_check(self) -> bool:
         """Check if API is available."""
         try:
-            response = requests.get(f"{self.base_url}/", timeout=2)
+            response = requests.get(f"{self.base_url}/health", timeout=2)
             return response.status_code == 200
         except requests.RequestException:
             return False

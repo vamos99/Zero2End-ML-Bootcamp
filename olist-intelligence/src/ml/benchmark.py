@@ -2,6 +2,7 @@ import numpy as np
 import optuna
 import time
 import pickle
+from sklearn.base import clone
 from sklearn.model_selection import TimeSeriesSplit, train_test_split, cross_val_score
 from sklearn.metrics import balanced_accuracy_score, mean_squared_error, roc_auc_score
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -10,7 +11,7 @@ from catboost import CatBoostRegressor, CatBoostClassifier
 from xgboost import XGBClassifier
 from src.config import MODELS_PATH
 from src.ml.data import get_logistics_data, get_churn_data
-from src.ml.evaluation import has_usable_class_balance, temporal_train_test_split
+from src.ml.evaluation import expanding_temporal_splits, has_usable_class_balance, temporal_train_test_split
 
 def benchmark_logistics():
     """Run logistics model benchmark with Optuna optimization."""
@@ -55,6 +56,16 @@ def benchmark_logistics():
     # Find winner
     winner = min(results, key=lambda k: results[k]['rmse'])
     print(f"🏆 Winner: {winner}")
+
+    cutoff_rmses = []
+    for split in expanding_temporal_splits(X, y, timestamps, n_splits=3, test_size=0.1):
+        split_X_train, split_X_test, split_y_train, split_y_test = split
+        cutoff_model = clone(results[winner]["model"])
+        cutoff_model.fit(split_X_train, split_y_train)
+        cutoff_prediction = cutoff_model.predict(split_X_test)
+        cutoff_rmses.append(float(np.sqrt(mean_squared_error(split_y_test, cutoff_prediction))))
+    results[winner]["multi_cutoff_rmse"] = cutoff_rmses
+    print(f"📊 Multi-cutoff RMSE: {[round(value, 4) for value in cutoff_rmses]}")
     
     # Optimize with Optuna
     print(f"🔧 Optimizing RandomForest with Optuna (20 Trials)...")

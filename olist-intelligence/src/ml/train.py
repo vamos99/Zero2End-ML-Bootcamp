@@ -1,13 +1,12 @@
 import numpy as np
 from catboost import CatBoostRegressor, CatBoostClassifier
-from sklearn.decomposition import TruncatedSVD
-from scipy.sparse import csr_matrix
 from sklearn.metrics import balanced_accuracy_score, mean_squared_error, roc_auc_score
 from sklearn.model_selection import train_test_split
 from src.config import MODELS_PATH
 from src.ml.data import get_logistics_data, get_churn_data, get_recommender_data
 from src.ml.evaluation import has_usable_class_balance, temporal_train_test_split
 from src.ml.registry import register_model, save_model_locally
+from src.ml.recommender import build_recommender_artifact, evaluate_leave_one_out
 
 MODELS_PATH.mkdir(parents=True, exist_ok=True)
 
@@ -94,45 +93,16 @@ def train_recommender_model():
 
     print(f"🛍️ Matris Oluşturuluyor ({len(df)} etkileşim)...")
     
-    # Create User-Item Matrix
-    user_ids = df['customer_id'].unique()
-    product_ids = df['product_id'].unique()
-    
-    user_map = {id_: i for i, id_ in enumerate(user_ids)}
-    product_map = {id_: i for i, id_ in enumerate(product_ids)}
-    reverse_product_map = {i: id_ for id_, i in product_map.items()}
-    
-    df['user_idx'] = df['customer_id'].map(user_map)
-    df['product_idx'] = df['product_id'].map(product_map)
-    
-    # SPARSE MATRIX CONSTRUCTION
-    matrix_sparse = csr_matrix(
-        (df['purchase_count'].values, (df['user_idx'].values, df['product_idx'].values)),
-        shape=(len(user_ids), len(product_ids))
-    )
-    
-    print(f"🛍️ Model (SVD) Eğitiliyor (Shape: {matrix_sparse.shape})...")
-    
-    # Reduce to 20 latent features
-    svd = TruncatedSVD(n_components=min(20, len(product_ids)-1), random_state=42)
-    matrix_reduced = svd.fit_transform(matrix_sparse)
-    
-    # We save everything needed for inference
-    artifact = {
-        "model": svd,
-        "matrix_reduced": matrix_reduced, # User vectors
-        "product_components": svd.components_, # Item vectors
-        "user_map": user_map,
-        "product_map": product_map,
-        "reverse_product_map": reverse_product_map
-    }
+    evaluation = evaluate_leave_one_out(df, top_k=10)
+    print(f"🛍️ Offline evaluation: {evaluation}")
+    artifact = build_recommender_artifact(df)
     
     # Currently Registry doesn't support Dict artifacts easily, so we save locally
     save_model_locally(artifact, "recommender")
     # Optional: We could log artifact to MLflow run without registering as "Model"
     # But for simplicity we keep it local for now
         
-    print(f"✅ Öneri Modeli Kaydedildi (Local)")
+    print("✅ Öneri Modeli Kaydedildi (Local)")
 
 if __name__ == "__main__":
     train_logistics_model()
