@@ -78,6 +78,20 @@ if start_date > end_date:
     # Auto-correct logic could go here, but warning is safer for now.
 
 st.sidebar.markdown("---")
+st.sidebar.subheader("Runtime")
+readiness = action_service.api_client.get_readiness()
+if readiness:
+    generated_tables = readiness.get("generated_tables", {})
+    loaded_models = readiness.get("loaded_models", [])
+    table_status = ", ".join(
+        name for name, is_ready in generated_tables.items() if is_ready
+    ) or "none"
+    model_status = ", ".join(loaded_models) or "none"
+    st.sidebar.caption(f"Generated tables: {table_status}")
+    st.sidebar.caption(f"Loaded models: {model_status}")
+else:
+    st.sidebar.caption("API readiness unavailable; action widgets may be degraded.")
+
 st.sidebar.info("v3.1.0 - Enhanced Analytics")
 
 # --- CONTROLLER LOGIC ---

@@ -45,7 +45,6 @@ mlruns/
 mlflow.db
 models/*.joblib
 *.pkl
-!models/*.pkl
 *.log
 catboost_info/
 store/

@@ -65,9 +65,9 @@ denetlenir. Sınıflar aşırı dengesizse model eğitimi ve artefact kaydı atl
 
 ## Analytics & Data Engineering Açısı
 
-Bu proje production seviyesinde bir veri platformu iddiası taşımaz; bootcamp kapsamındaki veri setini daha okunabilir bir analitik ürüne dönüştürmeyi hedefler.
-
-![Olist data flow architecture](../docs/diagrams/olist-data-flow.png)
+Bu proje production seviyesinde bir veri platformu iddiası taşımaz; bootcamp kapsamındaki veri setini daha okunabilir bir analitik ürüne dönüştürmeyi hedefler. Mimari anlatım için güncel doküman
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), düzenlenebilir çizim kaynağı ise
+[`docs/architecture.excalidraw`](docs/architecture.excalidraw) dosyasıdır.
 
 Proje durumunu ve teknik sınırları doğrulamak için:
 
@@ -86,7 +86,7 @@ pytest tests/ -v --tb=short
 
 | Katman | Bu Projede Karşılığı |
 |--------|-----------------------|
-| **Raw data** | Kaggle Olist CSV dosyaları (`data/raw`, Git'e dahil değil) |
+| **Raw data** | Kaggle Olist CSV dosyaları (`data/raw/` önerilir, `olist-dataset/` legacy fallback; Git'e dahil değil) |
 | **Ingestion** | `src/ml/ingest.py` ile CSV -> SQLite/Postgres uyumlu tablo akışı |
 | **Analytics model** | `sql/views/` altında revenue, delivery quality, payment, cohort, seller ve segment view'ları |
 | **ML workflow** | Notebooklar ve `src/ml/` altında lojistik, churn ve öneri prototipleri |
@@ -258,9 +258,26 @@ python scripts/apply_sql_views.py --replace
 Bu adımlar geçince ham Olist tabloları ve SQL analitik view'ları yerel
 veritabanında hazır olur.
 
+**Runtime readiness kontrolü:**
+
+API çalışırken `/ready` çıktısı veritabanı/generated tablo hazır olma durumunu
+ve yüklenen model artefact'larını ayrı ayrı gösterir:
+
+```bash
+curl http://127.0.0.1:8000/ready
+```
+
+`generated_tables` değerlerinin hazır olması dashboard tablolarının beslendiğini,
+`loaded_models` ise API model endpointlerinin gerçekten model artefact'ı bulduğunu
+gösterir. Bu iki durum aynı şey değildir.
+
 ### Adım 5: Notebooklar ve Modeller
 API ve dashboard, raw tablolar hazırken başlatılabilir; model endpointleri ve
 üretilen dashboard tabloları için ilgili local artefact'ların ayrıca oluşturulması gerekir.
+`models/` altındaki `.pkl` dosyaları Git'e ve Docker image build'lerine dahil
+edilmez. Bu yüzden ilk kurulumda model dosyaları yoksa API açılabilir ama ilgili
+endpoint `503 Model not loaded` veya recommender tarafında açıkça etiketlenmiş
+fallback yanıtı döner.
 
 **Dashboard için deterministik local demo build:**
 

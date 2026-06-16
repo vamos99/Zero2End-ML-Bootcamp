@@ -83,8 +83,12 @@ def render_logistics_view(risk_count, metrics, df_details):
                 
                 st.success(f"**Tahmini Teslimat:** {days:.1f} Gün")
                 if risk == "High":
-                    st.error(f"Risk Seviyesi: {risk}")
+                    st.warning(f"Risk Seviyesi: {risk}")
                 else:
                     st.info(f"Risk Seviyesi: {risk}")
             else:
-                st.error("API Bağlantı Hatası! (Uvicorn çalışıyor mu?)")
+                detail = (api_client.last_error or {}).get("detail")
+                if detail == "Model not loaded":
+                    st.warning("Teslimat modeli yüklü değil. Operasyon metrikleri hazır tabloyu kullanır; bu simülatör için yerel model artefact'ı gerekir.")
+                else:
+                    st.error(f"Teslimat tahmini alınamadı: {detail or 'API yanıtı yok.'}")

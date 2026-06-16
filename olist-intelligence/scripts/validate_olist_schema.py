@@ -26,6 +26,20 @@ def _print_issues(issues):
         print(f"[fail] {issue.scope}:{issue.name}:{issue.issue} -> {issue.details}")
 
 
+def _selected_checks(target: str) -> list[str]:
+    if target == "csv":
+        return ["csv"]
+    if target == "db":
+        return ["db_schema"]
+    if target == "quality":
+        return ["db_quality"]
+    if target == "generated":
+        return ["generated_outputs"]
+    if target == "both":
+        return ["csv", "db_schema"]
+    return ["csv", "db_schema", "db_quality", "generated_outputs"]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate Olist source schema.")
     parser.add_argument(
@@ -84,8 +98,10 @@ def main() -> int:
         return 1
 
     print(
-        "[schema] ok: validated 9 Kaggle CSV contracts "
-        f"and {expected_column_count()} expected source columns"
+        f"[schema] ok: target={args.target}; "
+        f"checks={', '.join(_selected_checks(args.target))}; "
+        "source_contract=9_csv_files; "
+        f"required_columns={expected_column_count()}"
     )
     return 0
 

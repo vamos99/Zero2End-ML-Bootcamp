@@ -24,3 +24,17 @@ python scripts/validate_olist_schema.py --target all
 `--target generated` validates `logistics_predictions` and
 `customer_segments`. The local demo builder fails when raw database quality or
 generated-output contracts fail.
+
+The CLI prints the selected check group in the success line. This matters
+because raw CSV validation, database schema validation, generated table
+validation, and full data-quality checks prove different things.
+
+Runtime API readiness is a separate check:
+
+```bash
+curl http://127.0.0.1:8000/ready
+```
+
+`generated_tables` confirms local dashboard outputs exist. `loaded_models`
+confirms model artefacts were loaded for live API endpoints. A ready database
+does not imply that churn, delivery, or recommender models are loaded.

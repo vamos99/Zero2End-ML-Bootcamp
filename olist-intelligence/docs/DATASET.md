@@ -44,6 +44,9 @@ Source misspellings such as `product_name_lenght` and
 - Keep only schema contracts, transformations, tests, and documentation in Git.
 - Treat generated `logistics_predictions` and `customer_segments` as local
   workflow outputs, not raw Olist tables.
+- Treat `models/` as a local artefact directory. A fresh clone may have a valid
+  database and dashboard while model-serving endpoints remain unavailable until
+  the local training/export workflow creates the model files.
 
 ## Validation
 
@@ -60,6 +63,13 @@ python scripts/apply_sql_views.py --replace
 Validation should fail clearly when required local data or the database is
 missing. A successful raw-schema check does not prove generated prediction or
 segment tables exist.
+
+Use `/ready` after starting the API to separate these runtime states:
+
+- `generated_tables`: local dashboard outputs such as `logistics_predictions`
+  and `customer_segments`.
+- `loaded_models`: model artefacts loaded by the API for live prediction or
+  recommendation endpoints.
 
 ## Known Limitations
 

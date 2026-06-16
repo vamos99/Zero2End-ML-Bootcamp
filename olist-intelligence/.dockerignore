@@ -41,6 +41,7 @@ olist.db
 # Runtime artifacts
 mlruns/
 mlflow.db
+models/
 store/
 catboost_info/
 

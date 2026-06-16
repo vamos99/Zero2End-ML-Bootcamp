@@ -83,7 +83,7 @@ def render_customer_view(metrics):
         # Random ID Logic
         col_in, col_btn = st.columns([3, 1])
         
-        default_id = "871766c5855e863f6eccc05f988b23"
+        default_id = "8d50f5eadf50201ccdcedfb9e2ac8455"
         if "random_id" in st.session_state:
             default_id = st.session_state.random_id
 
@@ -104,7 +104,15 @@ def render_customer_view(metrics):
             if "error" in rec_result:
                 st.error(rec_result["error"])
             else:
-                st.write("**Öneri çıktıları:**")
+                method = rec_result.get("method", "unknown")
+                item_type = rec_result.get("item_type", "product_id")
+                if method.startswith("popularity_fallback"):
+                    st.warning("Kişiselleştirilmiş öneri modeli yüklü değil; popüler kategori fallback'i gösteriliyor.")
+                else:
+                    st.success("Kişiselleştirilmiş SVD ürün önerisi üretildi.")
+                st.caption(f"Yöntem: `{method}` | Çıktı tipi: `{item_type}`")
+                label = "Kategori çıktıları" if item_type == "product_category" else "Ürün kimlikleri"
+                st.write(f"**{label}:**")
                 
                 # Cards layout for products
                 cols = st.columns(5)
@@ -157,4 +165,8 @@ def render_customer_view(metrics):
                 else:
                     st.success(f"Risk Seviyesi: {risk} (Düşük)")
             else:
-                st.error("API Hatası! Uvicorn çalışıyor mu?")
+                detail = (api_client.last_error or {}).get("detail")
+                if detail == "Model not loaded":
+                    st.warning("Repeat-purchase modeli yüklü değil. Bu yerel snapshot model eşiğini geçmediyse sandbox sonuç üretmez.")
+                else:
+                    st.error(f"Churn tahmini alınamadı: {detail or 'API yanıtı yok.'}")

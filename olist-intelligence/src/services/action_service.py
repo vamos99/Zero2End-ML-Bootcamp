@@ -20,7 +20,7 @@ def simulate_impact(action_name):
 
 def get_recommendations(customer_id: str):
     """Call the configured API client and preserve the dashboard response shape."""
-    recommendations = api_client.get_recommendations(customer_id, n=5)
-    if recommendations is None:
+    response = api_client.get_recommendation_response(customer_id, n=5)
+    if response is None:
         return {"error": "Recommendation API is unavailable or not configured."}
-    return {"recommendations": recommendations}
+    return response
