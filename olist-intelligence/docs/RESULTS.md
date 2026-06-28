@@ -163,8 +163,10 @@ Payment value by method:
 ```bash
 python scripts/build_local_demo.py
 python scripts/validate_olist_schema.py --target all
+python scripts/evaluate_olist_results.py --pretty
 python -m pytest -q
 ```
 
-For model/prototype metrics, rerun the corresponding `src/ml/` data loaders and
-evaluation functions against the current local `olist.db`.
+`scripts/evaluate_olist_results.py` recomputes the delivery baseline
+comparison, repeat-purchase gate, and recommender offline benchmark against the
+current local `olist.db` without writing model artifacts.
