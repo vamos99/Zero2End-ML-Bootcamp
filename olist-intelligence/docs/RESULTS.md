@@ -7,6 +7,21 @@ analitik çıktılarıdır.
 
 Son ölçüm: 2026-06-28, local SQLite snapshot.
 
+## Outcome vs. Business Impact
+
+Bu projede canlı operasyon veya A/B test yoktur. Bu yüzden "teslim süresi şu
+kadar iyileşti", "churn şu kadar azaldı" veya "satış şu kadar arttı" gibi
+iş etkisi iddiaları ölçülmüş sonuç değildir. Ölçülen sonuçlar aşağıdaki
+model/analytics benchmark'larıdır.
+
+| Alan | Ölçülen sonuç | Ölçülmeyen iş etkisi |
+| --- | --- | --- |
+| Delivery prediction | Mean baseline'a göre RMSE %8.8, MAE %15.1 daha düşük | Gerçek teslim süresi azalması ölçülmedi |
+| Repeat-purchase risk | Sınıf dağılımı %99.40 risk etiketi; model gate failed | Churn azalması veya kampanya uplift'i ölçülmedi |
+| Recommender | Hit rate @10 = %3.51; random catalog baseline'a göre yaklaşık 116x | Satış veya sepet artışı ölçülmedi |
+| Segmentation | 93,358 müşteri segmentlendi; ARI 1.000, silhouette 0.479 | Segment bazlı kampanya dönüşümü ölçülmedi |
+| Cohort/payment/seller analytics | SQL martlarla retention, payment mix ve seller SLA ölçüldü | Operasyonel müdahale sonrası değişim ölçülmedi |
+
 ## Source Coverage
 
 | Alan | Sonuç |
@@ -50,6 +65,10 @@ temporal holdout. No model file was overwritten during this measurement.
 | R2 | 0.076 |
 | Test actual mean | 15.90 days |
 | Test prediction mean | 11.96 days |
+| Train-mean baseline RMSE | 11.57 days |
+| Train-mean baseline MAE | 7.68 days |
+| RMSE improvement vs. train-mean baseline | 8.8% |
+| MAE improvement vs. train-mean baseline | 15.1% |
 | MAE as share of mean delivery time | 41.0% |
 | RMSE as share of mean delivery time | 66.3% |
 | Mean prediction gap | -3.94 days / -24.8% |
@@ -58,10 +77,13 @@ temporal holdout. No model file was overwritten during this measurement.
 Interpretation: the average absolute error is 6.52 days on a test set where
 the average delivery time is 15.90 days. In plain terms, a typical prediction is
 off by about 41% of the average delivery duration, and the model explains only
-7.6% of the variation in delivery days. This is enough to show a working ML
-pipeline and feature set, but not enough to claim production-grade delivery
-accuracy. The safer portfolio framing is "delivery-risk prototype that needs
-better calibration", not "accurate delivery-time predictor".
+7.6% of the variation in delivery days.
+
+Against a simple "predict the train-set average delivery time" baseline, the
+model improves RMSE by 8.8% and MAE by 15.1%. That is a measurable prediction
+improvement, not a measured delivery-time improvement. The safer portfolio
+framing is "delivery-risk prototype that needs better calibration", not
+"accurate delivery-time predictor" or "delivery time improved by X%".
 
 ## Repeat-Purchase / Churn Candidate
 
@@ -91,10 +113,14 @@ a stronger time-window definition is built.
 | Leave-one-out users evaluated | 3,987 |
 | Hit rate @10 | 3.51% |
 | Catalog coverage @10 | 0.29% |
+| Random catalog hit rate @10 | 0.03% |
+| Lift vs. random catalog baseline | 115.7x |
 
 Interpretation: known-user personalization works as an API/demo path, while
-offline ranking quality is still weak. Unknown customers correctly fall back to
-popular category recommendations and are labeled as fallback output.
+offline ranking quality is still early-stage. The model is far above a random
+catalog baseline, but the absolute hit rate is still low and no sales uplift was
+measured. Unknown customers correctly fall back to popular category
+recommendations and are labeled as fallback output.
 
 ## Segmentation And Customer Analytics
 
