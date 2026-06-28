@@ -29,7 +29,7 @@ seller_orders AS (
         CASE
             WHEN o.order_delivered_customer_date IS NULL THEN NULL
             WHEN o.order_estimated_delivery_date IS NULL THEN NULL
-            WHEN o.order_delivered_customer_date > o.order_estimated_delivery_date THEN 1.0
+            WHEN DATE(o.order_delivered_customer_date) > DATE(o.order_estimated_delivery_date) THEN 1.0
             ELSE 0.0
         END AS is_late
     FROM seller_order_items soi

@@ -148,7 +148,7 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 
 ### Dashboard
 *   **5 Sayfa:** Executive overview, Operasyon, Müşteri, Segmentasyon, Ranking
-*   **Executive signals:** Payment mix, cohort retention ve seller SLA chart'ları SQL martlardan beslenir
+*   **Executive signals:** Payment mix, cohort retention, seller SLA ve baseline/scenario kartları SQL martlardan veya hızlı DB sorgularından beslenir
 *   **Aksiyon hipotezleri:** Kampanya fikirleri ölçülmüş ROI değil, deney backlog'udur
 
 ### API

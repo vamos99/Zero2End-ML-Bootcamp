@@ -177,6 +177,44 @@ class TestRepository:
         assert result is not EMPTY_REVIEW_DELIVERY
 
     @patch('src.database.repository.engine')
+    def test_get_source_business_baselines(self, mock_engine):
+        """Source business baselines are calculated from observed outcomes."""
+        from src.database.repository import get_source_business_baselines
+
+        delivery_df = pd.DataFrame({
+            'is_late': [0, 1, 1],
+            'days_late': [0.0, 2.0, 4.0],
+        })
+        repeat_df = pd.DataFrame({
+            'customer_unique_id': ['c1', 'c2', 'c3'],
+            'delivered_orders': [1, 2, 1],
+        })
+
+        with patch('pandas.read_sql', side_effect=[delivery_df, repeat_df]):
+            result = get_source_business_baselines()
+
+        assert result['delivery']['delivered_orders'] == 3
+        assert result['delivery']['late_orders'] == 2
+        assert result['delivery']['late_delivery_rate_pct'] == pytest.approx(66.6667)
+        assert result['delivery']['avg_days_late_when_late'] == 3.0
+        assert result['repeat_purchase']['repeat_customers'] == 1
+        assert result['repeat_purchase']['one_time_customer_rate_pct'] == pytest.approx(66.6667)
+
+    @patch('src.database.repository.engine')
+    def test_get_source_business_baselines_returns_fresh_default_on_error(self, mock_engine):
+        """Repository errors return a fresh fallback payload for scenario cards."""
+        from src.database.repository import get_source_business_baselines
+
+        with patch('pandas.read_sql', side_effect=RuntimeError('db unavailable')):
+            first = get_source_business_baselines()
+            second = get_source_business_baselines()
+
+        assert first['delivery']['delivered_orders'] == 0
+        assert first['repeat_purchase']['unique_customers'] == 0
+        assert first is not second
+        assert first['delivery'] is not second['delivery']
+
+    @patch('src.database.repository.engine')
     def test_get_payment_mix_summary(self, mock_engine):
         """Test payment mix mart retrieval."""
         from src.database.repository import get_payment_mix_summary

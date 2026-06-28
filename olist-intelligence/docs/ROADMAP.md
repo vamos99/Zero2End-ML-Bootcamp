@@ -24,6 +24,7 @@ not replace issues or project cards.
 - Delivery seller-rating leakage guardrail and model cards
 - Logistics and customer repository domain splits with compatibility wrappers
 - Recommender leave-one-out evaluation and unseen-product inference guardrail
+- Source baseline and scenario target cards on the executive dashboard
 
 ## Remaining Cleanup Before New Analytics
 

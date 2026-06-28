@@ -3,6 +3,30 @@ from unittest.mock import patch, MagicMock
 import pandas as pd
 from src.services import analytics_service
 
+
+def test_build_impact_scenario_summary():
+    baselines = {
+        "delivery": {
+            "delivered_orders": 1000,
+            "late_orders": 100,
+            "late_delivery_rate_pct": 10.0,
+            "avg_days_late_when_late": 5.0,
+        },
+        "repeat_purchase": {
+            "unique_customers": 2000,
+            "repeat_customer_rate_pct": 3.0,
+        },
+    }
+
+    result = analytics_service.build_impact_scenario_summary(baselines)
+
+    assert result["delivery_scenario"]["projected_late_rate_pct"] == 9.0
+    assert result["delivery_scenario"]["prevented_late_orders"] == 10.0
+    assert result["delivery_scenario"]["potential_late_days_avoided"] == 50.0
+    assert result["repeat_purchase_scenario"]["projected_repeat_rate_pct"] == 4.0
+    assert result["repeat_purchase_scenario"]["additional_repeat_customers"] == 20.0
+    assert "not measured impact" in result["boundary"]
+
 @patch('src.services.analytics_service.repository')
 def test_get_daily_pulse(mock_repository):
     """Test get_daily_pulse aggregation."""
@@ -50,6 +74,18 @@ def test_get_executive_dashboard_data(mock_repository):
     mock_repository.get_payment_mix_summary.return_value = payment_df
     mock_repository.get_cohort_retention_matrix.return_value = cohort_df
     mock_repository.get_seller_sla_watchlist.return_value = seller_df
+    mock_repository.get_source_business_baselines.return_value = {
+        "delivery": {
+            "delivered_orders": 100,
+            "late_orders": 10,
+            "late_delivery_rate_pct": 10.0,
+            "avg_days_late_when_late": 4.0,
+        },
+        "repeat_purchase": {
+            "unique_customers": 500,
+            "repeat_customer_rate_pct": 3.0,
+        },
+    }
 
     result = analytics_service.get_executive_dashboard_data("2017-01-01", "2017-01-31")
 
@@ -58,6 +94,7 @@ def test_get_executive_dashboard_data(mock_repository):
     assert result["payment_mix"].equals(payment_df)
     assert result["cohort_retention"].equals(cohort_df)
     assert result["seller_sla_watchlist"].iloc[0]["seller_label"] == "Seller seller_1..."
+    assert result["impact_summary"]["delivery_scenario"]["projected_late_rate_pct"] == 9.0
 
 @patch('src.services.analytics_service.repository')
 def test_get_logistics_data(mock_repository):

@@ -14,6 +14,10 @@ def _format_pct(value):
     return f"{value:.1f}%"
 
 
+def _format_count(value):
+    return f"{value:,.0f}"
+
+
 def render_home_view(metrics, executive_data=None):
     executive_data = executive_data or {}
 
@@ -61,6 +65,55 @@ def render_home_view(metrics, executive_data=None):
     )
 
     st.markdown("---")
+
+    impact_summary = executive_data.get("impact_summary", {})
+    source_baselines = impact_summary.get("source_baselines", {})
+    delivery_source = source_baselines.get("delivery", {})
+    repeat_source = source_baselines.get("repeat_purchase", {})
+    delivery_scenario = impact_summary.get("delivery_scenario", {})
+    repeat_scenario = impact_summary.get("repeat_purchase_scenario", {})
+
+    if impact_summary:
+        st.subheader("Baseline and scenario targets")
+        st.caption(
+            "These are source baselines and planning scenarios. They are not measured post-intervention impact."
+        )
+        scenario_cols = st.columns(4)
+        scenario_cols[0].metric(
+            "Source Late Rate",
+            _format_pct(delivery_source.get("late_delivery_rate_pct", 0.0)),
+            help="Full source snapshot late-delivery baseline.",
+        )
+        scenario_cols[1].metric(
+            "10% Late Reduction Scenario",
+            _format_pct(delivery_scenario.get("projected_late_rate_pct", 0.0)),
+            delta=f"{delivery_scenario.get('late_rate_delta_pp', 0.0):.2f} pp",
+            help="Scenario target if 10% of late deliveries are prevented.",
+        )
+        scenario_cols[2].metric(
+            "Source Repeat Rate",
+            _format_pct(repeat_source.get("repeat_customer_rate_pct", 0.0)),
+            help="Full source snapshot repeat-customer baseline.",
+        )
+        scenario_cols[3].metric(
+            "+1pp Repeat Scenario",
+            _format_pct(repeat_scenario.get("projected_repeat_rate_pct", 0.0)),
+            delta=f"+{_format_count(repeat_scenario.get('additional_repeat_customers', 0.0))} customers",
+            help="Scenario target for a future controlled retention experiment.",
+        )
+        st.caption(impact_summary.get("boundary", "Scenario targets are not measured impact."))
+
+        with st.expander("Scenario calculation details"):
+            st.markdown(
+                f"""
+                | Scenario | Baseline | Projected | Operational quantity |
+                | --- | ---: | ---: | ---: |
+                | {delivery_scenario.get("assumption", "Late delivery scenario")} | {_format_pct(delivery_scenario.get("baseline_late_rate_pct", 0.0))} | {_format_pct(delivery_scenario.get("projected_late_rate_pct", 0.0))} | {_format_count(delivery_scenario.get("prevented_late_orders", 0.0))} orders / {_format_count(delivery_scenario.get("potential_late_days_avoided", 0.0))} late-days |
+                | {repeat_scenario.get("assumption", "Repeat-customer scenario")} | {_format_pct(repeat_scenario.get("baseline_repeat_rate_pct", 0.0))} | {_format_pct(repeat_scenario.get("projected_repeat_rate_pct", 0.0))} | {_format_count(repeat_scenario.get("additional_repeat_customers", 0.0))} customers |
+                """
+            )
+
+        st.markdown("---")
 
     st.subheader("Where performance is concentrated")
     col1, col2 = st.columns(2)

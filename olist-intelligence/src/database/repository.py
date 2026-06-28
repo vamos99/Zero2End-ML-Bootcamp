@@ -10,7 +10,11 @@ from src.database.repository_columns import (
     REVIEW_DELIVERY_MATRIX_COLUMNS,
     SELLER_SLA_COLUMNS,
 )
-from src.database.repository_defaults import EMPTY_REVIEW_DELIVERY, EMPTY_TOTALS
+from src.database.repository_defaults import (
+    EMPTY_REVIEW_DELIVERY,
+    EMPTY_SOURCE_BASELINES,
+    EMPTY_TOTALS,
+)
 from src.database import action_repository, customer_repository, logistics_repository, ranking_repository
 
 engine = get_db_connection()
@@ -99,7 +103,7 @@ def get_review_delivery_quality(start_date, end_date):
         CASE
             WHEN o.order_delivered_customer_date IS NULL THEN NULL
             WHEN o.order_estimated_delivery_date IS NULL THEN NULL
-            WHEN o.order_delivered_customer_date > o.order_estimated_delivery_date THEN 1
+            WHEN DATE(o.order_delivered_customer_date) > DATE(o.order_estimated_delivery_date) THEN 1
             ELSE 0
         END AS is_late
     FROM orders o
@@ -121,6 +125,72 @@ def get_review_delivery_quality(start_date, end_date):
         "avg_review_score": float(df["review_score"].dropna().mean()) if df["review_score"].notna().any() else 0.0,
         "late_delivery_rate": float(delivered["is_late"].mean() * 100) if not delivered.empty else 0.0,
         "review_count": int(df["review_score"].notna().sum()),
+    }
+
+
+def get_source_business_baselines():
+    """Returns source-snapshot baselines used for impact scenario planning."""
+    delivery_query = text("""
+    SELECT
+        CASE
+            WHEN DATE(order_delivered_customer_date) > DATE(order_estimated_delivery_date)
+            THEN 1 ELSE 0
+        END AS is_late,
+        CASE
+            WHEN DATE(order_delivered_customer_date) > DATE(order_estimated_delivery_date)
+            THEN JULIANDAY(DATE(order_delivered_customer_date))
+               - JULIANDAY(DATE(order_estimated_delivery_date))
+            ELSE 0
+        END AS days_late
+    FROM orders
+    WHERE order_status = 'delivered'
+      AND order_delivered_customer_date IS NOT NULL
+      AND order_estimated_delivery_date IS NOT NULL
+      AND JULIANDAY(order_delivered_customer_date) > JULIANDAY(order_purchase_timestamp)
+    """)
+    repeat_query = text("""
+    SELECT
+        c.customer_unique_id,
+        COUNT(DISTINCT o.order_id) AS delivered_orders
+    FROM customers c
+    JOIN orders o ON c.customer_id = o.customer_id
+    WHERE o.order_status = 'delivered'
+    GROUP BY c.customer_unique_id
+    """)
+
+    try:
+        delivery = pd.read_sql(delivery_query, engine)
+        repeat = pd.read_sql(repeat_query, engine)
+    except Exception:
+        return {
+            "delivery": EMPTY_SOURCE_BASELINES["delivery"].copy(),
+            "repeat_purchase": EMPTY_SOURCE_BASELINES["repeat_purchase"].copy(),
+        }
+
+    if delivery.empty or repeat.empty:
+        return {
+            "delivery": EMPTY_SOURCE_BASELINES["delivery"].copy(),
+            "repeat_purchase": EMPTY_SOURCE_BASELINES["repeat_purchase"].copy(),
+        }
+
+    is_late = delivery["is_late"] == 1
+    repeat_customers = repeat["delivered_orders"] > 1
+    avg_days_late = delivery.loc[is_late, "days_late"].mean() if is_late.any() else 0.0
+
+    return {
+        "delivery": {
+            "delivered_orders": int(len(delivery)),
+            "late_orders": int(is_late.sum()),
+            "late_delivery_rate_pct": float(is_late.mean() * 100),
+            "avg_days_late_when_late": float(avg_days_late),
+        },
+        "repeat_purchase": {
+            "unique_customers": int(len(repeat)),
+            "repeat_customers": int(repeat_customers.sum()),
+            "one_time_customers": int((~repeat_customers).sum()),
+            "repeat_customer_rate_pct": float(repeat_customers.mean() * 100),
+            "one_time_customer_rate_pct": float((~repeat_customers).mean() * 100),
+        },
     }
 
 def get_revenue_by_state(start_date, end_date, limit=12):
@@ -166,7 +236,7 @@ def get_review_delivery_matrix(start_date, end_date):
             CASE
                 WHEN o.order_delivered_customer_date IS NULL THEN NULL
                 WHEN o.order_estimated_delivery_date IS NULL THEN NULL
-                WHEN o.order_delivered_customer_date > o.order_estimated_delivery_date THEN 1.0
+                WHEN DATE(o.order_delivered_customer_date) > DATE(o.order_estimated_delivery_date) THEN 1.0
                 ELSE 0.0
             END
         ) * 100 AS late_delivery_rate

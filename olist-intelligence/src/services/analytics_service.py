@@ -1,6 +1,46 @@
 import pandas as pd
 from src.database import repository
 
+
+def build_impact_scenario_summary(source_baselines, late_reduction_pct=10, repeat_uplift_pp=1.0):
+    """Build lightweight source-baseline and planning scenario metrics."""
+    delivery = source_baselines.get("delivery", {})
+    repeat = source_baselines.get("repeat_purchase", {})
+
+    delivered_orders = delivery.get("delivered_orders", 0)
+    late_orders = delivery.get("late_orders", 0)
+    late_rate = delivery.get("late_delivery_rate_pct", 0.0)
+    avg_late_days = delivery.get("avg_days_late_when_late", 0.0)
+    prevented_late_orders = late_orders * late_reduction_pct / 100
+    projected_late_rate = (
+        (late_orders - prevented_late_orders) / delivered_orders * 100
+        if delivered_orders
+        else 0.0
+    )
+
+    unique_customers = repeat.get("unique_customers", 0)
+    repeat_rate = repeat.get("repeat_customer_rate_pct", 0.0)
+    additional_repeat_customers = unique_customers * repeat_uplift_pp / 100
+
+    return {
+        "source_baselines": source_baselines,
+        "delivery_scenario": {
+            "assumption": f"{late_reduction_pct}% fewer late deliveries",
+            "baseline_late_rate_pct": late_rate,
+            "projected_late_rate_pct": projected_late_rate,
+            "late_rate_delta_pp": projected_late_rate - late_rate,
+            "prevented_late_orders": prevented_late_orders,
+            "potential_late_days_avoided": prevented_late_orders * avg_late_days,
+        },
+        "repeat_purchase_scenario": {
+            "assumption": f"+{repeat_uplift_pp:.1f} pp repeat-customer uplift",
+            "baseline_repeat_rate_pct": repeat_rate,
+            "projected_repeat_rate_pct": min(100.0, repeat_rate + repeat_uplift_pp),
+            "additional_repeat_customers": additional_repeat_customers,
+        },
+        "boundary": "Scenario targets are assumptions for future experiments, not measured impact.",
+    }
+
 def get_daily_pulse(start_date, end_date):
     """Aggregates key metrics for the Home Page."""
     total_orders = repository.get_total_orders(start_date, end_date)
@@ -26,6 +66,7 @@ def get_executive_dashboard_data(start_date, end_date):
     payment_mix = repository.get_payment_mix_summary(start_date, end_date)
     cohort_retention = repository.get_cohort_retention_matrix(start_date, end_date)
     seller_sla_watchlist = repository.get_seller_sla_watchlist()
+    impact_summary = build_impact_scenario_summary(repository.get_source_business_baselines())
 
     if not seller_sla_watchlist.empty and "seller_id" in seller_sla_watchlist.columns:
         seller_sla_watchlist = seller_sla_watchlist.copy()
@@ -39,6 +80,7 @@ def get_executive_dashboard_data(start_date, end_date):
         "payment_mix": payment_mix,
         "cohort_retention": cohort_retention,
         "seller_sla_watchlist": seller_sla_watchlist,
+        "impact_summary": impact_summary,
     }
 
 def get_logistics_data(start_date, end_date):
