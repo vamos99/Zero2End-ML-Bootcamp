@@ -50,10 +50,18 @@ temporal holdout. No model file was overwritten during this measurement.
 | R2 | 0.076 |
 | Test actual mean | 15.90 days |
 | Test prediction mean | 11.96 days |
+| MAE as share of mean delivery time | 41.0% |
+| RMSE as share of mean delivery time | 66.3% |
+| Mean prediction gap | -3.94 days / -24.8% |
+| Variance explained by model | 7.6% |
 
-Interpretation: the delivery model is useful as a prototype and feature
-engineering example, but the measured holdout error is too high for operational
-claims without further leakage-aware feature work and calibration.
+Interpretation: the average absolute error is 6.52 days on a test set where
+the average delivery time is 15.90 days. In plain terms, a typical prediction is
+off by about 41% of the average delivery duration, and the model explains only
+7.6% of the variation in delivery days. This is enough to show a working ML
+pipeline and feature set, but not enough to claim production-grade delivery
+accuracy. The safer portfolio framing is "delivery-risk prototype that needs
+better calibration", not "accurate delivery-time predictor".
 
 ## Repeat-Purchase / Churn Candidate
 
