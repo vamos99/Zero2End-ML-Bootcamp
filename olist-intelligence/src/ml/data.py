@@ -13,11 +13,12 @@ def _optional_limit(limit, maximum=100_000):
     return None if limit is None else clamp_limit(limit, default=maximum, maximum=maximum)
 
 
-def get_logistics_data(limit=None, include_timestamps=False):
+def get_logistics_data(limit=None, include_timestamps=False, include_estimates=False):
     """
     Fetches data for logistics model (delivery time prediction).
     Returns X (features DataFrame) and y (target Series). When requested,
-    purchase timestamps are returned as a third value for temporal evaluation.
+    purchase timestamps and source estimated-delivery durations are also
+    returned for temporal evaluation.
     Logic moved to Pandas for SQLite compatibility.
     """
     normalized_limit = _optional_limit(limit)
@@ -60,6 +61,7 @@ def get_logistics_data(limit=None, include_timestamps=False):
     SELECT 
         o.order_purchase_timestamp,
         o.order_delivered_customer_date,
+        o.order_estimated_delivery_date,
         oi.freight_value,
         oi.price,
         p.product_weight_g,
@@ -97,9 +99,11 @@ def get_logistics_data(limit=None, include_timestamps=False):
     # --- Python Logic for Date Calculation (DB Agnostic) ---
     df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
     df['order_delivered_customer_date'] = pd.to_datetime(df['order_delivered_customer_date'])
+    df['order_estimated_delivery_date'] = pd.to_datetime(df['order_estimated_delivery_date'])
     
     # Target Days calculation
     df['target_days'] = (df['order_delivered_customer_date'] - df['order_purchase_timestamp']).dt.total_seconds() / 86400
+    df['estimated_days'] = (df['order_estimated_delivery_date'] - df['order_purchase_timestamp']).dt.total_seconds() / 86400
     
     # Filter valid dates (delivered after purchase)
     df = df[df['target_days'] > 0]
@@ -130,8 +134,13 @@ def get_logistics_data(limit=None, include_timestamps=False):
     df = df.sort_values('order_purchase_timestamp').reset_index(drop=True)
     features = df[feature_cols]
     target = df['target_days']
+    result = [features, target]
     if include_timestamps:
-        return features, target, df['order_purchase_timestamp']
+        result.append(df['order_purchase_timestamp'])
+    if include_estimates:
+        result.append(df['estimated_days'])
+    if len(result) > 2:
+        return tuple(result)
     return features, target
 
 def get_churn_data(limit=None):

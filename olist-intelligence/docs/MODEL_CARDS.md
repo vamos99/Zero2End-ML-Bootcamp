@@ -10,8 +10,10 @@ Current measured values are summarized in [`RESULTS.md`](RESULTS.md).
 
 **Target:** elapsed days from purchase to delivered-customer timestamp.
 
-**Evaluation:** later-order temporal holdout. Report RMSE only after rerunning
-the benchmark or notebook on the current local dataset.
+**Evaluation:** later-order temporal holdout. Report RMSE/MAE only after
+rerunning the benchmark or notebook on the current local dataset. The benchmark
+compares CatBoost against both a train-mean baseline and Olist's source
+estimated-date duration baseline.
 
 **Leakage guardrail:** seller average rating uses only seller-order reviews
 available before the current seller order. Current and future reviews are

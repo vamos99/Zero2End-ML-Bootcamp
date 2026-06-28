@@ -10,6 +10,7 @@ def test_logistics_data_binds_limit_and_returns_sorted_timestamps():
         {
             "order_purchase_timestamp": ["2018-02-01", "2018-01-01"],
             "order_delivered_customer_date": ["2018-02-04", "2018-01-03"],
+            "order_estimated_delivery_date": ["2018-02-06", "2018-01-04"],
             "freight_value": [20.0, 10.0],
             "price": [100.0, 50.0],
             "product_weight_g": [500.0, 250.0],
@@ -51,6 +52,43 @@ def test_logistics_data_binds_limit_and_returns_sorted_timestamps():
         "product_volume",
         "freight_ratio",
     ]
+
+
+def test_logistics_data_can_return_source_estimated_days():
+    rows = pd.DataFrame(
+        {
+            "order_purchase_timestamp": ["2018-01-01"],
+            "order_delivered_customer_date": ["2018-01-03"],
+            "order_estimated_delivery_date": ["2018-01-06"],
+            "freight_value": [10.0],
+            "price": [50.0],
+            "product_weight_g": [250.0],
+            "product_description_lenght": [50.0],
+            "product_photos_qty": [1],
+            "product_volume": [500.0],
+            "seller_lat": [-22.9],
+            "seller_lng": [-43.2],
+            "cust_lat": [-22.8],
+            "cust_lng": [-43.1],
+            "same_state": [1],
+            "seller_avg_rating": [4.0],
+        }
+    )
+    engine = MagicMock()
+    engine.connect.return_value.__enter__.return_value = MagicMock()
+
+    with (
+        patch("src.ml.data.get_db_engine", return_value=engine),
+        patch("src.ml.data.pd.read_sql", return_value=rows),
+    ):
+        _, target, timestamps, estimates = get_logistics_data(
+            include_timestamps=True,
+            include_estimates=True,
+        )
+
+    assert target.tolist() == [2.0]
+    assert timestamps.dt.strftime("%Y-%m-%d").tolist() == ["2018-01-01"]
+    assert estimates.tolist() == [5.0]
 
 
 def test_churn_features_precede_future_label_window():

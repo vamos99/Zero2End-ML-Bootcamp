@@ -45,8 +45,43 @@ def test_build_summary_includes_source_baselines(monkeypatch):
     monkeypatch.setattr(evaluate_olist_results, "delivery_benchmark", lambda: {"delivery": True})
     monkeypatch.setattr(evaluate_olist_results, "repeat_purchase_gate", lambda: {"repeat": True})
     monkeypatch.setattr(evaluate_olist_results, "recommender_benchmark", lambda: {"recommender": True})
+    monkeypatch.setattr(
+        evaluate_olist_results,
+        "intervention_scenarios",
+        lambda baselines: {"from_baselines": baselines},
+    )
 
     result = evaluate_olist_results.build_summary()
 
     assert result["source_business_baselines"] == {"ok": True}
+    assert result["intervention_scenarios"] == {"from_baselines": {"ok": True}}
     assert "not measured business impact" in result["important_boundary"]
+
+
+def test_intervention_scenarios_are_explicit_assumption_based():
+    baselines = {
+        "delivery": {
+            "delivered_orders": 1000,
+            "late_orders": 100,
+            "late_delivery_rate_pct": 10.0,
+            "avg_days_late_when_late": 5.0,
+        },
+        "repeat_purchase": {
+            "unique_customers": 2000,
+            "repeat_customer_rate_pct": 3.0,
+        },
+    }
+
+    result = evaluate_olist_results.intervention_scenarios(baselines)
+
+    first_delivery = result["delivery"][0]
+    assert first_delivery["assumption"] == "10% of late deliveries prevented"
+    assert first_delivery["projected_late_rate_pct"] == 9.0
+    assert first_delivery["prevented_late_orders"] == 10.0
+    assert first_delivery["potential_late_days_avoided"] == 50.0
+
+    one_point_repeat = result["repeat_purchase"][1]
+    assert one_point_repeat["assumption"] == "+1.0 percentage point repeat-customer uplift"
+    assert one_point_repeat["projected_repeat_rate_pct"] == 4.0
+    assert one_point_repeat["additional_repeat_customers"] == 20.0
+    assert "Assumption-based" in result["boundary"]

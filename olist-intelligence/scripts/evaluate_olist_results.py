@@ -100,13 +100,26 @@ def source_business_baselines() -> dict[str, Any]:
 
 def delivery_benchmark(limit: int = 50_000) -> dict[str, Any]:
     """Return temporal holdout metrics and naive-baseline comparison."""
-    features, target, timestamps = get_logistics_data(limit=limit, include_timestamps=True)
-    x_train, x_test, y_train, y_test = temporal_train_test_split(
+    features, target, timestamps, estimated_days = get_logistics_data(
+        limit=limit,
+        include_timestamps=True,
+        include_estimates=True,
+    )
+    target_frame = pd.DataFrame(
+        {
+            "actual_days": target,
+            "estimated_days": estimated_days,
+        }
+    )
+    x_train, x_test, y_train_frame, y_test_frame = temporal_train_test_split(
         features,
-        target,
+        target_frame,
         timestamps,
         test_size=0.2,
     )
+    y_train = y_train_frame["actual_days"]
+    y_test = y_test_frame["actual_days"]
+    source_estimate = y_test_frame["estimated_days"]
 
     model = CatBoostRegressor(
         iterations=200,
@@ -121,10 +134,13 @@ def delivery_benchmark(limit: int = 50_000) -> dict[str, Any]:
 
     model_rmse = _rmse(y_test, prediction)
     baseline_rmse = _rmse(y_test, baseline_prediction)
+    source_estimate_rmse = _rmse(y_test, source_estimate)
     model_mae = float(mean_absolute_error(y_test, prediction))
     baseline_mae = float(mean_absolute_error(y_test, baseline_prediction))
+    source_estimate_mae = float(mean_absolute_error(y_test, source_estimate))
     actual_mean = float(np.mean(y_test))
     prediction_mean = float(np.mean(prediction))
+    source_estimate_mean = float(np.mean(source_estimate))
 
     return {
         "rows": int(len(features)),
@@ -136,14 +152,29 @@ def delivery_benchmark(limit: int = 50_000) -> dict[str, Any]:
         "r2": float(r2_score(y_test, prediction)),
         "actual_mean_days_test": actual_mean,
         "prediction_mean_days_test": prediction_mean,
+        "source_estimate_mean_days_test": source_estimate_mean,
         "train_mean_baseline_rmse_days": baseline_rmse,
         "train_mean_baseline_mae_days": baseline_mae,
+        "source_estimate_rmse_days": source_estimate_rmse,
+        "source_estimate_mae_days": source_estimate_mae,
         "rmse_improvement_vs_baseline_pct": (baseline_rmse - model_rmse) / baseline_rmse * 100,
         "mae_improvement_vs_baseline_pct": (baseline_mae - model_mae) / baseline_mae * 100,
+        "rmse_improvement_vs_source_estimate_pct": (
+            source_estimate_rmse - model_rmse
+        )
+        / source_estimate_rmse
+        * 100,
+        "mae_improvement_vs_source_estimate_pct": (
+            source_estimate_mae - model_mae
+        )
+        / source_estimate_mae
+        * 100,
         "mae_share_of_mean_delivery_pct": model_mae / actual_mean * 100,
         "rmse_share_of_mean_delivery_pct": model_rmse / actual_mean * 100,
         "mean_prediction_gap_days": prediction_mean - actual_mean,
         "mean_prediction_gap_pct": (prediction_mean - actual_mean) / actual_mean * 100,
+        "source_estimate_gap_days": source_estimate_mean - actual_mean,
+        "source_estimate_gap_pct": (source_estimate_mean - actual_mean) / actual_mean * 100,
     }
 
 
@@ -178,16 +209,72 @@ def recommender_benchmark(top_k: int = 10) -> dict[str, Any]:
     }
 
 
+def intervention_scenarios(source_baselines: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Return transparent what-if scenarios for future business-impact measurement.
+
+    These are assumption-driven projections, not measured post-model outcomes.
+    They make the portfolio story concrete without pretending that an
+    intervention has already happened.
+    """
+    baselines = source_baselines or source_business_baselines()
+    delivery = baselines["delivery"]
+    repeat = baselines["repeat_purchase"]
+
+    delivery_rows = []
+    for reduction_pct in (10, 20):
+        prevented_late_orders = delivery["late_orders"] * reduction_pct / 100
+        projected_late_orders = delivery["late_orders"] - prevented_late_orders
+        projected_late_rate = projected_late_orders / delivery["delivered_orders"] * 100
+        delivery_rows.append(
+            {
+                "assumption": f"{reduction_pct}% of late deliveries prevented",
+                "baseline_late_rate_pct": delivery["late_delivery_rate_pct"],
+                "projected_late_rate_pct": projected_late_rate,
+                "late_rate_delta_pp": projected_late_rate
+                - delivery["late_delivery_rate_pct"],
+                "prevented_late_orders": prevented_late_orders,
+                "potential_late_days_avoided": prevented_late_orders
+                * delivery["avg_days_late_when_late"],
+            }
+        )
+
+    repeat_rows = []
+    for uplift_pp in (0.5, 1.0, 2.0):
+        projected_repeat_rate = min(100.0, repeat["repeat_customer_rate_pct"] + uplift_pp)
+        additional_repeat_customers = repeat["unique_customers"] * uplift_pp / 100
+        repeat_rows.append(
+            {
+                "assumption": f"+{uplift_pp:.1f} percentage point repeat-customer uplift",
+                "baseline_repeat_rate_pct": repeat["repeat_customer_rate_pct"],
+                "projected_repeat_rate_pct": projected_repeat_rate,
+                "repeat_rate_delta_pp": uplift_pp,
+                "additional_repeat_customers": additional_repeat_customers,
+            }
+        )
+
+    return {
+        "boundary": (
+            "Assumption-based planning scenarios only. Validate with A/B tests, "
+            "holdouts, or post-intervention logs before calling them impact."
+        ),
+        "delivery": delivery_rows,
+        "repeat_purchase": repeat_rows,
+    }
+
+
 def build_summary() -> dict[str, Any]:
+    baselines = source_business_baselines()
     return {
         "important_boundary": (
             "These are model/analytics benchmark results, not measured business "
             "impact from a live operation or A/B test."
         ),
-        "source_business_baselines": source_business_baselines(),
+        "source_business_baselines": baselines,
         "delivery_prediction": delivery_benchmark(),
         "repeat_purchase_candidate": repeat_purchase_gate(),
         "recommender": recommender_benchmark(),
+        "intervention_scenarios": intervention_scenarios(baselines),
     }
 
 

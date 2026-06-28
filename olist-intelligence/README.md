@@ -13,7 +13,7 @@ Proje bootcamp bitirme kapsamını karşılar; production seviyesinde servis vey
 | Gereksinim | Durum | Uygulama Detayı |
 |------------|-------|-----------------|
 | **Veri Analizi (EDA)** | Uygulandı | Notebook 1'de veri keşfi ve hazırlık adımları yer alır. |
-| **Model Geliştirme** | Prototip | CatBoost (lojistik/churn) ve SVD öneri yaklaşımı notebook ve `src/ml/` altında tutulur. |
+| **Model Geliştirme** | Prototip | CatBoost lojistik modeli, repeat-purchase/churn uygunluk kapısı ve SVD öneri yaklaşımı notebook ve `src/ml/` altında tutulur. |
 | **Pipeline Kurulumu** | Yerel akış | Kaggle CSV -> SQLite/Postgres uyumlu tablo akışı `ingest.py` ile hazırlanmıştır. |
 | **Dashboard** | Ortam bağımlı | Streamlit dashboard yerel veritabanı ve üretilmiş tahmin/segment tabloları hazırsa dolu çalışır. |
 | **Kod Kalitesi** | Geliştiriliyor | `src/` modüler yapı, testler, schema contract ve SQL reconciliation kontrolleri vardır. |
@@ -41,6 +41,8 @@ Proje bootcamp bitirme kapsamını karşılar; production seviyesinde servis vey
 **Sorun:** Müşteriler siparişlerin ne zaman geleceğini bilemiyor, gecikmeler şikayete dönüşüyor.  
 **Çözüm:** CatBoost modeli ile teslimat süresi tahmini prototipi. Performans
 değeri yalnızca zaman bazlı holdout yeniden çalıştırıldığında raporlanır.
+Ölçülen sonuçlar delivery operasyonunun kısaldığını değil, train-mean ve
+Olist estimated-date baseline'larına göre offline tahmin hatasını gösterir.
 
 **Neden Bu Yaklaşım?**
 *   Haversine mesafe (satıcı-müşteri arası) en önemli faktör
@@ -90,7 +92,7 @@ pytest tests/ -v --tb=short
 | **Raw data** | Kaggle Olist CSV dosyaları (`data/raw/` önerilir, `olist-dataset/` legacy fallback; Git'e dahil değil) |
 | **Ingestion** | `src/ml/ingest.py` ile CSV -> SQLite/Postgres uyumlu tablo akışı |
 | **Analytics model** | `sql/views/` altında revenue, delivery quality, payment, cohort, seller ve segment view'ları |
-| **ML workflow** | Notebooklar ve `src/ml/` altında lojistik, churn ve öneri prototipleri |
+| **ML workflow** | Notebooklar ve `src/ml/` altında lojistik tahmin, repeat-purchase uygunluk kapısı ve öneri prototipleri |
 | **Serving** | FastAPI endpointleri ve SQL mart destekli Streamlit dashboard |
 | **Quality checks** | Pytest, schema contract, data-quality checks ve GitHub Actions CI |
 

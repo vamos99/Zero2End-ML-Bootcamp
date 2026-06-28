@@ -17,7 +17,7 @@ model/analytics benchmark'larıdır.
 | Alan | Ölçülen sonuç | Ölçülmeyen iş etkisi |
 | --- | --- | --- |
 | Source delivery baseline | Geç teslimat oranı %6.77; geç kalanlarda ortalama gecikme 10.62 gün | Model sonrası teslimat azalması ölçülmedi |
-| Delivery prediction | Mean baseline'a göre RMSE %8.8, MAE %15.1 daha düşük | Gerçek teslim süresi azalması ölçülmedi |
+| Delivery prediction | Mean baseline'a göre RMSE %8.8, MAE %15.1 daha düşük; Olist estimated-date duration baseline'a göre RMSE %28.0, MAE %48.2 daha düşük | Gerçek teslim süresi azalması ölçülmedi |
 | Source repeat-purchase baseline | Repeat-customer oranı %3.00; one-time customer oranı %97.00 | Churn/retention iyileşmesi ölçülmedi |
 | Repeat-purchase risk | Sınıf dağılımı %99.40 risk etiketi; model gate failed | Churn azalması veya kampanya uplift'i ölçülmedi |
 | Recommender | Hit rate @10 = %3.51; random catalog baseline'a göre yaklaşık 116x | Satış veya sepet artışı ölçülmedi |
@@ -72,13 +72,19 @@ temporal holdout. No model file was overwritten during this measurement.
 | R2 | 0.076 |
 | Test actual mean | 15.90 days |
 | Test prediction mean | 11.96 days |
+| Source estimated-date mean | 26.01 days |
 | Train-mean baseline RMSE | 11.57 days |
 | Train-mean baseline MAE | 7.68 days |
+| Source estimated-date RMSE | 14.66 days |
+| Source estimated-date MAE | 12.59 days |
 | RMSE improvement vs. train-mean baseline | 8.8% |
 | MAE improvement vs. train-mean baseline | 15.1% |
+| RMSE improvement vs. source estimated-date baseline | 28.0% |
+| MAE improvement vs. source estimated-date baseline | 48.2% |
 | MAE as share of mean delivery time | 41.0% |
 | RMSE as share of mean delivery time | 66.3% |
 | Mean prediction gap | -3.94 days / -24.8% |
+| Source estimate gap | +10.11 days / +63.6% |
 | Variance explained by model | 7.6% |
 
 Interpretation: the average absolute error is 6.52 days on a test set where
@@ -88,9 +94,11 @@ off by about 41% of the average delivery duration, and the model explains only
 
 Against a simple "predict the train-set average delivery time" baseline, the
 model improves RMSE by 8.8% and MAE by 15.1%. That is a measurable prediction
-improvement, not a measured delivery-time improvement. The safer portfolio
-framing is "delivery-risk prototype that needs better calibration", not
-"accurate delivery-time predictor" or "delivery time improved by X%".
+improvement, not a measured delivery-time improvement. Against Olist's source
+estimated-date duration baseline on the same holdout, the model improves RMSE
+by 28.0% and MAE by 48.2%. The safer portfolio framing is "delivery-risk
+prototype that improves offline prediction baselines but still needs better
+calibration", not "delivery time improved by X%".
 
 ## Repeat-Purchase / Churn Candidate
 
@@ -113,6 +121,23 @@ a stronger time-window definition is built.
 The source-data repeat-purchase baseline is also low: 2,801 of 93,358 unique
 customers have more than one delivered order, or 3.00%. This is a business
 opportunity baseline, not a measured retention improvement.
+
+## Planning Scenarios, Not Measured Impact
+
+These rows translate the source baselines into concrete planning numbers. They
+are not results that already happened.
+
+| Scenario | Baseline | Projected after assumption | Delta |
+| --- | ---: | ---: | ---: |
+| Prevent 10% of late deliveries | 6.77% late rate | 6.10% late rate | -0.68 pp; 653 late orders; 6,939 late-days |
+| Prevent 20% of late deliveries | 6.77% late rate | 5.42% late rate | -1.35 pp; 1,307 late orders; 13,878 late-days |
+| Increase repeat customers by +0.5 pp | 3.00% repeat rate | 3.50% repeat rate | +467 repeat customers |
+| Increase repeat customers by +1.0 pp | 3.00% repeat rate | 4.00% repeat rate | +934 repeat customers |
+| Increase repeat customers by +2.0 pp | 3.00% repeat rate | 5.00% repeat rate | +1,867 repeat customers |
+
+Use these as experiment targets or dashboard scenario values. They become
+"impact" only after a controlled experiment, holdout campaign, or
+post-intervention operations log confirms the change.
 
 ## Recommender Prototype
 
@@ -179,5 +204,6 @@ python -m pytest -q
 ```
 
 `scripts/evaluate_olist_results.py` recomputes the delivery baseline
-comparison, repeat-purchase gate, and recommender offline benchmark against the
-current local `olist.db` without writing model artifacts.
+comparison, source business baselines, planning scenarios, repeat-purchase gate,
+and recommender offline benchmark against the current local `olist.db` without
+writing model artifacts.
