@@ -25,12 +25,13 @@ not replace issues or project cards.
 - Logistics and customer repository domain splits with compatibility wrappers
 - Executive, revenue, review, payment, cohort, and seller-SLA repository split
   with compatibility wrappers
+- Focused ingest and Docker startup contract tests
 - Recommender leave-one-out evaluation and unseen-product inference guardrail
 - Source baseline and scenario target cards on the executive dashboard
 
 ## Remaining Cleanup Before New Analytics
 
-- Add focused ingest, registry, and Docker startup tests.
+- Add focused registry startup tests.
 - Keep project board, docs, screenshots, and actual code status aligned.
 
 ## Next Analytics Phases
