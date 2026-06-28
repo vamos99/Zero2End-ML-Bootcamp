@@ -2,6 +2,7 @@
 
 These cards describe portfolio prototypes and local demo outputs. They do not
 claim production readiness, measured business uplift, or live monitoring.
+Current measured values are summarized in [`RESULTS.md`](RESULTS.md).
 
 ## Delivery Duration Model
 

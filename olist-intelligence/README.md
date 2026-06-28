@@ -73,6 +73,7 @@ Proje durumunu ve teknik sınırları doğrulamak için:
 
 - [Dataset ve local data politikası](docs/DATASET.md)
 - [Güncel mimari ve modül sorumlulukları](docs/ARCHITECTURE.md)
+- [Ölçülen sonuçlar ve model/analytics metrikleri](docs/RESULTS.md)
 - [Tamamlanan işler ve gelecek roadmap](docs/ROADMAP.md)
 - [Validation komutları](docs/VALIDATION.md)
 - [Model kartları ve sınırlamalar](docs/MODEL_CARDS.md)
