@@ -26,12 +26,12 @@ not replace issues or project cards.
 - Executive, revenue, review, payment, cohort, and seller-SLA repository split
   with compatibility wrappers
 - Focused ingest and Docker startup contract tests
+- Focused registry startup and local model fallback tests
 - Recommender leave-one-out evaluation and unseen-product inference guardrail
 - Source baseline and scenario target cards on the executive dashboard
 
 ## Remaining Cleanup Before New Analytics
 
-- Add focused registry startup tests.
 - Keep project board, docs, screenshots, and actual code status aligned.
 
 ## Next Analytics Phases
