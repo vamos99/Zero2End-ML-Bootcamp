@@ -23,12 +23,13 @@ not replace issues or project cards.
 - Dashboard empty-state/readiness semantics and relative segment labels
 - Delivery seller-rating leakage guardrail and model cards
 - Logistics and customer repository domain splits with compatibility wrappers
+- Executive, revenue, review, payment, cohort, and seller-SLA repository split
+  with compatibility wrappers
 - Recommender leave-one-out evaluation and unseen-product inference guardrail
 - Source baseline and scenario target cards on the executive dashboard
 
 ## Remaining Cleanup Before New Analytics
 
-- Split remaining executive/revenue/review domains behind compatibility wrappers.
 - Add focused ingest, registry, and Docker startup tests.
 - Keep project board, docs, screenshots, and actual code status aligned.
 

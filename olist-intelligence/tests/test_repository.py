@@ -113,6 +113,30 @@ class TestRepository:
         assert result is expected
         get_recent_actions_impl.assert_called_once_with(8)
 
+    def test_executive_facade_delegates_without_breaking_dashboard_imports(self):
+        """Executive dashboard imports continue through the repository facade."""
+        from src.database.repository import get_revenue_by_state, get_source_business_baselines
+
+        expected = pd.DataFrame({"customer_state": ["SP"], "revenue": [100.0]})
+        with patch(
+            "src.database.repository.executive_repository.get_revenue_by_state",
+            return_value=expected,
+        ) as get_revenue_by_state_impl:
+            result = get_revenue_by_state("2024-01-01", "2024-01-31", limit=5)
+
+        assert result is expected
+        get_revenue_by_state_impl.assert_called_once_with("2024-01-01", "2024-01-31", 5)
+
+        baselines = {"delivery": {"late_orders": 1}, "repeat_purchase": {"repeat_customers": 2}}
+        with patch(
+            "src.database.repository.executive_repository.get_source_business_baselines",
+            return_value=baselines,
+        ) as get_baselines_impl:
+            result = get_source_business_baselines()
+
+        assert result is baselines
+        get_baselines_impl.assert_called_once_with()
+
     @patch('src.database.repository.engine')
     def test_get_revenue_metrics(self, mock_engine):
         """Test executive revenue metric calculation."""
