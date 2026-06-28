@@ -9,20 +9,93 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pandas as pd
 from catboost import CatBoostRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sqlalchemy import text
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from src.ml.data import get_churn_data, get_logistics_data, get_recommender_data  # noqa: E402
+from src.ml.data import get_churn_data, get_db_engine, get_logistics_data, get_recommender_data  # noqa: E402
 from src.ml.evaluation import has_usable_class_balance, temporal_train_test_split  # noqa: E402
 from src.ml.recommender import evaluate_leave_one_out  # noqa: E402
 
 
 def _rmse(actual, predicted) -> float:
     return float(np.sqrt(mean_squared_error(actual, predicted)))
+
+
+def source_business_baselines() -> dict[str, Any]:
+    """
+    Return observed source-data baselines before any model intervention.
+
+    These values describe the historical Olist snapshot. They are not
+    before/after impact results because the public dataset has no treatment log,
+    control group, or post-model operating period.
+    """
+    delivery_query = """
+    SELECT
+        JULIANDAY(order_delivered_customer_date) - JULIANDAY(order_purchase_timestamp)
+            AS actual_delivery_days,
+        JULIANDAY(order_estimated_delivery_date) - JULIANDAY(order_purchase_timestamp)
+            AS estimated_delivery_days,
+        CASE
+            WHEN DATE(order_delivered_customer_date) > DATE(order_estimated_delivery_date)
+            THEN 1 ELSE 0
+        END AS is_late,
+        CASE
+            WHEN DATE(order_delivered_customer_date) > DATE(order_estimated_delivery_date)
+            THEN JULIANDAY(DATE(order_delivered_customer_date))
+               - JULIANDAY(DATE(order_estimated_delivery_date))
+            ELSE 0
+        END AS days_late
+    FROM orders
+    WHERE order_status = 'delivered'
+      AND order_delivered_customer_date IS NOT NULL
+      AND order_estimated_delivery_date IS NOT NULL
+      AND JULIANDAY(order_delivered_customer_date) > JULIANDAY(order_purchase_timestamp)
+    """
+    repeat_query = """
+    SELECT
+        c.customer_unique_id,
+        COUNT(DISTINCT o.order_id) AS delivered_orders
+    FROM customers c
+    JOIN orders o ON c.customer_id = o.customer_id
+    WHERE o.order_status = 'delivered'
+    GROUP BY c.customer_unique_id
+    """
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        delivery = pd.read_sql(text(delivery_query), conn)
+        repeat = pd.read_sql(text(repeat_query), conn)
+
+    is_late = delivery["is_late"] == 1
+    repeat_customers = repeat["delivered_orders"] > 1
+
+    return {
+        "boundary": (
+            "Observed source-data baselines only. They quantify opportunity size, "
+            "not improvement caused by this project."
+        ),
+        "delivery": {
+            "delivered_orders": int(len(delivery)),
+            "late_orders": int(is_late.sum()),
+            "late_delivery_rate_pct": float(is_late.mean() * 100),
+            "avg_actual_delivery_days": float(delivery["actual_delivery_days"].mean()),
+            "median_actual_delivery_days": float(delivery["actual_delivery_days"].median()),
+            "avg_estimated_delivery_days": float(delivery["estimated_delivery_days"].mean()),
+            "avg_days_late_when_late": float(delivery.loc[is_late, "days_late"].mean()),
+        },
+        "repeat_purchase": {
+            "unique_customers": int(len(repeat)),
+            "repeat_customers": int(repeat_customers.sum()),
+            "one_time_customers": int((~repeat_customers).sum()),
+            "repeat_customer_rate_pct": float(repeat_customers.mean() * 100),
+            "one_time_customer_rate_pct": float((~repeat_customers).mean() * 100),
+        },
+    }
 
 
 def delivery_benchmark(limit: int = 50_000) -> dict[str, Any]:
@@ -111,6 +184,7 @@ def build_summary() -> dict[str, Any]:
             "These are model/analytics benchmark results, not measured business "
             "impact from a live operation or A/B test."
         ),
+        "source_business_baselines": source_business_baselines(),
         "delivery_prediction": delivery_benchmark(),
         "repeat_purchase_candidate": repeat_purchase_gate(),
         "recommender": recommender_benchmark(),

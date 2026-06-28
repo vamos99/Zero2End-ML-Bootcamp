@@ -16,7 +16,9 @@ model/analytics benchmark'larıdır.
 
 | Alan | Ölçülen sonuç | Ölçülmeyen iş etkisi |
 | --- | --- | --- |
+| Source delivery baseline | Geç teslimat oranı %6.77; geç kalanlarda ortalama gecikme 10.62 gün | Model sonrası teslimat azalması ölçülmedi |
 | Delivery prediction | Mean baseline'a göre RMSE %8.8, MAE %15.1 daha düşük | Gerçek teslim süresi azalması ölçülmedi |
+| Source repeat-purchase baseline | Repeat-customer oranı %3.00; one-time customer oranı %97.00 | Churn/retention iyileşmesi ölçülmedi |
 | Repeat-purchase risk | Sınıf dağılımı %99.40 risk etiketi; model gate failed | Churn azalması veya kampanya uplift'i ölçülmedi |
 | Recommender | Hit rate @10 = %3.51; random catalog baseline'a göre yaklaşık 116x | Satış veya sepet artışı ölçülmedi |
 | Segmentation | 93,358 müşteri segmentlendi; ARI 1.000, silhouette 0.479 | Segment bazlı kampanya dönüşümü ölçülmedi |
@@ -48,6 +50,11 @@ model/analytics benchmark'larıdır.
 | Baseline on-time rate | 91.89% | Actual delivery days <= Olist estimated-date baseline |
 | Long-delivery baseline rows | 92,525 | Estimated delivery duration > 10 days |
 | Long-delivery baseline share | 95.91% | Broad operational backlog signal, not a defect rate |
+
+Interpretation: the source-data starting point is a 6.77% late-delivery rate.
+Late orders arrive 10.62 days late on average when lateness is measured by
+calendar date. The model section below does not prove this rate fell; it only
+shows whether a prediction model beats a naive prediction baseline.
 
 ### Delivery Model Holdout
 
@@ -102,6 +109,10 @@ classification.
 Interpretation: this should be documented as a repeat-purchase risk analysis
 gate. Cohort retention is the better source-backed customer behavior view until
 a stronger time-window definition is built.
+
+The source-data repeat-purchase baseline is also low: 2,801 of 93,358 unique
+customers have more than one delivered order, or 3.00%. This is a business
+opportunity baseline, not a measured retention improvement.
 
 ## Recommender Prototype
 
