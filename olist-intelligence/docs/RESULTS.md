@@ -27,6 +27,7 @@ anlatır.
 | Source repeat-purchase baseline | Repeat-customer oranı %3.00; one-time customer oranı %97.00 | Churn/retention iyileşmesi ölçülmedi |
 | Repeat-purchase risk | Sınıf dağılımı %99.40 risk etiketi; model gate failed | Churn azalması veya kampanya uplift'i ölçülmedi |
 | Recommender | Hit rate @10 = %3.51; random catalog baseline'a göre yaklaşık 116x | Satış veya sepet artışı ölçülmedi |
+| Executive analytics marts | Credit card payment share %78.34; month-1 retention %5.20; 2,970 seller SLA rows; 93,358 segmented customers | Operasyonel müdahale sonrası değişim ölçülmedi |
 | Segmentation | 93,358 müşteri segmentlendi; ARI 1.000, silhouette 0.479 | Segment bazlı kampanya dönüşümü ölçülmedi |
 | Cohort/payment/seller analytics | SQL martlarla retention, payment mix ve seller SLA ölçüldü | Operasyonel müdahale sonrası değişim ölçülmedi |
 
@@ -188,8 +189,11 @@ Technical diagnostics:
 | Month-1 average cohort retention | 5.20% |
 | Month-2 average cohort retention | 0.33% |
 | Seller SLA rows | 2,970 sellers |
-| Average seller late-delivery rate | 8.42% |
+| Average seller late-delivery rate | 6.91% |
 | Max seller late-delivery rate | 100.00% |
+| Generated logistics prediction rows | 96,470 |
+| Generated customer segment rows | 93,358 |
+| Largest segment | Developing, 49,290 customers |
 
 Payment value by method:
 
@@ -211,5 +215,5 @@ python -m pytest -q
 
 `scripts/evaluate_olist_results.py` recomputes the delivery baseline
 comparison, source business baselines, planning scenarios, repeat-purchase gate,
-and recommender offline benchmark against the current local `olist.db` without
-writing model artifacts.
+recommender offline benchmark, SQL mart operating signals, and generated-output
+coverage against the current local `olist.db` without writing model artifacts.

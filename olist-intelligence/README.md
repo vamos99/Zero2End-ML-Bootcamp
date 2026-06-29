@@ -27,7 +27,7 @@ kısaldı" ya da "churn X% azaldı" iddiası yoktur. Ölçülen sayılar üç gr
 ayrılır: kaynak verideki mevcut durum, offline model benchmark'ı ve gelecekteki
 deneyler için scenario hedefi.
 
-Son local ölçüm (`scripts/evaluate_olist_results.py --pretty`, 2026-06-28):
+Son local ölçüm (`scripts/evaluate_olist_results.py --pretty`, 2026-06-29):
 
 | Alan | Mevcut durum / baseline | Model veya hedef sonucu | Güvenli yorum |
 | --- | ---: | ---: | --- |
@@ -36,6 +36,7 @@ Son local ölçüm (`scripts/evaluate_olist_results.py --pretty`, 2026-06-28):
 | Repeat purchase | %3.00 repeat customer; %97.00 one-time customer | Churn/retention uplift ölçülmedi | Cohort retention daha güvenilir davranış metriği |
 | Churn gate | Risk etiketi %99.40; sınıf dağılımı aşırı dengesiz | Model evaluation gate failed | Decision-ready churn modeli olarak sunulmaz |
 | Recommender | Random hit@10 %0.03 | SVD hit@10 %3.51, 115.7x random baseline | Ranking benchmark'ı var; satış uplift'i yok |
+| Executive analytics | Credit card payment share %78.34; month-1 retention %5.20 | 2,970 seller SLA rows; 93,358 segmented customers | SQL mart/generated-output kanıtı var; impact iddiası yok |
 | Scenario hedefi | %6.77 geç teslimat | %6.10 geç teslimat, 653 geç sipariş önleme varsayımı | Gelecek deney hedefi, gerçekleşmiş impact değil |
 
 

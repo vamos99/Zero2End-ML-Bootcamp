@@ -209,6 +209,125 @@ def recommender_benchmark(top_k: int = 10) -> dict[str, Any]:
     }
 
 
+def analytics_operating_signals() -> dict[str, Any]:
+    """Return source-backed SQL mart and generated-output coverage signals."""
+    queries = {
+        "payment": """
+            SELECT
+                payment_type,
+                SUM(payment_value) AS payment_value,
+                SUM(orders) AS orders
+            FROM payment_mix_summary
+            GROUP BY payment_type
+            ORDER BY payment_value DESC
+        """,
+        "cohort": """
+            SELECT
+                months_since_first_order,
+                AVG(retention_rate) AS avg_retention_rate
+            FROM customer_cohort_retention
+            WHERE months_since_first_order IN (1, 2)
+            GROUP BY months_since_first_order
+        """,
+        "seller": """
+            SELECT
+                COUNT(*) AS seller_rows,
+                AVG(late_delivery_rate) AS avg_late_delivery_rate,
+                MAX(late_delivery_rate) AS max_late_delivery_rate
+            FROM seller_sla_summary
+        """,
+        "generated": """
+            SELECT 'logistics_predictions' AS table_name, COUNT(*) AS rows FROM logistics_predictions
+            UNION ALL
+            SELECT 'customer_segments' AS table_name, COUNT(*) AS rows FROM customer_segments
+        """,
+        "segments": """
+            SELECT
+                "Segment" AS segment,
+                COUNT(*) AS customers,
+                AVG("Recency") AS avg_recency,
+                AVG("Frequency") AS avg_frequency,
+                AVG("Monetary") AS avg_monetary
+            FROM customer_segments
+            GROUP BY "Segment"
+            ORDER BY customers DESC
+        """,
+    }
+
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            payment = pd.read_sql(text(queries["payment"]), conn)
+            cohort = pd.read_sql(text(queries["cohort"]), conn)
+            seller = pd.read_sql(text(queries["seller"]), conn)
+            generated = pd.read_sql(text(queries["generated"]), conn)
+            segments = pd.read_sql(text(queries["segments"]), conn)
+    except Exception as exc:
+        return {
+            "available": False,
+            "error": str(exc),
+            "boundary": (
+                "Analytics mart signals require SQL views plus generated logistics "
+                "and segment outputs."
+            ),
+        }
+
+    total_payment_value = float(payment["payment_value"].sum()) if not payment.empty else 0.0
+    top_payment = payment.iloc[0].to_dict() if not payment.empty else {}
+    top_payment_value = float(top_payment.get("payment_value", 0.0))
+    top_payment_share = (
+        top_payment_value / total_payment_value * 100
+        if total_payment_value
+        else 0.0
+    )
+
+    cohort_by_month = {
+        int(row["months_since_first_order"]): float(row["avg_retention_rate"])
+        for _, row in cohort.iterrows()
+    }
+    generated_counts = {
+        str(row["table_name"]): int(row["rows"])
+        for _, row in generated.iterrows()
+    }
+    largest_segment = segments.iloc[0].to_dict() if not segments.empty else {}
+
+    return {
+        "available": True,
+        "boundary": (
+            "These are SQL mart and generated-output coverage signals, not "
+            "post-intervention business impact."
+        ),
+        "payment_mix": {
+            "methods": int(len(payment)),
+            "total_payment_value_brl": total_payment_value,
+            "top_payment_type": str(top_payment.get("payment_type", "")),
+            "top_payment_value_brl": top_payment_value,
+            "top_payment_share_pct": top_payment_share,
+            "top_payment_orders": int(top_payment.get("orders", 0)),
+        },
+        "cohort_retention": {
+            "month_1_avg_retention_pct": cohort_by_month.get(1, 0.0),
+            "month_2_avg_retention_pct": cohort_by_month.get(2, 0.0),
+        },
+        "seller_sla": {
+            "seller_rows": int(seller.iloc[0]["seller_rows"]) if not seller.empty else 0,
+            "avg_late_delivery_rate_pct": float(seller.iloc[0]["avg_late_delivery_rate"])
+            if not seller.empty and pd.notna(seller.iloc[0]["avg_late_delivery_rate"])
+            else 0.0,
+            "max_late_delivery_rate_pct": float(seller.iloc[0]["max_late_delivery_rate"])
+            if not seller.empty and pd.notna(seller.iloc[0]["max_late_delivery_rate"])
+            else 0.0,
+        },
+        "generated_outputs": generated_counts,
+        "segmentation": {
+            "segments": int(len(segments)),
+            "customers": int(segments["customers"].sum()) if not segments.empty else 0,
+            "largest_segment": str(largest_segment.get("segment", "")),
+            "largest_segment_customers": int(largest_segment.get("customers", 0)),
+        },
+    }
+
+
 def intervention_scenarios(source_baselines: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     Return transparent what-if scenarios for future business-impact measurement.
@@ -285,7 +404,35 @@ def build_evidence_rows(summary: dict[str, Any]) -> list[dict[str, str]]:
     delivery_model = summary["delivery_prediction"]
     repeat_gate = summary["repeat_purchase_candidate"]
     recommender = summary["recommender"]
+    analytics = summary["analytics_operating_signals"]
     scenarios = summary["intervention_scenarios"]
+    if analytics.get("available") is False:
+        analytics_row = {
+            "area": "Executive analytics marts",
+            "evidence_type": "analytics_mart_signal",
+            "before_or_current": "Analytics mart signals unavailable",
+            "model_or_target_result": "Run SQL mart and generated-output workflow",
+            "delta_or_lift": "Not measured",
+            "safe_claim": analytics.get(
+                "boundary",
+                "SQL marts and generated outputs are required before claiming dashboard coverage.",
+            ),
+        }
+    else:
+        analytics_row = {
+            "area": "Executive analytics marts",
+            "evidence_type": "analytics_mart_signal",
+            "before_or_current": (
+                f"Top payment: {analytics.get('payment_mix', {}).get('top_payment_type', '')}; "
+                f"month-1 retention {_fmt_pct(analytics.get('cohort_retention', {}).get('month_1_avg_retention_pct', 0.0))}"
+            ),
+            "model_or_target_result": (
+                f"{analytics.get('seller_sla', {}).get('seller_rows', 0):,} seller SLA rows; "
+                f"{analytics.get('segmentation', {}).get('customers', 0):,} segmented customers"
+            ),
+            "delta_or_lift": "No intervention delta measured",
+            "safe_claim": "SQL marts and generated outputs support dashboard analysis, not impact claims.",
+        }
 
     delivery_10pct = scenarios["delivery"][0]
     repeat_1pp = scenarios["repeat_purchase"][1]
@@ -352,6 +499,7 @@ def build_evidence_rows(summary: dict[str, Any]) -> list[dict[str, str]]:
             "delta_or_lift": f"{recommender['lift_vs_random_catalog']:.1f}x random baseline",
             "safe_claim": "Ranking quality beat random; sales or basket uplift was not measured.",
         },
+        analytics_row,
         {
             "area": "Delivery scenario target",
             "evidence_type": "planning_scenario",
@@ -388,6 +536,7 @@ def build_summary() -> dict[str, Any]:
         "delivery_prediction": delivery_benchmark(),
         "repeat_purchase_candidate": repeat_purchase_gate(),
         "recommender": recommender_benchmark(),
+        "analytics_operating_signals": analytics_operating_signals(),
         "intervention_scenarios": intervention_scenarios(baselines),
     }
     summary["evidence_rows"] = build_evidence_rows(summary)
