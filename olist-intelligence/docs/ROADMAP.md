@@ -30,6 +30,7 @@ not replace issues or project cards.
 - Recommender leave-one-out evaluation and unseen-product inference guardrail
 - Source baseline and scenario target cards on the executive dashboard
 - Benchmark scripts now separate measurement from explicit artifact writes
+- Retention action drafts now expose metric, baseline, and evidence needs
 
 ## Remaining Cleanup Before New Analytics
 

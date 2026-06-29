@@ -39,6 +39,10 @@ def render_customer_view(metrics):
         f"Ölçülecek ana sonuç: **{sim['hypothesis']}**. "
         "Maliyet, uplift ve ROI ancak kontrol gruplu deney sonrasında raporlanmalıdır."
     )
+    st.caption(
+        f"Metrik: `{sim['metric']}` | Baseline: {sim['baseline_source']} | "
+        f"Kanıt ihtiyacı: {sim['evidence_needed']}"
+    )
     
     if st.button("Deney Taslağını Günlüğe Kaydet", key="churn_btn"):
         action_service.execute_action("RETENTION_EXPERIMENT_DRAFT", f"{action} deney taslağı oluşturuldu.", 0)

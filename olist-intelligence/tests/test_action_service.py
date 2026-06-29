@@ -8,6 +8,9 @@ def test_simulate_impact_known_action():
     api_response = simulate_impact(action)
     
     assert api_response["hypothesis"] == "Reactivation conversion rate"
+    assert api_response["metric"] == "repeat_customer_rate_pct"
+    assert api_response["status"] == "experiment_design_only"
+    assert "control group" in api_response["evidence_needed"]
     assert "roi" not in api_response
 
 def test_simulate_impact_unknown_action():
@@ -16,6 +19,8 @@ def test_simulate_impact_unknown_action():
     api_response = simulate_impact(action)
     
     assert api_response["hypothesis"] == "Define before launch"
+    assert api_response["metric"] == "define_primary_metric"
+    assert api_response["status"] == "not_ready"
 
 
 def test_get_recommendations_preserves_api_metadata(monkeypatch):
