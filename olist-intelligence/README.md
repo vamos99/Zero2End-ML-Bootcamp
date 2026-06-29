@@ -413,6 +413,18 @@ Bu değerler portföy/prototip bağlamında tutulur. Raw Kaggle verisi ve yerel
 `olist.db` ile `python scripts/evaluate_olist_results.py --pretty` yeniden
 çalıştırılmadan güncel model performansı olarak sunulmamalıdır.
 
+Benchmark ve artifact üretimi ayrı tutulur:
+
+```bash
+python -m src.ml.benchmark --skip-optuna
+python -m src.ml.benchmark --skip-optuna --save-artifacts
+python -m src.ml.train
+```
+
+İlk komut yalnızca ölçüm yapar ve `models/` altına dosya yazmaz. Artifact
+üretmek için açıkça `--save-artifacts` verilmeli veya eğitim akışı
+çalıştırılmalıdır.
+
 ---
 
 ### Troubleshooting (Sorun Giderme)

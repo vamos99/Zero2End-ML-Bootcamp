@@ -29,6 +29,7 @@ not replace issues or project cards.
 - Focused registry startup and local model fallback tests
 - Recommender leave-one-out evaluation and unseen-product inference guardrail
 - Source baseline and scenario target cards on the executive dashboard
+- Benchmark scripts now separate measurement from explicit artifact writes
 
 ## Remaining Cleanup Before New Analytics
 
