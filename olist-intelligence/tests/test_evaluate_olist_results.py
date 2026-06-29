@@ -50,12 +50,80 @@ def test_build_summary_includes_source_baselines(monkeypatch):
         "intervention_scenarios",
         lambda baselines: {"from_baselines": baselines},
     )
+    monkeypatch.setattr(evaluate_olist_results, "build_evidence_rows", lambda summary: [{"ok": True}])
 
     result = evaluate_olist_results.build_summary()
 
     assert result["source_business_baselines"] == {"ok": True}
     assert result["intervention_scenarios"] == {"from_baselines": {"ok": True}}
+    assert result["evidence_rows"] == [{"ok": True}]
     assert "not measured business impact" in result["important_boundary"]
+
+
+def test_evidence_rows_keep_benchmark_and_impact_separate():
+    summary = {
+        "source_business_baselines": {
+            "delivery": {
+                "late_delivery_rate_pct": 10.0,
+                "avg_actual_delivery_days": 12.5,
+            },
+            "repeat_purchase": {
+                "repeat_customer_rate_pct": 3.0,
+                "one_time_customer_rate_pct": 97.0,
+            },
+        },
+        "delivery_prediction": {
+            "train_mean_baseline_mae_days": 8.0,
+            "source_estimate_mae_days": 12.0,
+            "mae_days": 6.0,
+            "mae_improvement_vs_baseline_pct": 25.0,
+            "mae_improvement_vs_source_estimate_pct": 50.0,
+        },
+        "repeat_purchase_candidate": {
+            "risk_label_share_pct": 99.4,
+            "class_counts": {"0": 298, "1": 49702},
+            "usable_for_model_eval": False,
+        },
+        "recommender": {
+            "random_catalog_hit_rate_at_k": 0.0003,
+            "hit_rate_at_k": 0.035,
+            "lift_vs_random_catalog": 116.0,
+        },
+        "intervention_scenarios": {
+            "delivery": [
+                {
+                    "baseline_late_rate_pct": 10.0,
+                    "projected_late_rate_pct": 9.0,
+                    "late_rate_delta_pp": -1.0,
+                    "prevented_late_orders": 100.0,
+                }
+            ],
+            "repeat_purchase": [
+                {"unused": True},
+                {
+                    "baseline_repeat_rate_pct": 3.0,
+                    "projected_repeat_rate_pct": 4.0,
+                    "repeat_rate_delta_pp": 1.0,
+                    "additional_repeat_customers": 934.0,
+                },
+            ],
+        },
+    }
+
+    rows = evaluate_olist_results.build_evidence_rows(summary)
+
+    assert {row["evidence_type"] for row in rows} == {
+        "observed_source_baseline",
+        "offline_model_benchmark",
+        "model_readiness_gate",
+        "planning_scenario",
+    }
+    delivery_benchmark = next(row for row in rows if row["area"] == "Delivery prediction benchmark")
+    assert "50.00% lower MAE vs estimated-date baseline" in delivery_benchmark["delta_or_lift"]
+    assert "actual delivery speed did not get proven faster" in delivery_benchmark["safe_claim"]
+    churn_gate = next(row for row in rows if row["area"] == "Repeat-purchase / churn gate")
+    assert churn_gate["model_or_target_result"] == "Model evaluation gate failed"
+    assert churn_gate["delta_or_lift"] == "No churn reduction measured"
 
 
 def test_intervention_scenarios_are_explicit_assumption_based():

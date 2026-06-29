@@ -20,6 +20,24 @@ Proje bootcamp bitirme kapsamını karşılar; production seviyesinde servis vey
 | **Raporlama** | Geliştiriliyor | README, notebook açıklamaları, SQL metric docs ve PM/backlog notları birlikte tutulur. |
 | **Analitik SQL Katmanı** | Eklendi | `sql/views/` altında dashboard ve veri modeli için tekrar kullanılabilir view örnekleri. |
 
+## Ölçülen Sonuçlar Nasıl Okunmalı?
+
+Bu projede canlı operasyon veya A/B test olmadığı için "teslim süresi X%
+kısaldı" ya da "churn X% azaldı" iddiası yoktur. Ölçülen sayılar üç gruba
+ayrılır: kaynak verideki mevcut durum, offline model benchmark'ı ve gelecekteki
+deneyler için scenario hedefi.
+
+Son local ölçüm (`scripts/evaluate_olist_results.py --pretty`, 2026-06-28):
+
+| Alan | Mevcut durum / baseline | Model veya hedef sonucu | Güvenli yorum |
+| --- | ---: | ---: | --- |
+| Delivery source | %6.77 geç teslimat; ortalama 12.56 gün teslimat | Müdahale sonrası ölçüm yok | Lojistik fırsat büyüklüğü |
+| Delivery prediction | Train-mean MAE 7.68 gün; Olist estimated-date MAE 12.59 gün | CatBoost MAE 6.52 gün | Tahmin hatası %15.1 / %48.2 düştü; teslimat süresi düştü demek değildir |
+| Repeat purchase | %3.00 repeat customer; %97.00 one-time customer | Churn/retention uplift ölçülmedi | Cohort retention daha güvenilir davranış metriği |
+| Churn gate | Risk etiketi %99.40; sınıf dağılımı aşırı dengesiz | Model evaluation gate failed | Decision-ready churn modeli olarak sunulmaz |
+| Recommender | Random hit@10 %0.03 | SVD hit@10 %3.51, 115.7x random baseline | Ranking benchmark'ı var; satış uplift'i yok |
+| Scenario hedefi | %6.77 geç teslimat | %6.10 geç teslimat, 653 geç sipariş önleme varsayımı | Gelecek deney hedefi, gerçekleşmiş impact değil |
+
 
 | **Ana Sayfa (Dashboard)** | **Operasyon Merkezi** |
 |:---:|:---:|
@@ -387,12 +405,13 @@ scripts/            # Lokal yardımcı scriptler
 
 | Model | Algoritma | Metrik | Değer |
 |-------|-----------|--------|-------|
-| **Lojistik** | CatBoost Regressor | Temporal holdout RMSE | Notebook yeniden çalıştırıldığında üretilir |
-| **Repeat purchase** | CatBoost adayı | Sınıf dengesi kapısı | Mevcut snapshot aşırı dengesizse model üretilmez |
-| **Recommender** | SVD | Leave-one-out hit rate / coverage | Yalnızca uygun repeat-user holdout grubu üzerinde eğitim sırasında üretilir |
+| **Lojistik** | CatBoost Regressor | Temporal holdout MAE/RMSE | MAE 6.52 gün, RMSE 10.55 gün; MAE Olist estimated-date baseline'a göre %48.2 düşük |
+| **Repeat purchase** | CatBoost adayı | Sınıf dengesi kapısı | Failed; risk etiketi %99.40 olduğu için churn modeli olarak sunulmaz |
+| **Recommender** | SVD | Leave-one-out hit rate / coverage | Hit@10 %3.51, catalog coverage %0.29, random baseline'a göre 115.7x |
 
-Bu değerler portföy/prototip bağlamında tutulur. Raw Kaggle verisi ve yerel `olist.db`
-ile yeniden çalıştırılmadan güncel model performansı olarak sunulmamalıdır.
+Bu değerler portföy/prototip bağlamında tutulur. Raw Kaggle verisi ve yerel
+`olist.db` ile `python scripts/evaluate_olist_results.py --pretty` yeniden
+çalıştırılmadan güncel model performansı olarak sunulmamalıdır.
 
 ---
 

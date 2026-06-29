@@ -263,9 +263,123 @@ def intervention_scenarios(source_baselines: dict[str, Any] | None = None) -> di
     }
 
 
+def _fmt_pct(value: float) -> str:
+    return f"{value:.2f}%"
+
+
+def _fmt_days(value: float) -> str:
+    return f"{value:.2f} days"
+
+
+def build_evidence_rows(summary: dict[str, Any]) -> list[dict[str, str]]:
+    """
+    Return a compact, reader-facing evidence table.
+
+    The rows intentionally separate source baselines, model benchmarks,
+    scenario targets, and missing business-impact evidence. This avoids turning
+    an offline prediction gain into a false "delivery improved by X%" claim.
+    """
+    source = summary["source_business_baselines"]
+    delivery_source = source["delivery"]
+    repeat_source = source["repeat_purchase"]
+    delivery_model = summary["delivery_prediction"]
+    repeat_gate = summary["repeat_purchase_candidate"]
+    recommender = summary["recommender"]
+    scenarios = summary["intervention_scenarios"]
+
+    delivery_10pct = scenarios["delivery"][0]
+    repeat_1pp = scenarios["repeat_purchase"][1]
+
+    return [
+        {
+            "area": "Delivery source baseline",
+            "evidence_type": "observed_source_baseline",
+            "before_or_current": (
+                f"{_fmt_pct(delivery_source['late_delivery_rate_pct'])} late delivery rate; "
+                f"{_fmt_days(delivery_source['avg_actual_delivery_days'])} average delivery time"
+            ),
+            "model_or_target_result": "No post-intervention delivery-time measurement",
+            "delta_or_lift": "Not measured",
+            "safe_claim": "Quantifies the logistics opportunity size.",
+        },
+        {
+            "area": "Delivery prediction benchmark",
+            "evidence_type": "offline_model_benchmark",
+            "before_or_current": (
+                f"Train-mean MAE {_fmt_days(delivery_model['train_mean_baseline_mae_days'])}; "
+                f"Olist estimated-date MAE {_fmt_days(delivery_model['source_estimate_mae_days'])}"
+            ),
+            "model_or_target_result": f"CatBoost MAE {_fmt_days(delivery_model['mae_days'])}",
+            "delta_or_lift": (
+                f"{_fmt_pct(delivery_model['mae_improvement_vs_baseline_pct'])} lower MAE vs train mean; "
+                f"{_fmt_pct(delivery_model['mae_improvement_vs_source_estimate_pct'])} lower MAE vs estimated-date baseline"
+            ),
+            "safe_claim": "Prediction error improved; actual delivery speed did not get proven faster.",
+        },
+        {
+            "area": "Repeat-purchase source baseline",
+            "evidence_type": "observed_source_baseline",
+            "before_or_current": (
+                f"{_fmt_pct(repeat_source['repeat_customer_rate_pct'])} repeat customers; "
+                f"{_fmt_pct(repeat_source['one_time_customer_rate_pct'])} one-time customers"
+            ),
+            "model_or_target_result": "No measured retention campaign result",
+            "delta_or_lift": "Not measured",
+            "safe_claim": "Cohort/retention analytics are stronger than a churn model on this snapshot.",
+        },
+        {
+            "area": "Repeat-purchase / churn gate",
+            "evidence_type": "model_readiness_gate",
+            "before_or_current": (
+                f"{_fmt_pct(repeat_gate['risk_label_share_pct'])} positive risk label share; "
+                f"{repeat_gate['class_counts']} class counts"
+            ),
+            "model_or_target_result": (
+                "Model evaluation gate passed"
+                if repeat_gate["usable_for_model_eval"]
+                else "Model evaluation gate failed"
+            ),
+            "delta_or_lift": "No churn reduction measured",
+            "safe_claim": "Treat as a suitability check, not a deployed churn-impact result.",
+        },
+        {
+            "area": "Recommender benchmark",
+            "evidence_type": "offline_model_benchmark",
+            "before_or_current": (
+                f"Random catalog hit@10 {_fmt_pct(recommender['random_catalog_hit_rate_at_k'] * 100)}"
+            ),
+            "model_or_target_result": f"SVD hit@10 {_fmt_pct(recommender['hit_rate_at_k'] * 100)}",
+            "delta_or_lift": f"{recommender['lift_vs_random_catalog']:.1f}x random baseline",
+            "safe_claim": "Ranking quality beat random; sales or basket uplift was not measured.",
+        },
+        {
+            "area": "Delivery scenario target",
+            "evidence_type": "planning_scenario",
+            "before_or_current": _fmt_pct(delivery_10pct["baseline_late_rate_pct"]),
+            "model_or_target_result": _fmt_pct(delivery_10pct["projected_late_rate_pct"]),
+            "delta_or_lift": (
+                f"{delivery_10pct['late_rate_delta_pp']:.2f} pp; "
+                f"{delivery_10pct['prevented_late_orders']:.0f} fewer late orders if validated"
+            ),
+            "safe_claim": "A target for future experiment design, not a result that already happened.",
+        },
+        {
+            "area": "Repeat-purchase scenario target",
+            "evidence_type": "planning_scenario",
+            "before_or_current": _fmt_pct(repeat_1pp["baseline_repeat_rate_pct"]),
+            "model_or_target_result": _fmt_pct(repeat_1pp["projected_repeat_rate_pct"]),
+            "delta_or_lift": (
+                f"+{repeat_1pp['repeat_rate_delta_pp']:.1f} pp; "
+                f"{repeat_1pp['additional_repeat_customers']:.0f} more repeat customers if validated"
+            ),
+            "safe_claim": "A target for future campaign measurement, not measured churn improvement.",
+        },
+    ]
+
+
 def build_summary() -> dict[str, Any]:
     baselines = source_business_baselines()
-    return {
+    summary = {
         "important_boundary": (
             "These are model/analytics benchmark results, not measured business "
             "impact from a live operation or A/B test."
@@ -276,6 +390,8 @@ def build_summary() -> dict[str, Any]:
         "recommender": recommender_benchmark(),
         "intervention_scenarios": intervention_scenarios(baselines),
     }
+    summary["evidence_rows"] = build_evidence_rows(summary)
+    return summary
 
 
 def main() -> int:

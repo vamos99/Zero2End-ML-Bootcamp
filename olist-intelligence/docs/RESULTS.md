@@ -14,6 +14,12 @@ kadar iyileşti", "churn şu kadar azaldı" veya "satış şu kadar arttı" gibi
 iş etkisi iddiaları ölçülmüş sonuç değildir. Ölçülen sonuçlar aşağıdaki
 model/analytics benchmark'larıdır.
 
+`scripts/evaluate_olist_results.py --pretty` çıktısındaki `evidence_rows`
+alanı bu ayrımı makine-okunur şekilde de üretir. Böylece README, notebook ve
+dashboard metinleri aynı sınırı kullanır: source baseline mevcut durumu,
+offline benchmark model tahmin kalitesini, scenario ise gelecek deney hedefini
+anlatır.
+
 | Alan | Ölçülen sonuç | Ölçülmeyen iş etkisi |
 | --- | --- | --- |
 | Source delivery baseline | Geç teslimat oranı %6.77; geç kalanlarda ortalama gecikme 10.62 gün | Model sonrası teslimat azalması ölçülmedi |
