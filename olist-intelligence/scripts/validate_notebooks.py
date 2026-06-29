@@ -27,6 +27,14 @@ REQUIRED_BY_NOTEBOOK = {
     "4_growth_engine.ipynb": {
         "segmentation_model.pkl": "correct segmentation artifact name",
     },
+    "5_final_evaluation.ipynb": {
+        "build_summary": "shared measured-results summary builder",
+        "evidence_rows": "source baseline / benchmark / scenario evidence table",
+    },
+    "6_executive_pipeline.ipynb": {
+        "build_summary": "shared measured-results summary builder",
+        "evidence_rows": "source baseline / benchmark / scenario evidence table",
+    },
 }
 
 
