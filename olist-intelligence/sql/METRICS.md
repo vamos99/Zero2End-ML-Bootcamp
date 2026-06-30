@@ -21,7 +21,7 @@ against the Olist source tables.
 | --- | --- | --- |
 | `actual_delivery_days` | Delivered date minus purchase date | `orders` date columns |
 | `estimated_delivery_days` | Estimated delivery date minus purchase date | `orders` date columns |
-| `is_late` | `1` when delivered after estimated date, `0` when on time, `NULL` when date is missing | `orders` date columns |
+| `is_late` | `1` when `DATE(delivered_customer_date)` is after `DATE(estimated_delivery_date)`, `0` when on time, `NULL` when date is missing | `orders` date columns |
 
 ## `seller_performance`
 

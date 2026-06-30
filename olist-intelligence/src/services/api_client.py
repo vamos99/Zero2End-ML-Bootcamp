@@ -18,9 +18,23 @@ class APIClient:
         self.base_url = base_url or os.getenv("API_URL", default_url)
         self.api_key = api_key or os.getenv("API_KEY")
         self.headers = {"X-API-KEY": self.api_key} if self.api_key else {}
+        self.last_error: Optional[Dict] = None
+
+    @staticmethod
+    def _extract_error_detail(response) -> str:
+        try:
+            body = response.json()
+        except ValueError:
+            return response.text or response.reason
+
+        detail = body.get("detail")
+        if isinstance(detail, str):
+            return detail
+        return str(detail or body)
     
     def _handle_request(self, method: str, endpoint: str, **kwargs) -> Optional[Dict]:
         """Generic request handler with detailed error logging."""
+        self.last_error = None
         try:
             url = f"{self.base_url}{endpoint}"
             response = requests.request(method, url, headers=self.headers, **kwargs)
@@ -28,8 +42,20 @@ class APIClient:
             return response.json()
         except requests.RequestException as e:
             logger.warning("API request failed [%s %s]: %s", method, endpoint, e)
-            if response := getattr(e, 'response', None):
+            response = getattr(e, 'response', None)
+            if response is not None:
                 logger.debug("API response body [%s %s]: %s", method, endpoint, response.text)
+                self.last_error = {
+                    "endpoint": endpoint,
+                    "status_code": response.status_code,
+                    "detail": self._extract_error_detail(response),
+                }
+            else:
+                self.last_error = {
+                    "endpoint": endpoint,
+                    "status_code": None,
+                    "detail": str(e),
+                }
             return None
 
     def predict_delivery(self, freight: float, price: float, weight: float,
@@ -64,19 +90,27 @@ class APIClient:
             timeout=5
         )
     
-    def get_recommendations(self, customer_id: str, n: int = 5) -> Optional[List]:
-        """Get product recommendations for a customer."""
-        result = self._handle_request(
+    def get_recommendation_response(self, customer_id: str, n: int = 5) -> Optional[Dict]:
+        """Get the full recommendation API response including method metadata."""
+        return self._handle_request(
             "POST",
             "/recommend",
             json={"customer_id": customer_id, "top_k": n},
             timeout=5
         )
+
+    def get_recommendations(self, customer_id: str, n: int = 5) -> Optional[List]:
+        """Get product recommendations for a customer."""
+        result = self.get_recommendation_response(customer_id, n=n)
         return result.get("recommendations", []) if result else []
     
     def get_segments(self) -> Optional[Dict]:
         """Get customer segment distribution."""
         return self._handle_request("GET", "/segments", timeout=5)
+
+    def get_readiness(self) -> Optional[Dict]:
+        """Get API readiness details without requiring an API key."""
+        return self._handle_request("GET", "/ready", timeout=2)
     
     def health_check(self) -> bool:
         """Check if API is available."""

@@ -113,6 +113,77 @@ class TestRepository:
         assert result is expected
         get_recent_actions_impl.assert_called_once_with(8)
 
+    def test_executive_facade_delegates_without_breaking_dashboard_imports(self):
+        """Executive dashboard imports continue through the repository facade."""
+        from src.database.repository import get_revenue_by_state, get_source_business_baselines
+
+        expected = pd.DataFrame({"customer_state": ["SP"], "revenue": [100.0]})
+        with patch(
+            "src.database.repository.executive_repository.get_revenue_by_state",
+            return_value=expected,
+        ) as get_revenue_by_state_impl:
+            result = get_revenue_by_state("2024-01-01", "2024-01-31", limit=5)
+
+        assert result is expected
+        get_revenue_by_state_impl.assert_called_once_with("2024-01-01", "2024-01-31", 5)
+
+        baselines = {"delivery": {"late_orders": 1}, "repeat_purchase": {"repeat_customers": 2}}
+        with patch(
+            "src.database.repository.executive_repository.get_source_business_baselines",
+            return_value=baselines,
+        ) as get_baselines_impl:
+            result = get_source_business_baselines()
+
+        assert result is baselines
+        get_baselines_impl.assert_called_once_with()
+
+    def test_logistics_facade_delegates_without_breaking_dashboard_imports(self):
+        """Logistics dashboard imports continue through the repository facade."""
+        from src.database.repository import get_logistics_details, get_logistics_metrics
+
+        metrics = {"available": True, "avg_time": 8.5}
+        with patch(
+            "src.database.repository.logistics_repository.get_logistics_metrics",
+            return_value=metrics,
+        ) as get_logistics_metrics_impl:
+            result = get_logistics_metrics("2024-01-01", "2024-01-31")
+
+        assert result is metrics
+        get_logistics_metrics_impl.assert_called_once_with("2024-01-01", "2024-01-31")
+
+        expected = pd.DataFrame({"order_id": ["o1"]})
+        with patch(
+            "src.database.repository.logistics_repository.get_logistics_details",
+            return_value=expected,
+        ) as get_logistics_details_impl:
+            result = get_logistics_details("2024-01-01", "2024-01-31", limit=3)
+
+        assert result is expected
+        get_logistics_details_impl.assert_called_once_with("2024-01-01", "2024-01-31", 3)
+
+    def test_customer_facade_delegates_without_breaking_dashboard_imports(self):
+        """Customer and segment imports continue through the repository facade."""
+        from src.database.repository import get_churn_risk_count, get_target_audience
+
+        with patch(
+            "src.database.repository.customer_repository.get_churn_risk_count",
+            return_value=12,
+        ) as get_churn_risk_count_impl:
+            result = get_churn_risk_count()
+
+        assert result == 12
+        get_churn_risk_count_impl.assert_called_once_with()
+
+        expected = pd.DataFrame({"customer_unique_id": ["c1"]})
+        with patch(
+            "src.database.repository.customer_repository.get_target_audience",
+            return_value=expected,
+        ) as get_target_audience_impl:
+            result = get_target_audience("At Risk", limit=25)
+
+        assert result is expected
+        get_target_audience_impl.assert_called_once_with("At Risk", 25)
+
     @patch('src.database.repository.engine')
     def test_get_revenue_metrics(self, mock_engine):
         """Test executive revenue metric calculation."""
@@ -175,6 +246,44 @@ class TestRepository:
 
         assert result == EMPTY_REVIEW_DELIVERY
         assert result is not EMPTY_REVIEW_DELIVERY
+
+    @patch('src.database.repository.engine')
+    def test_get_source_business_baselines(self, mock_engine):
+        """Source business baselines are calculated from observed outcomes."""
+        from src.database.repository import get_source_business_baselines
+
+        delivery_df = pd.DataFrame({
+            'is_late': [0, 1, 1],
+            'days_late': [0.0, 2.0, 4.0],
+        })
+        repeat_df = pd.DataFrame({
+            'customer_unique_id': ['c1', 'c2', 'c3'],
+            'delivered_orders': [1, 2, 1],
+        })
+
+        with patch('pandas.read_sql', side_effect=[delivery_df, repeat_df]):
+            result = get_source_business_baselines()
+
+        assert result['delivery']['delivered_orders'] == 3
+        assert result['delivery']['late_orders'] == 2
+        assert result['delivery']['late_delivery_rate_pct'] == pytest.approx(66.6667)
+        assert result['delivery']['avg_days_late_when_late'] == 3.0
+        assert result['repeat_purchase']['repeat_customers'] == 1
+        assert result['repeat_purchase']['one_time_customer_rate_pct'] == pytest.approx(66.6667)
+
+    @patch('src.database.repository.engine')
+    def test_get_source_business_baselines_returns_fresh_default_on_error(self, mock_engine):
+        """Repository errors return a fresh fallback payload for scenario cards."""
+        from src.database.repository import get_source_business_baselines
+
+        with patch('pandas.read_sql', side_effect=RuntimeError('db unavailable')):
+            first = get_source_business_baselines()
+            second = get_source_business_baselines()
+
+        assert first['delivery']['delivered_orders'] == 0
+        assert first['repeat_purchase']['unique_customers'] == 0
+        assert first is not second
+        assert first['delivery'] is not second['delivery']
 
     @patch('src.database.repository.engine')
     def test_get_payment_mix_summary(self, mock_engine):

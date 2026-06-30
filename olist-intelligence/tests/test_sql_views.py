@@ -63,7 +63,8 @@ def _seed_metric_fixture(database_url: str):
                 ('o1', 'c1', '2024-01-01', '2024-01-05', '2024-01-06', 'delivered'),
                 ('o2', 'c2', '2024-01-01', '2024-01-08', '2024-01-06', 'delivered'),
                 ('o3', 'c3', '2024-02-10', '2024-02-15', '2024-02-18', 'delivered'),
-                ('o4', 'c4', '2024-03-15', NULL, '2024-03-25', 'canceled')
+                ('o4', 'c4', '2024-03-15', NULL, '2024-03-25', 'canceled'),
+                ('o5', 'c5', '2024-04-01 10:00:00', '2024-04-06 23:00:00', '2024-04-06 00:00:00', 'delivered')
         """))
         conn.execute(text("""
             INSERT INTO order_items VALUES
@@ -81,7 +82,8 @@ def _seed_metric_fixture(database_url: str):
                 ('c1', 'u1', 'SP'),
                 ('c2', 'u2', 'RJ'),
                 ('c3', 'u1', 'SP'),
-                ('c4', 'u4', 'MG')
+                ('c4', 'u4', 'MG'),
+                ('c5', 'u5', 'SP')
         """))
         conn.execute(text("INSERT INTO sellers VALUES ('s1', 'SP')"))
         conn.execute(text("""

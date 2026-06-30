@@ -42,6 +42,59 @@ class TestBenchmarkModels:
         # AUC should be better than random
         assert auc > 0.5
 
+    def test_benchmark_helpers_calculate_improvement_and_control_artifact_writes(self, tmp_path):
+        """Benchmark helpers should not write model artifacts unless explicitly requested."""
+        from src.ml import benchmark
+
+        model_path = tmp_path / "models" / "example.pkl"
+
+        assert benchmark._improvement_pct(10.0, 7.5) == 25.0
+        assert not benchmark._maybe_save_pickle({"model": "demo"}, model_path, save_artifacts=False)
+        assert not model_path.exists()
+
+        assert benchmark._maybe_save_pickle({"model": "demo"}, model_path, save_artifacts=True)
+        assert model_path.exists()
+
+    def test_logistics_benchmark_defaults_to_measurement_only(self, tmp_path, monkeypatch):
+        """Logistics benchmark should report baselines without creating local artifacts by default."""
+        from src.ml import benchmark
+
+        class MeanRegressor:
+            def fit(self, _x, y):
+                self.mean_ = float(np.mean(y))
+                return self
+
+            def predict(self, x):
+                return np.full(len(x), self.mean_)
+
+        features = pd.DataFrame(
+            {
+                "freight_value": [10, 20, 30, 40, 50, 60],
+                "price": [100, 110, 120, 130, 140, 150],
+            }
+        )
+        target = pd.Series([5, 6, 7, 8, 9, 10], name="actual_days")
+        timestamps = pd.Series(pd.date_range("2018-01-01", periods=6, freq="D"))
+        estimates = pd.Series([6, 6, 8, 8, 11, 11], name="estimated_days")
+
+        monkeypatch.setattr(benchmark, "MODELS_PATH", tmp_path / "models")
+        monkeypatch.setattr(
+            benchmark,
+            "get_logistics_data",
+            lambda **_kwargs: (features, target, timestamps, estimates),
+        )
+        monkeypatch.setattr(benchmark, "LinearRegression", MeanRegressor)
+        monkeypatch.setattr(benchmark, "RandomForestRegressor", lambda **_kwargs: MeanRegressor())
+        monkeypatch.setattr(benchmark, "CatBoostRegressor", lambda **_kwargs: MeanRegressor())
+        monkeypatch.setattr(benchmark, "expanding_temporal_splits", lambda *_args, **_kwargs: [])
+
+        result = benchmark.benchmark_logistics(limit=6, optimize=False)
+
+        assert "baselines" in result
+        assert "train_mean_mae" in result["baselines"]
+        assert "source_estimate_mae" in result["baselines"]
+        assert not (tmp_path / "models" / "logistics_model.pkl").exists()
+
 
 class TestFeatureEngineering:
     """Test feature engineering quality."""

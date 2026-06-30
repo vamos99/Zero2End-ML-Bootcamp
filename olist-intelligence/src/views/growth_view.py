@@ -31,7 +31,7 @@ def render_growth_view(df_growth):
     with c3:
         st.warning("**🌱 Developing**\n\n*İkinci sipariş onboarding deneyini test et.*")
     with c4:
-        st.error("**⚠️ At Risk**\n\n*Düşük maliyetli reaktivasyon mesajını test et.*")
+        st.info("**⚠️ At Risk**\n\n*Düşük maliyetli reaktivasyon mesajını test et.*")
         
     st.markdown("---")
     st.subheader("📊 Detaylı Metrikler")

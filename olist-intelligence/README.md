@@ -13,12 +13,42 @@ Proje bootcamp bitirme kapsamını karşılar; production seviyesinde servis vey
 | Gereksinim | Durum | Uygulama Detayı |
 |------------|-------|-----------------|
 | **Veri Analizi (EDA)** | Uygulandı | Notebook 1'de veri keşfi ve hazırlık adımları yer alır. |
-| **Model Geliştirme** | Prototip | CatBoost (lojistik/churn) ve SVD öneri yaklaşımı notebook ve `src/ml/` altında tutulur. |
+| **Model Geliştirme** | Prototip | CatBoost lojistik modeli, repeat-purchase/churn uygunluk kapısı ve SVD öneri yaklaşımı notebook ve `src/ml/` altında tutulur. |
 | **Pipeline Kurulumu** | Yerel akış | Kaggle CSV -> SQLite/Postgres uyumlu tablo akışı `ingest.py` ile hazırlanmıştır. |
 | **Dashboard** | Ortam bağımlı | Streamlit dashboard yerel veritabanı ve üretilmiş tahmin/segment tabloları hazırsa dolu çalışır. |
 | **Kod Kalitesi** | Geliştiriliyor | `src/` modüler yapı, testler, schema contract ve SQL reconciliation kontrolleri vardır. |
 | **Raporlama** | Geliştiriliyor | README, notebook açıklamaları, SQL metric docs ve PM/backlog notları birlikte tutulur. |
 | **Analitik SQL Katmanı** | Eklendi | `sql/views/` altında dashboard ve veri modeli için tekrar kullanılabilir view örnekleri. |
+
+## Ölçülen Sonuçlar Nasıl Okunmalı?
+
+Bu projede canlı operasyon veya A/B test olmadığı için "teslim süresi X%
+kısaldı" ya da "churn X% azaldı" iddiası yoktur. Ölçülen sayılar üç gruba
+ayrılır: kaynak verideki mevcut durum, offline model benchmark'ı ve gelecekteki
+deneyler için scenario hedefi.
+
+Son local ölçüm (`scripts/evaluate_olist_results.py --pretty`, 2026-06-30):
+
+Kısa cevap: **gerçek teslimat süresi, churn veya satış etkisi henüz
+iyileştirildi diye sunulmuyor**. Ölçülen iyileşme delivery ve recommender
+tarafında offline benchmark iyileşmesidir; retention/churn tarafında ise
+iyileşme değil, modelleme uygunluk kapısı raporlanır.
+
+| Alan | Mevcut durum / baseline | Model veya hedef sonucu | Güvenli yorum |
+| --- | ---: | ---: | --- |
+| Delivery source | %6.77 geç teslimat; ortalama 12.56 gün teslimat | Müdahale sonrası ölçüm yok | Lojistik fırsat büyüklüğü |
+| Delivery prediction | Train-mean MAE 7.68 gün; Olist estimated-date MAE 12.59 gün | CatBoost MAE 6.52 gün | Tahmin hatası %15.1 / %48.2 düştü; teslimat süresi düştü demek değildir |
+| Repeat purchase | %3.00 repeat customer; %97.00 one-time customer | Churn/retention uplift ölçülmedi | Cohort retention daha güvenilir davranış metriği |
+| Churn gate | Risk etiketi %99.40; sınıf dağılımı aşırı dengesiz | Model evaluation gate failed | Decision-ready churn modeli olarak sunulmaz |
+| Recommender | Random hit@10 %0.03 | SVD hit@10 %3.51, 115.7x random baseline | Ranking benchmark'ı var; satış uplift'i yok |
+| Executive analytics | Credit card payment share %78.34; month-1 retention %5.20 | 2,970 seller SLA rows; 93,358 segmented customers | SQL mart/generated-output kanıtı var; impact iddiası yok |
+| Scenario hedefi | %6.77 geç teslimat | %6.10 geç teslimat, 653 geç sipariş önleme varsayımı | Gelecek deney hedefi, gerçekleşmiş impact değil |
+
+Kod tarafında aynı ayrım `scripts/evaluate_olist_results.py` içindeki
+`outcome_scorecard` ve `evidence_rows` çıktılarıyla yeniden üretilir. NB5 ve
+NB6 bu çıktıları doğrudan kullanır. Dashboard ana sayfası da hafif
+`outcome_scorecard` tablosuyla gerçek impact, source baseline ve scenario
+hedeflerini ayrı gösterir.
 
 
 | **Ana Sayfa (Dashboard)** | **Operasyon Merkezi** |
@@ -41,6 +71,8 @@ Proje bootcamp bitirme kapsamını karşılar; production seviyesinde servis vey
 **Sorun:** Müşteriler siparişlerin ne zaman geleceğini bilemiyor, gecikmeler şikayete dönüşüyor.  
 **Çözüm:** CatBoost modeli ile teslimat süresi tahmini prototipi. Performans
 değeri yalnızca zaman bazlı holdout yeniden çalıştırıldığında raporlanır.
+Ölçülen sonuçlar delivery operasyonunun kısaldığını değil, train-mean ve
+Olist estimated-date baseline'larına göre offline tahmin hatasını gösterir.
 
 **Neden Bu Yaklaşım?**
 *   Haversine mesafe (satıcı-müşteri arası) en önemli faktör
@@ -65,14 +97,15 @@ denetlenir. Sınıflar aşırı dengesizse model eğitimi ve artefact kaydı atl
 
 ## Analytics & Data Engineering Açısı
 
-Bu proje production seviyesinde bir veri platformu iddiası taşımaz; bootcamp kapsamındaki veri setini daha okunabilir bir analitik ürüne dönüştürmeyi hedefler.
-
-![Olist data flow architecture](../docs/diagrams/olist-data-flow.png)
+Bu proje production seviyesinde bir veri platformu iddiası taşımaz; bootcamp kapsamındaki veri setini daha okunabilir bir analitik ürüne dönüştürmeyi hedefler. Mimari anlatım için güncel doküman
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), düzenlenebilir çizim kaynağı ise
+[`docs/architecture.excalidraw`](docs/architecture.excalidraw) dosyasıdır.
 
 Proje durumunu ve teknik sınırları doğrulamak için:
 
 - [Dataset ve local data politikası](docs/DATASET.md)
 - [Güncel mimari ve modül sorumlulukları](docs/ARCHITECTURE.md)
+- [Ölçülen sonuçlar ve model/analytics metrikleri](docs/RESULTS.md)
 - [Tamamlanan işler ve gelecek roadmap](docs/ROADMAP.md)
 - [Validation komutları](docs/VALIDATION.md)
 - [Model kartları ve sınırlamalar](docs/MODEL_CARDS.md)
@@ -86,10 +119,10 @@ pytest tests/ -v --tb=short
 
 | Katman | Bu Projede Karşılığı |
 |--------|-----------------------|
-| **Raw data** | Kaggle Olist CSV dosyaları (`data/raw`, Git'e dahil değil) |
+| **Raw data** | Kaggle Olist CSV dosyaları (`data/raw/` önerilir, `olist-dataset/` legacy fallback; Git'e dahil değil) |
 | **Ingestion** | `src/ml/ingest.py` ile CSV -> SQLite/Postgres uyumlu tablo akışı |
 | **Analytics model** | `sql/views/` altında revenue, delivery quality, payment, cohort, seller ve segment view'ları |
-| **ML workflow** | Notebooklar ve `src/ml/` altında lojistik, churn ve öneri prototipleri |
+| **ML workflow** | Notebooklar ve `src/ml/` altında lojistik tahmin, repeat-purchase uygunluk kapısı ve öneri prototipleri |
 | **Serving** | FastAPI endpointleri ve SQL mart destekli Streamlit dashboard |
 | **Quality checks** | Pytest, schema contract, data-quality checks ve GitHub Actions CI |
 
@@ -145,7 +178,7 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 
 ### Dashboard
 *   **5 Sayfa:** Executive overview, Operasyon, Müşteri, Segmentasyon, Ranking
-*   **Executive signals:** Payment mix, cohort retention ve seller SLA chart'ları SQL martlardan beslenir
+*   **Executive signals:** Payment mix, cohort retention, seller SLA ve baseline/scenario kartları SQL martlardan veya hızlı DB sorgularından beslenir
 *   **Aksiyon hipotezleri:** Kampanya fikirleri ölçülmüş ROI değil, deney backlog'udur
 
 ### API
@@ -258,9 +291,26 @@ python scripts/apply_sql_views.py --replace
 Bu adımlar geçince ham Olist tabloları ve SQL analitik view'ları yerel
 veritabanında hazır olur.
 
+**Runtime readiness kontrolü:**
+
+API çalışırken `/ready` çıktısı veritabanı/generated tablo hazır olma durumunu
+ve yüklenen model artefact'larını ayrı ayrı gösterir:
+
+```bash
+curl http://127.0.0.1:8000/ready
+```
+
+`generated_tables` değerlerinin hazır olması dashboard tablolarının beslendiğini,
+`loaded_models` ise API model endpointlerinin gerçekten model artefact'ı bulduğunu
+gösterir. Bu iki durum aynı şey değildir.
+
 ### Adım 5: Notebooklar ve Modeller
 API ve dashboard, raw tablolar hazırken başlatılabilir; model endpointleri ve
 üretilen dashboard tabloları için ilgili local artefact'ların ayrıca oluşturulması gerekir.
+`models/` altındaki `.pkl` dosyaları Git'e ve Docker image build'lerine dahil
+edilmez. Bu yüzden ilk kurulumda model dosyaları yoksa API açılabilir ama ilgili
+endpoint `503 Model not loaded` veya recommender tarafında açıkça etiketlenmiş
+fallback yanıtı döner.
 
 **Dashboard için deterministik local demo build:**
 
@@ -367,12 +417,25 @@ scripts/            # Lokal yardımcı scriptler
 
 | Model | Algoritma | Metrik | Değer |
 |-------|-----------|--------|-------|
-| **Lojistik** | CatBoost Regressor | Temporal holdout RMSE | Notebook yeniden çalıştırıldığında üretilir |
-| **Repeat purchase** | CatBoost adayı | Sınıf dengesi kapısı | Mevcut snapshot aşırı dengesizse model üretilmez |
-| **Recommender** | SVD | Leave-one-out hit rate / coverage | Yalnızca uygun repeat-user holdout grubu üzerinde eğitim sırasında üretilir |
+| **Lojistik** | CatBoost Regressor | Temporal holdout MAE/RMSE | MAE 6.52 gün, RMSE 10.55 gün; MAE Olist estimated-date baseline'a göre %48.2 düşük |
+| **Repeat purchase** | CatBoost adayı | Sınıf dengesi kapısı | Failed; risk etiketi %99.40 olduğu için churn modeli olarak sunulmaz |
+| **Recommender** | SVD | Leave-one-out hit rate / coverage | Hit@10 %3.51, catalog coverage %0.29, random baseline'a göre 115.7x |
 
-Bu değerler portföy/prototip bağlamında tutulur. Raw Kaggle verisi ve yerel `olist.db`
-ile yeniden çalıştırılmadan güncel model performansı olarak sunulmamalıdır.
+Bu değerler portföy/prototip bağlamında tutulur. Raw Kaggle verisi ve yerel
+`olist.db` ile `python scripts/evaluate_olist_results.py --pretty` yeniden
+çalıştırılmadan güncel model performansı olarak sunulmamalıdır.
+
+Benchmark ve artifact üretimi ayrı tutulur:
+
+```bash
+python -m src.ml.benchmark --skip-optuna
+python -m src.ml.benchmark --skip-optuna --save-artifacts
+python -m src.ml.train
+```
+
+İlk komut yalnızca ölçüm yapar ve `models/` altına dosya yazmaz. Artifact
+üretmek için açıkça `--save-artifacts` verilmeli veya eğitim akışı
+çalıştırılmalıdır.
 
 ---
 

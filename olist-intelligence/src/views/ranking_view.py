@@ -20,7 +20,7 @@ def render_ranking_view(start_date=None, end_date=None):
                             title="Kategoriye Göre Satış", color='total_sales',
                             color_continuous_scale='Viridis',
                             labels={'product_category': 'Kategori', 'total_sales': 'Toplam Satış (BRL)'})
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 
                 st.dataframe(df_products.style.format({"total_sales": "{:,.0f} BRL", "order_count": "{:,}"}))
             else:
@@ -44,7 +44,7 @@ def render_ranking_view(start_date=None, end_date=None):
                                  color_continuous_scale='RdYlGn',
                                  labels={'seller_name': 'Satıcı', 'total_revenue': 'Toplam Ciro (BRL)', 'avg_rating': 'Ortalama Puan'})
                     fig1.update_xaxes(tickangle=45)
-                    st.plotly_chart(fig1, use_container_width=True)
+                    st.plotly_chart(fig1, width="stretch")
                 
                 with col2:
                     fig2 = px.scatter(df_sellers, x='order_count', y='avg_rating',
@@ -52,7 +52,7 @@ def render_ranking_view(start_date=None, end_date=None):
                                      hover_name='seller_name',
                                      title="Performans Matrisi",
                                      labels={'order_count': 'Sipariş Sayısı', 'avg_rating': 'Ortalama Puan', 'on_time_rate': 'Zamanında Teslimat %'})
-                    st.plotly_chart(fig2, use_container_width=True)
+                    st.plotly_chart(fig2, width="stretch")
                 
                 # Display table with formatted seller names
                 display_df = df_sellers[['seller_name', 'order_count', 'total_revenue', 'avg_rating', 'on_time_rate']].copy()
@@ -80,7 +80,7 @@ def render_ranking_view(start_date=None, end_date=None):
                                     color='avg_review', color_continuous_scale='RdYlGn',
                                     title="Kategori Ağacı (Gelir & Puan)",
                                     labels={'category': 'Kategori', 'revenue': 'Gelir', 'avg_review': 'Ort. Puan'})
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                     
                     # Additional bar chart for clarity
                     fig2 = px.bar(df_categories.head(15), x='category', y='revenue',
@@ -88,7 +88,7 @@ def render_ranking_view(start_date=None, end_date=None):
                                  title="Top 15 Kategori (Gelir Bazlı)",
                                  labels={'category': 'Kategori', 'revenue': 'Gelir (BRL)', 'avg_review': 'Ort. Puan'})
                     fig2.update_xaxes(tickangle=45)
-                    st.plotly_chart(fig2, use_container_width=True)
+                    st.plotly_chart(fig2, width="stretch")
                 else:
                     st.info("Kategori verisi bulunamadı.")
             else:

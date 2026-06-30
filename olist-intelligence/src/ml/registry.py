@@ -126,6 +126,7 @@ def register_model(model, model_name: str, metrics: dict, params: dict = None, f
 def save_model_locally(model, model_name: str):
     """Save model to local path as fallback."""
     path = MODELS_PATH / f"{model_name}_model.pkl"
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'wb') as f:
         pickle.dump(model, f)
     print(f"Model saved locally: {path}")

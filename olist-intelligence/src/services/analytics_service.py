@@ -1,6 +1,119 @@
 import pandas as pd
 from src.database import repository
 
+
+def build_impact_scenario_summary(source_baselines, late_reduction_pct=10, repeat_uplift_pp=1.0):
+    """Build lightweight source-baseline and planning scenario metrics."""
+    delivery = source_baselines.get("delivery", {})
+    repeat = source_baselines.get("repeat_purchase", {})
+
+    delivered_orders = delivery.get("delivered_orders", 0)
+    late_orders = delivery.get("late_orders", 0)
+    late_rate = delivery.get("late_delivery_rate_pct", 0.0)
+    avg_late_days = delivery.get("avg_days_late_when_late", 0.0)
+    prevented_late_orders = late_orders * late_reduction_pct / 100
+    projected_late_rate = (
+        (late_orders - prevented_late_orders) / delivered_orders * 100
+        if delivered_orders
+        else 0.0
+    )
+
+    unique_customers = repeat.get("unique_customers", 0)
+    repeat_rate = repeat.get("repeat_customer_rate_pct", 0.0)
+    additional_repeat_customers = unique_customers * repeat_uplift_pp / 100
+
+    return {
+        "source_baselines": source_baselines,
+        "delivery_scenario": {
+            "assumption": f"{late_reduction_pct}% fewer late deliveries",
+            "baseline_late_rate_pct": late_rate,
+            "projected_late_rate_pct": projected_late_rate,
+            "late_rate_delta_pp": projected_late_rate - late_rate,
+            "prevented_late_orders": prevented_late_orders,
+            "potential_late_days_avoided": prevented_late_orders * avg_late_days,
+        },
+        "repeat_purchase_scenario": {
+            "assumption": f"+{repeat_uplift_pp:.1f} pp repeat-customer uplift",
+            "baseline_repeat_rate_pct": repeat_rate,
+            "projected_repeat_rate_pct": min(100.0, repeat_rate + repeat_uplift_pp),
+            "additional_repeat_customers": additional_repeat_customers,
+        },
+        "boundary": "Scenario targets are assumptions for future experiments, not measured impact.",
+    }
+
+
+def build_dashboard_outcome_scorecard(
+    impact_summary,
+    payment_mix=None,
+    cohort_retention=None,
+    seller_sla_watchlist=None,
+):
+    """Build lightweight dashboard rows that separate baselines from impact."""
+    source_baselines = impact_summary.get("source_baselines", {})
+    delivery = source_baselines.get("delivery", {})
+    repeat = source_baselines.get("repeat_purchase", {})
+    delivery_scenario = impact_summary.get("delivery_scenario", {})
+    repeat_scenario = impact_summary.get("repeat_purchase_scenario", {})
+    repeat_delta_pp = (
+        repeat_scenario.get("projected_repeat_rate_pct", 0.0)
+        - repeat_scenario.get("baseline_repeat_rate_pct", 0.0)
+    )
+
+    payment_methods = len(payment_mix) if payment_mix is not None else 0
+    cohort_rows = len(cohort_retention) if cohort_retention is not None else 0
+    seller_rows = len(seller_sla_watchlist) if seller_sla_watchlist is not None else 0
+
+    return [
+        {
+            "area": "Actual delivery operation",
+            "baseline": f"{delivery.get('late_delivery_rate_pct', 0.0):.2f}% late rate",
+            "current_or_target": "No post-intervention delivery period",
+            "measured_change": "No actual delivery-time improvement measured",
+            "status": "Source baseline only",
+        },
+        {
+            "area": "Delivery scenario target",
+            "baseline": f"{delivery_scenario.get('baseline_late_rate_pct', 0.0):.2f}% late rate",
+            "current_or_target": f"{delivery_scenario.get('projected_late_rate_pct', 0.0):.2f}% late rate",
+            "measured_change": (
+                f"{delivery_scenario.get('late_rate_delta_pp', 0.0):.2f} pp target; "
+                f"{delivery_scenario.get('prevented_late_orders', 0.0):,.0f} late orders if validated"
+            ),
+            "status": "Future experiment target",
+        },
+        {
+            "area": "Repeat purchase / churn",
+            "baseline": (
+                f"{repeat.get('repeat_customer_rate_pct', 0.0):.2f}% repeat; "
+                f"{repeat.get('one_time_customer_rate_pct', 0.0):.2f}% one-time"
+            ),
+            "current_or_target": "No measured campaign result",
+            "measured_change": "No churn or retention uplift measured",
+            "status": "Use cohort retention before impact claims",
+        },
+        {
+            "area": "Repeat-purchase scenario target",
+            "baseline": f"{repeat_scenario.get('baseline_repeat_rate_pct', 0.0):.2f}% repeat",
+            "current_or_target": f"{repeat_scenario.get('projected_repeat_rate_pct', 0.0):.2f}% repeat",
+            "measured_change": (
+                f"+{repeat_delta_pp:.1f} pp target; "
+                f"{repeat_scenario.get('additional_repeat_customers', 0.0):,.0f} repeat customers if validated"
+            ),
+            "status": "Future experiment target",
+        },
+        {
+            "area": "Executive analytics coverage",
+            "baseline": "Raw Olist tables",
+            "current_or_target": (
+                f"{payment_methods} payment methods; {cohort_rows} cohort rows; "
+                f"{seller_rows} seller watchlist rows"
+            ),
+            "measured_change": "Dashboard evidence coverage improved, not business outcome",
+            "status": "SQL mart coverage",
+        },
+    ]
+
+
 def get_daily_pulse(start_date, end_date):
     """Aggregates key metrics for the Home Page."""
     total_orders = repository.get_total_orders(start_date, end_date)
@@ -26,12 +139,19 @@ def get_executive_dashboard_data(start_date, end_date):
     payment_mix = repository.get_payment_mix_summary(start_date, end_date)
     cohort_retention = repository.get_cohort_retention_matrix(start_date, end_date)
     seller_sla_watchlist = repository.get_seller_sla_watchlist()
+    impact_summary = build_impact_scenario_summary(repository.get_source_business_baselines())
 
     if not seller_sla_watchlist.empty and "seller_id" in seller_sla_watchlist.columns:
         seller_sla_watchlist = seller_sla_watchlist.copy()
         seller_sla_watchlist["seller_label"] = seller_sla_watchlist["seller_id"].apply(
             lambda value: f"Seller {str(value)[:8]}..."
         )
+    outcome_scorecard = build_dashboard_outcome_scorecard(
+        impact_summary,
+        payment_mix=payment_mix,
+        cohort_retention=cohort_retention,
+        seller_sla_watchlist=seller_sla_watchlist,
+    )
 
     return {
         "revenue_by_state": revenue_by_state,
@@ -39,6 +159,8 @@ def get_executive_dashboard_data(start_date, end_date):
         "payment_mix": payment_mix,
         "cohort_retention": cohort_retention,
         "seller_sla_watchlist": seller_sla_watchlist,
+        "impact_summary": impact_summary,
+        "outcome_scorecard": outcome_scorecard,
     }
 
 def get_logistics_data(start_date, end_date):

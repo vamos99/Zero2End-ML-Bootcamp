@@ -26,6 +26,8 @@ Then open JupyterLab and run notebooks from `notebooks/`:
 
 - Source notebooks are committed without execution counts or stored outputs.
 - Report model metrics only after rerunning the source notebook or benchmark.
+- Delivery metrics separate source business baseline, train-mean baseline,
+  Olist estimated-date duration baseline, and CatBoost prediction error.
 - Churn features are calculated before a cutoff; labels come from the following
   90-day window.
 - The churn/repeat-purchase workflow checks class balance before training. On
@@ -35,6 +37,12 @@ Then open JupyterLab and run notebooks from `notebooks/`:
   remain a documented prototype limitation.
 - Segmentation preserves all customers, assigns relative profile labels, and
   treats campaign actions as experiment hypotheses.
+- Scenario tables are planning targets only; they are not measured after-state
+  results.
+- Final and executive notebooks must render both shared tables from
+  `scripts.evaluate_olist_results.build_summary()`: `outcome_scorecard` for the
+  plain before/current/result answer, and `evidence_rows` for the detailed
+  source baseline / benchmark / scenario evidence boundary.
 - ROI, uplift, calibration, production readiness, and drift are not claimed
   without supporting evidence.
 
