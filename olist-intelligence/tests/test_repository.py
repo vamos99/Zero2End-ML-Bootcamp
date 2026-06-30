@@ -137,6 +137,53 @@ class TestRepository:
         assert result is baselines
         get_baselines_impl.assert_called_once_with()
 
+    def test_logistics_facade_delegates_without_breaking_dashboard_imports(self):
+        """Logistics dashboard imports continue through the repository facade."""
+        from src.database.repository import get_logistics_details, get_logistics_metrics
+
+        metrics = {"available": True, "avg_time": 8.5}
+        with patch(
+            "src.database.repository.logistics_repository.get_logistics_metrics",
+            return_value=metrics,
+        ) as get_logistics_metrics_impl:
+            result = get_logistics_metrics("2024-01-01", "2024-01-31")
+
+        assert result is metrics
+        get_logistics_metrics_impl.assert_called_once_with("2024-01-01", "2024-01-31")
+
+        expected = pd.DataFrame({"order_id": ["o1"]})
+        with patch(
+            "src.database.repository.logistics_repository.get_logistics_details",
+            return_value=expected,
+        ) as get_logistics_details_impl:
+            result = get_logistics_details("2024-01-01", "2024-01-31", limit=3)
+
+        assert result is expected
+        get_logistics_details_impl.assert_called_once_with("2024-01-01", "2024-01-31", 3)
+
+    def test_customer_facade_delegates_without_breaking_dashboard_imports(self):
+        """Customer and segment imports continue through the repository facade."""
+        from src.database.repository import get_churn_risk_count, get_target_audience
+
+        with patch(
+            "src.database.repository.customer_repository.get_churn_risk_count",
+            return_value=12,
+        ) as get_churn_risk_count_impl:
+            result = get_churn_risk_count()
+
+        assert result == 12
+        get_churn_risk_count_impl.assert_called_once_with()
+
+        expected = pd.DataFrame({"customer_unique_id": ["c1"]})
+        with patch(
+            "src.database.repository.customer_repository.get_target_audience",
+            return_value=expected,
+        ) as get_target_audience_impl:
+            result = get_target_audience("At Risk", limit=25)
+
+        assert result is expected
+        get_target_audience_impl.assert_called_once_with("At Risk", 25)
+
     @patch('src.database.repository.engine')
     def test_get_revenue_metrics(self, mock_engine):
         """Test executive revenue metric calculation."""
