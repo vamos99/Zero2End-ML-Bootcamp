@@ -621,6 +621,96 @@ def build_outcome_scorecard(summary: dict[str, Any]) -> list[dict[str, str]]:
     ]
 
 
+def build_plain_language_answers(summary: dict[str, Any]) -> list[dict[str, str]]:
+    """
+    Answer the common "what improved?" questions without overstating impact.
+
+    The public Olist snapshot has no treatment/control group or post-model
+    operating period. Therefore, only offline benchmark gains and explicit
+    scenario targets can be expressed as before/current deltas.
+    """
+    delivery_source = summary["source_business_baselines"]["delivery"]
+    repeat_source = summary["source_business_baselines"]["repeat_purchase"]
+    delivery_model = summary["delivery_prediction"]
+    repeat_gate = summary["repeat_purchase_candidate"]
+    recommender = summary["recommender"]
+    delivery_10pct = summary["intervention_scenarios"]["delivery"][0]
+    repeat_1pp = summary["intervention_scenarios"]["repeat_purchase"][1]
+
+    return [
+        {
+            "question": "Teslim süresi ne kadar iyileşti?",
+            "short_answer": "Gerçek teslim süresi iyileşmesi ölçülmedi.",
+            "numeric_evidence": (
+                f"Kaynak baseline {_fmt_days(delivery_source['avg_actual_delivery_days'])} "
+                f"ortalama teslimat ve {_fmt_pct(delivery_source['late_delivery_rate_pct'])} "
+                "geç teslimat oranıdır."
+            ),
+            "what_changed": (
+                f"Tahmin kalitesi iyileşti: CatBoost MAE {_fmt_days(delivery_model['mae_days'])}; "
+                f"train-mean baseline'a göre {_fmt_pct(delivery_model['mae_improvement_vs_baseline_pct'])}, "
+                f"Olist estimated-date baseline'a göre "
+                f"{_fmt_pct(delivery_model['mae_improvement_vs_source_estimate_pct'])} daha düşük hata."
+            ),
+            "claim_boundary": (
+                "Bu, teslimat operasyonunun hızlandığı anlamına gelmez; sadece "
+                "offline tahmin benchmark'ının iyileştiğini gösterir."
+            ),
+        },
+        {
+            "question": "Churn veya retention ne kadar iyileşti?",
+            "short_answer": "Churn/retention uplift ölçülmedi.",
+            "numeric_evidence": (
+                f"Kaynak repeat-customer oranı {_fmt_pct(repeat_source['repeat_customer_rate_pct'])}; "
+                f"one-time customer oranı {_fmt_pct(repeat_source['one_time_customer_rate_pct'])}. "
+                f"Risk label share {_fmt_pct(repeat_gate['risk_label_share_pct'])}."
+            ),
+            "what_changed": (
+                "Churn modeli başarı diye sunulmadı; sınıf dengesi uygun olmadığı için "
+                "model evaluation gate başarısız olarak raporlandı."
+            ),
+            "claim_boundary": (
+                "Bu alan için doğru sonraki adım cohort retention ve kontrollü kampanya "
+                "deneyi kurmaktır."
+            ),
+        },
+        {
+            "question": "Recommendation tarafında ne iyileşti?",
+            "short_answer": "Satış uplift'i değil, offline ranking benchmark'ı iyileşti.",
+            "numeric_evidence": (
+                f"Random catalog hit@10 {_fmt_pct(recommender['random_catalog_hit_rate_at_k'] * 100)}; "
+                f"SVD hit@10 {_fmt_pct(recommender['hit_rate_at_k'] * 100)}."
+            ),
+            "what_changed": (
+                f"SVD recommender random catalog baseline'a göre "
+                f"{recommender['lift_vs_random_catalog']:.1f}x lift üretti."
+            ),
+            "claim_boundary": "Sepet, gelir veya dönüşüm artışı ölçülmedi.",
+        },
+        {
+            "question": "Peki önce/sonra yüzdesi hiç yok mu?",
+            "short_answer": "Var, ama gerçekleşmiş impact değil; planlama scenario'su olarak var.",
+            "numeric_evidence": (
+                f"10% late-delivery prevention scenario'su geç teslimat oranını "
+                f"{_fmt_pct(delivery_10pct['baseline_late_rate_pct'])} -> "
+                f"{_fmt_pct(delivery_10pct['projected_late_rate_pct'])} hedefler. "
+                f"+1 pp repeat scenario'su repeat oranını "
+                f"{_fmt_pct(repeat_1pp['baseline_repeat_rate_pct'])} -> "
+                f"{_fmt_pct(repeat_1pp['projected_repeat_rate_pct'])} hedefler."
+            ),
+            "what_changed": (
+                f"Bu hedefler sırasıyla {delivery_10pct['prevented_late_orders']:.0f} "
+                f"geç siparişin önlenmesi ve {repeat_1pp['additional_repeat_customers']:.0f} "
+                "ek repeat customer anlamına gelir."
+            ),
+            "claim_boundary": (
+                "Bu sayılar A/B test, holdout kampanya veya operasyon loguyla doğrulanmadan "
+                "gerçekleşmiş iyileşme diye yazılmamalıdır."
+            ),
+        },
+    ]
+
+
 def build_summary() -> dict[str, Any]:
     baselines = source_business_baselines()
     summary = {
@@ -637,6 +727,7 @@ def build_summary() -> dict[str, Any]:
     }
     summary["evidence_rows"] = build_evidence_rows(summary)
     summary["outcome_scorecard"] = build_outcome_scorecard(summary)
+    summary["plain_language_answers"] = build_plain_language_answers(summary)
     return summary
 
 
