@@ -53,6 +53,11 @@ def test_build_summary_includes_source_baselines(monkeypatch):
     )
     monkeypatch.setattr(evaluate_olist_results, "build_evidence_rows", lambda summary: [{"ok": True}])
     monkeypatch.setattr(evaluate_olist_results, "build_outcome_scorecard", lambda summary: [{"score": True}])
+    monkeypatch.setattr(
+        evaluate_olist_results,
+        "build_plain_language_answers",
+        lambda summary: [{"answer": True}],
+    )
 
     result = evaluate_olist_results.build_summary()
 
@@ -60,6 +65,7 @@ def test_build_summary_includes_source_baselines(monkeypatch):
     assert result["intervention_scenarios"] == {"from_baselines": {"ok": True}}
     assert result["evidence_rows"] == [{"ok": True}]
     assert result["outcome_scorecard"] == [{"score": True}]
+    assert result["plain_language_answers"] == [{"answer": True}]
     assert result["analytics_operating_signals"] == {"analytics": True}
     assert "not measured business impact" in result["important_boundary"]
 
@@ -331,6 +337,62 @@ def test_outcome_scorecard_answers_what_actually_improved():
     assert churn["measured_change"] == "No churn or retention uplift measured"
     scenario = next(row for row in rows if row["area"] == "Delivery scenario target")
     assert scenario["status"] == "future experiment target, not measured impact"
+
+
+def test_plain_language_answers_separate_prediction_gain_from_business_impact():
+    summary = {
+        "source_business_baselines": {
+            "delivery": {
+                "avg_actual_delivery_days": 12.5,
+                "late_delivery_rate_pct": 10.0,
+            },
+            "repeat_purchase": {
+                "repeat_customer_rate_pct": 3.0,
+                "one_time_customer_rate_pct": 97.0,
+            },
+        },
+        "delivery_prediction": {
+            "mae_days": 6.0,
+            "mae_improvement_vs_baseline_pct": 25.0,
+            "mae_improvement_vs_source_estimate_pct": 50.0,
+        },
+        "repeat_purchase_candidate": {
+            "risk_label_share_pct": 99.0,
+        },
+        "recommender": {
+            "random_catalog_hit_rate_at_k": 0.001,
+            "hit_rate_at_k": 0.02,
+            "lift_vs_random_catalog": 20.0,
+        },
+        "intervention_scenarios": {
+            "delivery": [
+                {
+                    "baseline_late_rate_pct": 10.0,
+                    "projected_late_rate_pct": 9.0,
+                    "prevented_late_orders": 100,
+                }
+            ],
+            "repeat_purchase": [
+                {"unused": True},
+                {
+                    "baseline_repeat_rate_pct": 3.0,
+                    "projected_repeat_rate_pct": 4.0,
+                    "additional_repeat_customers": 900,
+                },
+            ],
+        },
+    }
+
+    rows = evaluate_olist_results.build_plain_language_answers(summary)
+
+    delivery_answer = rows[0]
+    assert delivery_answer["question"] == "Teslim süresi ne kadar iyileşti?"
+    assert delivery_answer["short_answer"] == "Gerçek teslim süresi iyileşmesi ölçülmedi."
+    assert "50.00%" in delivery_answer["what_changed"]
+    assert "offline tahmin benchmark" in delivery_answer["claim_boundary"]
+    scenario_answer = rows[-1]
+    assert "10.00% -> 9.00%" in scenario_answer["numeric_evidence"]
+    assert "gerçekleşmiş iyileşme diye yazılmamalıdır" in scenario_answer["claim_boundary"]
 
 
 def test_intervention_scenarios_are_explicit_assumption_based():

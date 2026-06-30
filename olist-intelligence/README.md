@@ -45,8 +45,11 @@ iyileşme değil, modelleme uygunluk kapısı raporlanır.
 | Scenario hedefi | %6.77 geç teslimat | %6.10 geç teslimat, 653 geç sipariş önleme varsayımı | Gelecek deney hedefi, gerçekleşmiş impact değil |
 
 Kod tarafında aynı ayrım `scripts/evaluate_olist_results.py` içindeki
-`outcome_scorecard` ve `evidence_rows` çıktılarıyla yeniden üretilir. NB5 ve
-NB6 bu çıktıları doğrudan kullanır. Dashboard ana sayfası da hafif
+`outcome_scorecard`, `plain_language_answers` ve `evidence_rows` çıktılarıyla
+yeniden üretilir. `plain_language_answers` özellikle "teslim süresi ne kadar
+iyileşti?", "churn ne kadar azaldı?" ve "recommender ne kazandırdı?"
+sorularına kısa cevap verir. NB5 ve NB6 bu çıktıları doğrudan kullanır.
+Dashboard ana sayfası da hafif
 `outcome_scorecard` tablosuyla gerçek impact, source baseline ve scenario
 hedeflerini ayrı gösterir.
 

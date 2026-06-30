@@ -31,11 +31,13 @@ REQUIRED_BY_NOTEBOOK = {
         "build_summary": "shared measured-results summary builder",
         "evidence_rows": "source baseline / benchmark / scenario evidence table",
         "outcome_scorecard": "plain-language before/current/result scorecard",
+        "plain_language_answers": "direct answers for improvement vs impact questions",
     },
     "6_executive_pipeline.ipynb": {
         "build_summary": "shared measured-results summary builder",
         "evidence_rows": "source baseline / benchmark / scenario evidence table",
         "outcome_scorecard": "plain-language before/current/result scorecard",
+        "plain_language_answers": "direct answers for improvement vs impact questions",
     },
 }
 
