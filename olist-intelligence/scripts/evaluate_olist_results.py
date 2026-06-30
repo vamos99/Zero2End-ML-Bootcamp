@@ -525,6 +525,102 @@ def build_evidence_rows(summary: dict[str, Any]) -> list[dict[str, str]]:
     ]
 
 
+def build_outcome_scorecard(summary: dict[str, Any]) -> list[dict[str, str]]:
+    """Return plain-language before/current/result rows for portfolio readers."""
+    source = summary["source_business_baselines"]
+    delivery_source = source["delivery"]
+    repeat_source = source["repeat_purchase"]
+    delivery_model = summary["delivery_prediction"]
+    repeat_gate = summary["repeat_purchase_candidate"]
+    recommender = summary["recommender"]
+    analytics = summary["analytics_operating_signals"]
+    delivery_10pct = summary["intervention_scenarios"]["delivery"][0]
+    repeat_1pp = summary["intervention_scenarios"]["repeat_purchase"][1]
+
+    if analytics.get("available") is False:
+        analytics_current = "Analytics marts unavailable"
+    else:
+        analytics_current = (
+            f"{analytics.get('seller_sla', {}).get('seller_rows', 0):,} seller SLA rows; "
+            f"{analytics.get('segmentation', {}).get('customers', 0):,} segmented customers; "
+            f"month-1 retention {_fmt_pct(analytics.get('cohort_retention', {}).get('month_1_avg_retention_pct', 0.0))}"
+        )
+
+    return [
+        {
+            "area": "Actual delivery operation",
+            "before": (
+                f"{_fmt_days(delivery_source['avg_actual_delivery_days'])} avg delivery; "
+                f"{_fmt_pct(delivery_source['late_delivery_rate_pct'])} late rate"
+            ),
+            "current_or_model_result": "No post-intervention operating period in the dataset",
+            "measured_change": "No actual delivery-time improvement measured",
+            "status": "source baseline only",
+        },
+        {
+            "area": "Delivery prediction",
+            "before": (
+                f"Train-mean MAE {_fmt_days(delivery_model['train_mean_baseline_mae_days'])}; "
+                f"Olist estimated-date MAE {_fmt_days(delivery_model['source_estimate_mae_days'])}"
+            ),
+            "current_or_model_result": f"CatBoost MAE {_fmt_days(delivery_model['mae_days'])}",
+            "measured_change": (
+                f"{_fmt_pct(delivery_model['mae_improvement_vs_baseline_pct'])} lower MAE vs train mean; "
+                f"{_fmt_pct(delivery_model['mae_improvement_vs_source_estimate_pct'])} lower MAE vs Olist estimated-date baseline"
+            ),
+            "status": "offline prediction benchmark improved",
+        },
+        {
+            "area": "Repeat purchase / churn",
+            "before": (
+                f"{_fmt_pct(repeat_source['repeat_customer_rate_pct'])} repeat customers; "
+                f"{_fmt_pct(repeat_source['one_time_customer_rate_pct'])} one-time customers"
+            ),
+            "current_or_model_result": (
+                "Model gate passed"
+                if repeat_gate["usable_for_model_eval"]
+                else "Model gate failed because the label distribution is too imbalanced"
+            ),
+            "measured_change": "No churn or retention uplift measured",
+            "status": "use cohort retention and experiment design before impact claims",
+        },
+        {
+            "area": "Recommendation quality",
+            "before": f"Random catalog hit@10 {_fmt_pct(recommender['random_catalog_hit_rate_at_k'] * 100)}",
+            "current_or_model_result": f"SVD hit@10 {_fmt_pct(recommender['hit_rate_at_k'] * 100)}",
+            "measured_change": f"{recommender['lift_vs_random_catalog']:.1f}x random baseline",
+            "status": "offline ranking benchmark improved; sales uplift not measured",
+        },
+        {
+            "area": "Executive analytics coverage",
+            "before": "Raw Olist tables only",
+            "current_or_model_result": analytics_current,
+            "measured_change": "Dashboard evidence coverage improved, not business outcome",
+            "status": "SQL mart and generated-output coverage",
+        },
+        {
+            "area": "Delivery scenario target",
+            "before": _fmt_pct(delivery_10pct["baseline_late_rate_pct"]),
+            "current_or_model_result": _fmt_pct(delivery_10pct["projected_late_rate_pct"]),
+            "measured_change": (
+                f"{delivery_10pct['late_rate_delta_pp']:.2f} pp target; "
+                f"{delivery_10pct['prevented_late_orders']:.0f} late orders if validated"
+            ),
+            "status": "future experiment target, not measured impact",
+        },
+        {
+            "area": "Repeat-purchase scenario target",
+            "before": _fmt_pct(repeat_1pp["baseline_repeat_rate_pct"]),
+            "current_or_model_result": _fmt_pct(repeat_1pp["projected_repeat_rate_pct"]),
+            "measured_change": (
+                f"+{repeat_1pp['repeat_rate_delta_pp']:.1f} pp target; "
+                f"{repeat_1pp['additional_repeat_customers']:.0f} repeat customers if validated"
+            ),
+            "status": "future experiment target, not measured impact",
+        },
+    ]
+
+
 def build_summary() -> dict[str, Any]:
     baselines = source_business_baselines()
     summary = {
@@ -540,6 +636,7 @@ def build_summary() -> dict[str, Any]:
         "intervention_scenarios": intervention_scenarios(baselines),
     }
     summary["evidence_rows"] = build_evidence_rows(summary)
+    summary["outcome_scorecard"] = build_outcome_scorecard(summary)
     return summary
 
 

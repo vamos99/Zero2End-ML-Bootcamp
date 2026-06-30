@@ -27,7 +27,12 @@ kısaldı" ya da "churn X% azaldı" iddiası yoktur. Ölçülen sayılar üç gr
 ayrılır: kaynak verideki mevcut durum, offline model benchmark'ı ve gelecekteki
 deneyler için scenario hedefi.
 
-Son local ölçüm (`scripts/evaluate_olist_results.py --pretty`, 2026-06-29):
+Son local ölçüm (`scripts/evaluate_olist_results.py --pretty`, 2026-06-30):
+
+Kısa cevap: **gerçek teslimat süresi, churn veya satış etkisi henüz
+iyileştirildi diye sunulmuyor**. Ölçülen iyileşme delivery ve recommender
+tarafında offline benchmark iyileşmesidir; retention/churn tarafında ise
+iyileşme değil, modelleme uygunluk kapısı raporlanır.
 
 | Alan | Mevcut durum / baseline | Model veya hedef sonucu | Güvenli yorum |
 | --- | ---: | ---: | --- |
@@ -38,6 +43,10 @@ Son local ölçüm (`scripts/evaluate_olist_results.py --pretty`, 2026-06-29):
 | Recommender | Random hit@10 %0.03 | SVD hit@10 %3.51, 115.7x random baseline | Ranking benchmark'ı var; satış uplift'i yok |
 | Executive analytics | Credit card payment share %78.34; month-1 retention %5.20 | 2,970 seller SLA rows; 93,358 segmented customers | SQL mart/generated-output kanıtı var; impact iddiası yok |
 | Scenario hedefi | %6.77 geç teslimat | %6.10 geç teslimat, 653 geç sipariş önleme varsayımı | Gelecek deney hedefi, gerçekleşmiş impact değil |
+
+Kod tarafında aynı ayrım `scripts/evaluate_olist_results.py` içindeki
+`outcome_scorecard` ve `evidence_rows` çıktılarıyla yeniden üretilir. NB5 ve
+NB6 bu çıktıları doğrudan kullanır.
 
 
 | **Ana Sayfa (Dashboard)** | **Operasyon Merkezi** |

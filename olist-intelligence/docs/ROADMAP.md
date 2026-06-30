@@ -31,10 +31,15 @@ not replace issues or project cards.
 - Source baseline and scenario target cards on the executive dashboard
 - Benchmark scripts now separate measurement from explicit artifact writes
 - Retention action drafts now expose metric, baseline, and evidence needs
+- Shared outcome scorecard now separates actual business impact, offline
+  benchmark gains, analytics coverage, and future scenario targets
 
 ## Remaining Cleanup Before New Analytics
 
 - Keep project board, docs, screenshots, and actual code status aligned.
+- Keep measured-result numbers synchronized by rerunning
+  `scripts/evaluate_olist_results.py --pretty` before changing README,
+  RESULTS, model cards, or executive notebooks.
 
 ## Next Analytics Phases
 

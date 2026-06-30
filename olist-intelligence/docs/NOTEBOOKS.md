@@ -39,9 +39,10 @@ Then open JupyterLab and run notebooks from `notebooks/`:
   treats campaign actions as experiment hypotheses.
 - Scenario tables are planning targets only; they are not measured after-state
   results.
-- Final and executive notebooks must render the shared `evidence_rows` table
-  from `scripts.evaluate_olist_results.build_summary()` so source baselines,
-  offline benchmark gains, and scenario targets remain visibly separated.
+- Final and executive notebooks must render both shared tables from
+  `scripts.evaluate_olist_results.build_summary()`: `outcome_scorecard` for the
+  plain before/current/result answer, and `evidence_rows` for the detailed
+  source baseline / benchmark / scenario evidence boundary.
 - ROI, uplift, calibration, production readiness, and drift are not claimed
   without supporting evidence.
 

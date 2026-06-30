@@ -5,7 +5,7 @@ Bu sayfa, local Olist veritabanı ve repo içindeki çalıştırılabilir script
 kampanya uplift'i değildir; bootcamp/portfolio prototipinin ölçülen teknik ve
 analitik çıktılarıdır.
 
-Son ölçüm: 2026-06-28, local SQLite snapshot.
+Son ölçüm: 2026-06-30, local SQLite snapshot.
 
 ## Outcome vs. Business Impact
 
@@ -19,6 +19,11 @@ alanı bu ayrımı makine-okunur şekilde de üretir. Böylece README, notebook 
 dashboard metinleri aynı sınırı kullanır: source baseline mevcut durumu,
 offline benchmark model tahmin kalitesini, scenario ise gelecek deney hedefini
 anlatır.
+
+Aynı script içindeki `outcome_scorecard` alanı, okuyucuya doğrudan
+"önce neydi, şimdi ne ölçüldü, ne gerçekten değişti?" sorusunun cevabını verir.
+Bu yüzden teslimat veya churn için operasyonel iyileşme iddiası ancak
+`measured_change` alanında açıkça kanıt varsa yazılmalıdır.
 
 | Alan | Ölçülen sonuç | Ölçülmeyen iş etkisi |
 | --- | --- | --- |
