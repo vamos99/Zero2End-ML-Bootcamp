@@ -91,6 +91,16 @@ def test_analytics_operating_signals_summarize_sql_marts(monkeypatch):
             "max_late_delivery_rate": [100.0],
         }
     )
+    category_rows = pd.DataFrame(
+        {
+            "category": ["health_beauty", "watches_gifts"],
+            "orders": [10, 5],
+            "items": [12, 6],
+            "product_revenue": [80.0, 20.0],
+            "avg_review_score": [4.2, 3.8],
+            "late_delivery_rate": [6.0, 12.0],
+        }
+    )
     generated_rows = pd.DataFrame(
         {
             "table_name": ["logistics_predictions", "customer_segments"],
@@ -118,6 +128,7 @@ def test_analytics_operating_signals_summarize_sql_marts(monkeypatch):
                 payment_rows,
                 cohort_rows,
                 seller_rows,
+                category_rows,
                 generated_rows,
                 segment_rows,
             ]
@@ -131,6 +142,8 @@ def test_analytics_operating_signals_summarize_sql_marts(monkeypatch):
     assert result["payment_mix"]["top_payment_share_pct"] == 80.0
     assert result["cohort_retention"]["month_1_avg_retention_pct"] == 5.0
     assert result["seller_sla"]["seller_rows"] == 3
+    assert result["category_performance"]["top_category"] == "health_beauty"
+    assert result["category_performance"]["top_category_revenue_share_pct"] == 80.0
     assert result["generated_outputs"]["logistics_predictions"] == 100
     assert result["segmentation"]["largest_segment"] == "Developing"
 

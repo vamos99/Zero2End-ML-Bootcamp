@@ -13,6 +13,8 @@ Postgres-like environments.
 - `payment_mix_summary.sql`: payment type, installment and payment-value mix.
 - `review_delivery_drivers.sql`: review-score buckets versus delivery quality.
 - `seller_sla_summary.sql`: seller-level SLA, revenue, item and review metrics.
+- `category_performance_summary.sql`: category revenue, review, and delivery
+  quality metrics.
 - `customer_cohort_retention.sql`: monthly cohort retention using
   `customer_unique_id`.
 - `customer_segment_summary.sql`: RFM segment summary after the segmentation
