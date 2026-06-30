@@ -24,6 +24,8 @@ Aynı script içindeki `outcome_scorecard` alanı, okuyucuya doğrudan
 "önce neydi, şimdi ne ölçüldü, ne gerçekten değişti?" sorusunun cevabını verir.
 Bu yüzden teslimat veya churn için operasyonel iyileşme iddiası ancak
 `measured_change` alanında açıkça kanıt varsa yazılmalıdır.
+Dashboard ana sayfasındaki outcome scorecard da aynı ayrımı hafif servis
+verisiyle gösterir; sayfa açılışında model benchmark'ı yeniden eğitmez.
 
 | Alan | Ölçülen sonuç | Ölçülmeyen iş etkisi |
 | --- | --- | --- |

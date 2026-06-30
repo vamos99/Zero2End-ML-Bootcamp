@@ -18,6 +18,23 @@ def _format_count(value):
     return f"{value:,.0f}"
 
 
+def _scorecard_markdown(rows):
+    return "\n".join(
+        (
+            "- **{area}**: baseline `{baseline}`; current/target "
+            "`{current_or_target}`; measured change `{measured_change}`; "
+            "status `{status}`."
+        ).format(
+            area=row.get("area", ""),
+            baseline=row.get("baseline", ""),
+            current_or_target=row.get("current_or_target", ""),
+            measured_change=row.get("measured_change", ""),
+            status=row.get("status", ""),
+        )
+        for row in rows
+    )
+
+
 def render_home_view(metrics, executive_data=None):
     executive_data = executive_data or {}
 
@@ -112,6 +129,15 @@ def render_home_view(metrics, executive_data=None):
                 | {repeat_scenario.get("assumption", "Repeat-customer scenario")} | {_format_pct(repeat_scenario.get("baseline_repeat_rate_pct", 0.0))} | {_format_pct(repeat_scenario.get("projected_repeat_rate_pct", 0.0))} | {_format_count(repeat_scenario.get("additional_repeat_customers", 0.0))} customers |
                 """
             )
+
+        outcome_scorecard = executive_data.get("outcome_scorecard", [])
+        if outcome_scorecard:
+            st.markdown("**Measured outcome scorecard**")
+            st.caption(
+                "This table answers what changed: source baseline, scenario target, "
+                "or measured impact. Business impact remains unmeasured unless stated."
+            )
+            st.markdown(_scorecard_markdown(outcome_scorecard))
 
         st.markdown("---")
 

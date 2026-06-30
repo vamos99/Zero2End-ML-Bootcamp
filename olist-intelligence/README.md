@@ -46,7 +46,9 @@ iyileşme değil, modelleme uygunluk kapısı raporlanır.
 
 Kod tarafında aynı ayrım `scripts/evaluate_olist_results.py` içindeki
 `outcome_scorecard` ve `evidence_rows` çıktılarıyla yeniden üretilir. NB5 ve
-NB6 bu çıktıları doğrudan kullanır.
+NB6 bu çıktıları doğrudan kullanır. Dashboard ana sayfası da hafif
+`outcome_scorecard` tablosuyla gerçek impact, source baseline ve scenario
+hedeflerini ayrı gösterir.
 
 
 | **Ana Sayfa (Dashboard)** | **Operasyon Merkezi** |
