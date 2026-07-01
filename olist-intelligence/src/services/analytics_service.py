@@ -47,6 +47,8 @@ def build_dashboard_outcome_scorecard(
     payment_mix=None,
     cohort_retention=None,
     seller_sla_watchlist=None,
+    category_performance=None,
+    location_service_levels=None,
 ):
     """Build lightweight dashboard rows that separate baselines from impact."""
     source_baselines = impact_summary.get("source_baselines", {})
@@ -62,6 +64,8 @@ def build_dashboard_outcome_scorecard(
     payment_methods = len(payment_mix) if payment_mix is not None else 0
     cohort_rows = len(cohort_retention) if cohort_retention is not None else 0
     seller_rows = len(seller_sla_watchlist) if seller_sla_watchlist is not None else 0
+    category_rows = len(category_performance) if category_performance is not None else 0
+    location_rows = len(location_service_levels) if location_service_levels is not None else 0
 
     return [
         {
@@ -106,7 +110,8 @@ def build_dashboard_outcome_scorecard(
             "baseline": "Raw Olist tables",
             "current_or_target": (
                 f"{payment_methods} payment methods; {cohort_rows} cohort rows; "
-                f"{seller_rows} seller watchlist rows"
+                f"{seller_rows} seller watchlist rows; {category_rows} category rows; "
+                f"{location_rows} location lanes"
             ),
             "measured_change": "Dashboard evidence coverage improved, not business outcome",
             "status": "SQL mart coverage",
@@ -139,6 +144,8 @@ def get_executive_dashboard_data(start_date, end_date):
     payment_mix = repository.get_payment_mix_summary(start_date, end_date)
     cohort_retention = repository.get_cohort_retention_matrix(start_date, end_date)
     seller_sla_watchlist = repository.get_seller_sla_watchlist()
+    category_performance = repository.get_category_performance_summary()
+    location_service_levels = repository.get_location_service_levels()
     impact_summary = build_impact_scenario_summary(repository.get_source_business_baselines())
 
     if not seller_sla_watchlist.empty and "seller_id" in seller_sla_watchlist.columns:
@@ -151,6 +158,8 @@ def get_executive_dashboard_data(start_date, end_date):
         payment_mix=payment_mix,
         cohort_retention=cohort_retention,
         seller_sla_watchlist=seller_sla_watchlist,
+        category_performance=category_performance,
+        location_service_levels=location_service_levels,
     )
 
     return {
@@ -159,6 +168,8 @@ def get_executive_dashboard_data(start_date, end_date):
         "payment_mix": payment_mix,
         "cohort_retention": cohort_retention,
         "seller_sla_watchlist": seller_sla_watchlist,
+        "category_performance": category_performance,
+        "location_service_levels": location_service_levels,
         "impact_summary": impact_summary,
         "outcome_scorecard": outcome_scorecard,
     }

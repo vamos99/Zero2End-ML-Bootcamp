@@ -52,12 +52,16 @@ def test_build_dashboard_outcome_scorecard_separates_impact_from_targets():
     payment = pd.DataFrame({"payment_type": ["credit_card", "boleto"]})
     cohort = pd.DataFrame({"cohort_month": ["2017-01"]})
     sellers = pd.DataFrame({"seller_id": ["seller_1", "seller_2", "seller_3"]})
+    categories = pd.DataFrame({"category": ["health_beauty", "watches_gifts"]})
+    locations = pd.DataFrame({"customer_state": ["SP"], "seller_state": ["SP"]})
 
     result = analytics_service.build_dashboard_outcome_scorecard(
         impact_summary,
         payment_mix=payment,
         cohort_retention=cohort,
         seller_sla_watchlist=sellers,
+        category_performance=categories,
+        location_service_levels=locations,
     )
 
     delivery_actual = next(row for row in result if row["area"] == "Actual delivery operation")
@@ -67,7 +71,10 @@ def test_build_dashboard_outcome_scorecard_separates_impact_from_targets():
     churn = next(row for row in result if row["area"] == "Repeat purchase / churn")
     assert churn["measured_change"] == "No churn or retention uplift measured"
     coverage = next(row for row in result if row["area"] == "Executive analytics coverage")
-    assert coverage["current_or_target"] == "2 payment methods; 1 cohort rows; 3 seller watchlist rows"
+    assert coverage["current_or_target"] == (
+        "2 payment methods; 1 cohort rows; 3 seller watchlist rows; "
+        "2 category rows; 1 location lanes"
+    )
 
 
 @patch('src.services.analytics_service.repository')
@@ -111,12 +118,16 @@ def test_get_executive_dashboard_data(mock_repository):
     payment_df = pd.DataFrame({"payment_type": ["credit_card"], "payment_value": [1000], "orders": [10]})
     cohort_df = pd.DataFrame({"cohort_month": ["2017-01"], "months_since_first_order": [1], "retention_rate": [2.5]})
     seller_df = pd.DataFrame({"seller_id": ["seller_123456789"], "late_delivery_rate": [45.0], "orders": [25]})
+    category_df = pd.DataFrame({"category": ["health_beauty"], "product_revenue": [1000.0]})
+    location_df = pd.DataFrame({"customer_state": ["SP"], "seller_state": ["SP"], "orders": [100]})
 
     mock_repository.get_revenue_by_state.return_value = state_df
     mock_repository.get_review_delivery_matrix.return_value = quality_df
     mock_repository.get_payment_mix_summary.return_value = payment_df
     mock_repository.get_cohort_retention_matrix.return_value = cohort_df
     mock_repository.get_seller_sla_watchlist.return_value = seller_df
+    mock_repository.get_category_performance_summary.return_value = category_df
+    mock_repository.get_location_service_levels.return_value = location_df
     mock_repository.get_source_business_baselines.return_value = {
         "delivery": {
             "delivered_orders": 100,
@@ -138,6 +149,8 @@ def test_get_executive_dashboard_data(mock_repository):
     assert result["payment_mix"].equals(payment_df)
     assert result["cohort_retention"].equals(cohort_df)
     assert result["seller_sla_watchlist"].iloc[0]["seller_label"] == "Seller seller_1..."
+    assert result["category_performance"].equals(category_df)
+    assert result["location_service_levels"].equals(location_df)
     assert result["impact_summary"]["delivery_scenario"]["projected_late_rate_pct"] == 9.0
     assert result["outcome_scorecard"][0]["area"] == "Actual delivery operation"
 

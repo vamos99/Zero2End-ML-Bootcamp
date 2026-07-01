@@ -32,6 +32,33 @@ SELLER_SLA_COLUMNS = [
     "late_delivery_rate",
 ]
 
+CATEGORY_PERFORMANCE_MART_COLUMNS = [
+    "category",
+    "orders",
+    "items",
+    "product_revenue",
+    "freight_revenue",
+    "avg_review_score",
+    "avg_delivery_days",
+    "late_delivery_rate",
+]
+
+LOCATION_SERVICE_LEVEL_COLUMNS = [
+    "customer_state",
+    "seller_state",
+    "lane_type",
+    "orders",
+    "sellers",
+    "items",
+    "product_revenue",
+    "freight_revenue",
+    "avg_review_score",
+    "avg_delivery_days",
+    "late_delivery_rate",
+    "customer_geo_coverage_pct",
+    "seller_geo_coverage_pct",
+]
+
 LOGISTICS_DETAILS_COLUMNS = [
     "customer_id",
     "Tahmini Süre (Gün)",

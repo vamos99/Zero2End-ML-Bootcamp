@@ -3,7 +3,9 @@ import pytest
 from unittest.mock import patch
 import pandas as pd
 from src.database.repository_columns import (
+    CATEGORY_PERFORMANCE_MART_COLUMNS,
     COHORT_RETENTION_COLUMNS,
+    LOCATION_SERVICE_LEVEL_COLUMNS,
     LOGISTICS_DETAILS_COLUMNS,
     PAYMENT_MIX_COLUMNS,
     REVENUE_BY_STATE_COLUMNS,
@@ -115,7 +117,12 @@ class TestRepository:
 
     def test_executive_facade_delegates_without_breaking_dashboard_imports(self):
         """Executive dashboard imports continue through the repository facade."""
-        from src.database.repository import get_revenue_by_state, get_source_business_baselines
+        from src.database.repository import (
+            get_category_performance_summary,
+            get_location_service_levels,
+            get_revenue_by_state,
+            get_source_business_baselines,
+        )
 
         expected = pd.DataFrame({"customer_state": ["SP"], "revenue": [100.0]})
         with patch(
@@ -136,6 +143,26 @@ class TestRepository:
 
         assert result is baselines
         get_baselines_impl.assert_called_once_with()
+
+        categories = pd.DataFrame({"category": ["health_beauty"]})
+        with patch(
+            "src.database.repository.executive_repository.get_category_performance_summary",
+            return_value=categories,
+        ) as get_category_impl:
+            result = get_category_performance_summary(limit=4, min_orders=50)
+
+        assert result is categories
+        get_category_impl.assert_called_once_with(4, 50)
+
+        locations = pd.DataFrame({"lane_type": ["same_state"]})
+        with patch(
+            "src.database.repository.executive_repository.get_location_service_levels",
+            return_value=locations,
+        ) as get_location_impl:
+            result = get_location_service_levels(limit=6, min_orders=75)
+
+        assert result is locations
+        get_location_impl.assert_called_once_with(6, 75)
 
     def test_logistics_facade_delegates_without_breaking_dashboard_imports(self):
         """Logistics dashboard imports continue through the repository facade."""
@@ -385,8 +412,10 @@ class TestRepository:
 
     @patch('src.database.repository.engine')
     def test_remaining_repository_limits_and_fallbacks_use_contracts(self, mock_engine):
-        """Seller, logistics, and audience queries use bounded limits and stable schemas."""
+        """Seller, mart, logistics, and audience queries use bounded limits and stable schemas."""
         from src.database.repository import (
+            get_category_performance_summary,
+            get_location_service_levels,
             get_logistics_details,
             get_seller_sla_watchlist,
             get_target_audience,
@@ -394,12 +423,18 @@ class TestRepository:
 
         with patch('pandas.read_sql', side_effect=RuntimeError('db unavailable')) as read_sql:
             sellers = get_seller_sla_watchlist(limit=500)
+            categories = get_category_performance_summary(limit=500)
+            locations = get_location_service_levels(limit='invalid')
             logistics = get_logistics_details('2024-01-01', '2024-01-31', limit='invalid')
             audience = get_target_audience(limit=5000)
 
         assert sellers.columns.tolist() == SELLER_SLA_COLUMNS
+        assert categories.columns.tolist() == CATEGORY_PERFORMANCE_MART_COLUMNS
+        assert locations.columns.tolist() == LOCATION_SERVICE_LEVEL_COLUMNS
         assert logistics.columns.tolist() == LOGISTICS_DETAILS_COLUMNS
         assert audience.columns.tolist() == TARGET_AUDIENCE_COLUMNS
         assert read_sql.call_args_list[0].kwargs['params']['limit'] == 100
-        assert read_sql.call_args_list[1].kwargs['params']['limit'] == 10
-        assert read_sql.call_args_list[2].kwargs['params']['limit'] == 500
+        assert read_sql.call_args_list[1].kwargs['params']['limit'] == 100
+        assert read_sql.call_args_list[2].kwargs['params']['limit'] == 12
+        assert read_sql.call_args_list[3].kwargs['params']['limit'] == 10
+        assert read_sql.call_args_list[4].kwargs['params']['limit'] == 500
