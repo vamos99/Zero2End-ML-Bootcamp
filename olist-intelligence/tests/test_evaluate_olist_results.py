@@ -101,6 +101,20 @@ def test_analytics_operating_signals_summarize_sql_marts(monkeypatch):
             "late_delivery_rate": [6.0, 12.0],
         }
     )
+    location_rows = pd.DataFrame(
+        {
+            "customer_state": ["SP", "RJ"],
+            "seller_state": ["SP", "SP"],
+            "lane_type": ["same_state", "cross_state"],
+            "orders": [80, 20],
+            "product_revenue": [800.0, 200.0],
+            "avg_review_score": [4.4, 3.5],
+            "avg_delivery_days": [5.0, 8.0],
+            "late_delivery_rate": [5.0, 20.0],
+            "customer_geo_coverage_pct": [100.0, 90.0],
+            "seller_geo_coverage_pct": [100.0, 100.0],
+        }
+    )
     generated_rows = pd.DataFrame(
         {
             "table_name": ["logistics_predictions", "customer_segments"],
@@ -129,6 +143,7 @@ def test_analytics_operating_signals_summarize_sql_marts(monkeypatch):
                 cohort_rows,
                 seller_rows,
                 category_rows,
+                location_rows,
                 generated_rows,
                 segment_rows,
             ]
@@ -144,6 +159,11 @@ def test_analytics_operating_signals_summarize_sql_marts(monkeypatch):
     assert result["seller_sla"]["seller_rows"] == 3
     assert result["category_performance"]["top_category"] == "health_beauty"
     assert result["category_performance"]["top_category_revenue_share_pct"] == 80.0
+    assert result["location_service"]["lanes"] == 2
+    assert result["location_service"]["same_state_order_share_pct"] == 80.0
+    assert result["location_service"]["cross_state_late_delivery_rate_pct"] == 20.0
+    assert result["location_service"]["top_lane"] == "SP->SP"
+    assert result["location_service"]["customer_geo_coverage_pct"] == 98.0
     assert result["generated_outputs"]["logistics_predictions"] == 100
     assert result["segmentation"]["largest_segment"] == "Developing"
 

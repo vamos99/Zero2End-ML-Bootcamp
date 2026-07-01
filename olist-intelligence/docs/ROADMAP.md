@@ -11,10 +11,12 @@ not replace issues or project cards.
 - Local dataset and `olist.db` Git/Docker guardrails
 - CSV, database-schema, and data-quality validation commands
 - Reusable SQL views for executive, delivery, payment, cohort, seller,
-  category, and segment reporting
+  category, location, and segment reporting
 - Dashboard operating signals for payment mix, cohort retention, and seller SLA
 - Category performance SQL mart with revenue, review, and delivery quality
   signals
+- Location service-level SQL mart with customer/seller state lanes and ZIP
+  geolocation coverage
 - GitHub Actions syntax and test checks
 - Shared repository contracts and two real helper-integration batches
 - Complete ranking repository behavior with stable fallback contracts
@@ -55,8 +57,9 @@ experiment. Document missing-text coverage, language handling, and limitations.
 
 ### Geolocation And Location Analysis
 
-Aggregate ZIP-prefix geolocation before joining customer and seller locations.
-Focus on delivery/service-level patterns rather than decorative maps.
+The first state-lane service mart exists. Future work should add richer
+drilldowns or map visuals only after the dashboard has a clear decision use for
+them.
 
 ### Seller And Customer Segmentation
 

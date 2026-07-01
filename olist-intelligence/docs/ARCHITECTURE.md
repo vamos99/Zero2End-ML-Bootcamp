@@ -18,7 +18,7 @@ artifacts remain local.
 3. `src/data_contract.py` and `scripts/validate_olist_schema.py` validate raw
    schemas, database schemas, and data-quality rules.
 4. `sql/views/` creates reusable analytics views for executive, delivery,
-   payment, cohort, seller, category, and segment reporting.
+   payment, cohort, seller, category, location, and segment reporting.
 5. `src/database/` repository functions query raw tables and SQL views.
 6. `src/services/` packages repository results for consumers.
 7. `src/views/` and `src/dashboard.py` render dashboard views; `src/app.py`
@@ -71,7 +71,8 @@ covered by regression tests. A full-file rewrite is intentionally avoided.
 - Review and customer-quality metrics
 - Payment mix
 - Cohort retention
-- Product/category rankings, category performance, and seller SLA watchlist
+- Product/category rankings, category performance, location service levels, and
+  seller SLA watchlist
 - Generated customer segment summaries
 
 ## Future Analytics
@@ -79,7 +80,7 @@ covered by regression tests. A full-file rewrite is intentionally avoided.
 The following are planned, not implemented as completed features:
 
 - Portuguese review-text issue analysis
-- Customer/seller/geolocation service-level analysis
+- Richer customer/seller/geolocation drilldowns
 - Seller and customer segmentation improvements
 - Expanded product/category dashboard drilldowns and action thresholds
 
