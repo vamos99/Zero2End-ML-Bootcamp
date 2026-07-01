@@ -37,9 +37,9 @@ verisiyle gösterir; sayfa açılışında model benchmark'ı yeniden eğitmez.
 | Source repeat-purchase baseline | Repeat-customer oranı %3.00; one-time customer oranı %97.00 | Churn/retention iyileşmesi ölçülmedi |
 | Repeat-purchase risk | Sınıf dağılımı %99.40 risk etiketi; model gate failed | Churn azalması veya kampanya uplift'i ölçülmedi |
 | Recommender | Hit rate @10 = %3.51; random catalog baseline'a göre yaklaşık 116x | Satış veya sepet artışı ölçülmedi |
-| Executive analytics marts | Credit card payment share %78.34; month-1 retention %5.20; 2,970 seller SLA rows; 93,358 segmented customers | Operasyonel müdahale sonrası değişim ölçülmedi |
+| Executive analytics marts | Credit card payment share %78.34; month-1 retention %5.20; 2,970 seller SLA rows; 93,358 segmented customers; top category health_beauty | Operasyonel müdahale sonrası değişim ölçülmedi |
 | Segmentation | 93,358 müşteri segmentlendi; ARI 1.000, silhouette 0.479 | Segment bazlı kampanya dönüşümü ölçülmedi |
-| Cohort/payment/seller analytics | SQL martlarla retention, payment mix ve seller SLA ölçüldü | Operasyonel müdahale sonrası değişim ölçülmedi |
+| Cohort/payment/seller/category analytics | SQL martlarla retention, payment mix, seller SLA ve category performance ölçüldü | Operasyonel müdahale sonrası değişim ölçülmedi |
 
 ## Source Coverage
 
@@ -195,12 +195,18 @@ Technical diagnostics:
 
 | Alan | Sonuç |
 | --- | ---: |
-| SQL views applied | 8 |
+| SQL views applied | 9 |
 | Month-1 average cohort retention | 5.20% |
 | Month-2 average cohort retention | 0.33% |
 | Seller SLA rows | 2,970 sellers |
 | Average seller late-delivery rate | 6.91% |
 | Max seller late-delivery rate | 100.00% |
+| Category performance rows | 74 categories |
+| Top category | health_beauty |
+| Top category product revenue | 1,233,131.72 BRL |
+| Top category revenue share | 9.33% |
+| Top category average review score | 4.23 / 5 |
+| Top category late-delivery rate | 7.51% |
 | Generated logistics prediction rows | 96,470 |
 | Generated customer segment rows | 93,358 |
 | Largest segment | Developing, 49,290 customers |

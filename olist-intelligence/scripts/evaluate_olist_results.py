@@ -236,6 +236,17 @@ def analytics_operating_signals() -> dict[str, Any]:
                 MAX(late_delivery_rate) AS max_late_delivery_rate
             FROM seller_sla_summary
         """,
+        "category": """
+            SELECT
+                category,
+                orders,
+                items,
+                product_revenue,
+                avg_review_score,
+                late_delivery_rate
+            FROM category_performance_summary
+            ORDER BY product_revenue DESC
+        """,
         "generated": """
             SELECT 'logistics_predictions' AS table_name, COUNT(*) AS rows FROM logistics_predictions
             UNION ALL
@@ -260,6 +271,7 @@ def analytics_operating_signals() -> dict[str, Any]:
             payment = pd.read_sql(text(queries["payment"]), conn)
             cohort = pd.read_sql(text(queries["cohort"]), conn)
             seller = pd.read_sql(text(queries["seller"]), conn)
+            category = pd.read_sql(text(queries["category"]), conn)
             generated = pd.read_sql(text(queries["generated"]), conn)
             segments = pd.read_sql(text(queries["segments"]), conn)
     except Exception as exc:
@@ -290,6 +302,16 @@ def analytics_operating_signals() -> dict[str, Any]:
         for _, row in generated.iterrows()
     }
     largest_segment = segments.iloc[0].to_dict() if not segments.empty else {}
+    total_category_revenue = (
+        float(category["product_revenue"].sum()) if not category.empty else 0.0
+    )
+    top_category = category.iloc[0].to_dict() if not category.empty else {}
+    top_category_revenue = float(top_category.get("product_revenue", 0.0))
+    top_category_share = (
+        top_category_revenue / total_category_revenue * 100
+        if total_category_revenue
+        else 0.0
+    )
 
     return {
         "available": True,
@@ -317,6 +339,17 @@ def analytics_operating_signals() -> dict[str, Any]:
             "max_late_delivery_rate_pct": float(seller.iloc[0]["max_late_delivery_rate"])
             if not seller.empty and pd.notna(seller.iloc[0]["max_late_delivery_rate"])
             else 0.0,
+        },
+        "category_performance": {
+            "top_categories_ranked": int(len(category)),
+            "top_category": str(top_category.get("category", "")),
+            "top_category_revenue_brl": top_category_revenue,
+            "top_category_revenue_share_pct": top_category_share,
+            "top_category_orders": int(top_category.get("orders", 0)),
+            "top_category_avg_review_score": float(top_category.get("avg_review_score", 0.0)),
+            "top_category_late_delivery_rate_pct": float(
+                top_category.get("late_delivery_rate", 0.0)
+            ),
         },
         "generated_outputs": generated_counts,
         "segmentation": {
@@ -428,7 +461,8 @@ def build_evidence_rows(summary: dict[str, Any]) -> list[dict[str, str]]:
             ),
             "model_or_target_result": (
                 f"{analytics.get('seller_sla', {}).get('seller_rows', 0):,} seller SLA rows; "
-                f"{analytics.get('segmentation', {}).get('customers', 0):,} segmented customers"
+                f"{analytics.get('segmentation', {}).get('customers', 0):,} segmented customers; "
+                f"top category {analytics.get('category_performance', {}).get('top_category', '')}"
             ),
             "delta_or_lift": "No intervention delta measured",
             "safe_claim": "SQL marts and generated outputs support dashboard analysis, not impact claims.",
@@ -543,7 +577,8 @@ def build_outcome_scorecard(summary: dict[str, Any]) -> list[dict[str, str]]:
         analytics_current = (
             f"{analytics.get('seller_sla', {}).get('seller_rows', 0):,} seller SLA rows; "
             f"{analytics.get('segmentation', {}).get('customers', 0):,} segmented customers; "
-            f"month-1 retention {_fmt_pct(analytics.get('cohort_retention', {}).get('month_1_avg_retention_pct', 0.0))}"
+            f"month-1 retention {_fmt_pct(analytics.get('cohort_retention', {}).get('month_1_avg_retention_pct', 0.0))}; "
+            f"top category {analytics.get('category_performance', {}).get('top_category', '')}"
         )
 
     return [

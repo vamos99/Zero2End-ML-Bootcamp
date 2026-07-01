@@ -10,9 +10,11 @@ not replace issues or project cards.
 - Kaggle source schema contract for 9 CSV files and 52 required columns
 - Local dataset and `olist.db` Git/Docker guardrails
 - CSV, database-schema, and data-quality validation commands
-- Reusable SQL views for executive, delivery, payment, cohort, seller, and
-  segment reporting
+- Reusable SQL views for executive, delivery, payment, cohort, seller,
+  category, and segment reporting
 - Dashboard operating signals for payment mix, cohort retention, and seller SLA
+- Category performance SQL mart with revenue, review, and delivery quality
+  signals
 - GitHub Actions syntax and test checks
 - Shared repository contracts and two real helper-integration batches
 - Complete ranking repository behavior with stable fallback contracts
@@ -64,8 +66,9 @@ logic. Preserve the distinction between `customer_id` and
 
 ### Product And Category Performance
 
-Expand category and seller ranking functions with clear grains, bounded limits,
-and reusable repository contracts.
+Keep expanding category and seller ranking into decision-ready dashboard
+sections. The category SQL mart exists; future work should add richer drilldowns
+and documented threshold rules before claiming action impact.
 
 ### Retention And Churn Methodology
 

@@ -32,6 +32,13 @@ def _seed_metric_fixture(database_url: str):
             )
         """))
         conn.execute(text("CREATE TABLE order_reviews (order_id TEXT, review_score INTEGER)"))
+        conn.execute(text("CREATE TABLE products (product_id TEXT, product_category_name TEXT)"))
+        conn.execute(text("""
+            CREATE TABLE product_category_name_translation (
+                product_category_name TEXT,
+                product_category_name_english TEXT
+            )
+        """))
         conn.execute(text("""
             CREATE TABLE order_payments (
                 order_id TEXT,
@@ -73,6 +80,16 @@ def _seed_metric_fixture(database_url: str):
         """))
         conn.execute(text("INSERT INTO order_reviews VALUES ('o1', 5), ('o2', 2)"))
         conn.execute(text("""
+            INSERT INTO products VALUES
+                ('p1', 'categoria_a'),
+                ('p2', 'categoria_b')
+        """))
+        conn.execute(text("""
+            INSERT INTO product_category_name_translation VALUES
+                ('categoria_a', 'category_a'),
+                ('categoria_b', 'category_b')
+        """))
+        conn.execute(text("""
             INSERT INTO order_payments VALUES
                 ('o1', 1, 'credit_card', 1, 110.0),
                 ('o2', 1, 'voucher', 1, 55.0)
@@ -107,6 +124,7 @@ def test_sql_views_reconcile_core_metrics(tmp_path):
 
     assert skipped == []
     assert set(applied) == {
+        "category_performance_summary.sql",
         "customer_segment_summary.sql",
         "customer_cohort_retention.sql",
         "delivery_quality.sql",
@@ -157,6 +175,16 @@ def test_sql_views_reconcile_core_metrics(tmp_path):
     assert seller_sla["items"] == 2
     assert seller_sla["product_revenue"] == pytest.approx(150.0)
     assert seller_sla["late_delivery_rate"] == pytest.approx(50.0)
+
+    category = pd.read_sql(
+        text("SELECT * FROM category_performance_summary WHERE category = 'category_b'"),
+        engine,
+    ).iloc[0]
+    assert category["orders"] == 1
+    assert category["items"] == 1
+    assert category["product_revenue"] == pytest.approx(50.0)
+    assert category["avg_review_score"] == pytest.approx(2.0)
+    assert category["late_delivery_rate"] == pytest.approx(100.0)
 
     segment = pd.read_sql(
         text("SELECT * FROM customer_segment_summary WHERE segment_id = 1"),

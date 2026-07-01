@@ -74,6 +74,23 @@ so duplicate review rows do not create fractional score categories.
 This view aggregates to seller-order grain before seller-level grouping, which
 prevents multi-item orders from inflating order counts.
 
+## `category_performance_summary`
+
+| Metric | Definition | Source |
+| --- | --- | --- |
+| `category` | English product category when available, otherwise raw category or `Other` | `products`, `product_category_name_translation` |
+| `orders` | Distinct delivered orders containing the category | `orders`, `order_items` |
+| `items` | Item rows sold in the category | `order_items` |
+| `product_revenue` | Sum of category item prices | `order_items.price` |
+| `freight_revenue` | Sum of category item freight values | `order_items.freight_value` |
+| `avg_review_score` | Average order-level review score for orders containing the category | `order_reviews.review_score` |
+| `avg_delivery_days` | Average delivered date minus purchase date | `orders` date columns |
+| `late_delivery_rate` | Average category-order late flag multiplied by 100 | `orders` date columns |
+
+This view groups at category-order grain before category-level aggregation. The
+grain keeps item revenue additive while reducing review and order-count
+inflation from multi-item orders.
+
 ## `customer_segment_summary`
 
 | Metric | Definition | Source |
@@ -104,9 +121,9 @@ cohort and repeat-purchase calculation.
 
 `tests/test_sql_views.py` builds a small SQLite fixture, applies every SQL view
 with `scripts/apply_sql_views.py`, and checks expected revenue, review,
-late-delivery, payment mix, seller SLA, customer cohort retention and segment
-aggregates. This keeps the SQL layer testable without requiring the full Kaggle
-dataset.
+late-delivery, payment mix, seller SLA, category performance, customer cohort
+retention and segment aggregates. This keeps the SQL layer testable without
+requiring the full Kaggle dataset.
 
 `tests/test_data_contract.py` validates the expected Kaggle source contract:
 9 CSV files, 52 source columns, the repository's CSV-to-table naming convention,
