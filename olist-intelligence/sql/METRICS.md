@@ -91,6 +91,28 @@ This view groups at category-order grain before category-level aggregation. The
 grain keeps item revenue additive while reducing review and order-count
 inflation from multi-item orders.
 
+## `location_service_level_summary`
+
+| Metric | Definition | Source |
+| --- | --- | --- |
+| `customer_state` | Customer delivery state | `customers.customer_state` |
+| `seller_state` | Seller origin state | `sellers.seller_state` |
+| `lane_type` | `same_state` when customer and seller states match, otherwise `cross_state` | Derived |
+| `orders` | Distinct delivered orders in the customer-state/seller-state lane | `orders`, `order_items` |
+| `sellers` | Distinct sellers serving the lane | `order_items.seller_id` |
+| `items` | Item rows in the lane | `order_items` |
+| `product_revenue` | Sum of lane item prices | `order_items.price` |
+| `freight_revenue` | Sum of lane freight values | `order_items.freight_value` |
+| `avg_review_score` | Average order-level review score in the lane | `order_reviews.review_score` |
+| `avg_delivery_days` | Average delivered date minus purchase date | `orders` date columns |
+| `late_delivery_rate` | Average lane late flag multiplied by 100 | `orders` date columns |
+| `customer_geo_coverage_pct` | Share of seller-order rows with customer ZIP coordinates | `geolocation` |
+| `seller_geo_coverage_pct` | Share of seller-order rows with seller ZIP coordinates | `geolocation` |
+
+This view aggregates geolocation to ZIP prefix before joining. It intentionally
+starts with state-lane service levels and coordinate coverage instead of a
+decorative map or database-specific distance formula.
+
 ## `customer_segment_summary`
 
 | Metric | Definition | Source |
@@ -121,9 +143,9 @@ cohort and repeat-purchase calculation.
 
 `tests/test_sql_views.py` builds a small SQLite fixture, applies every SQL view
 with `scripts/apply_sql_views.py`, and checks expected revenue, review,
-late-delivery, payment mix, seller SLA, category performance, customer cohort
-retention and segment aggregates. This keeps the SQL layer testable without
-requiring the full Kaggle dataset.
+late-delivery, payment mix, seller SLA, category performance, location service
+levels, customer cohort retention and segment aggregates. This keeps the SQL
+layer testable without requiring the full Kaggle dataset.
 
 `tests/test_data_contract.py` validates the expected Kaggle source contract:
 9 CSV files, 52 source columns, the repository's CSV-to-table naming convention,

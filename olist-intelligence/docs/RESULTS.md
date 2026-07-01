@@ -37,9 +37,9 @@ verisiyle gösterir; sayfa açılışında model benchmark'ı yeniden eğitmez.
 | Source repeat-purchase baseline | Repeat-customer oranı %3.00; one-time customer oranı %97.00 | Churn/retention iyileşmesi ölçülmedi |
 | Repeat-purchase risk | Sınıf dağılımı %99.40 risk etiketi; model gate failed | Churn azalması veya kampanya uplift'i ölçülmedi |
 | Recommender | Hit rate @10 = %3.51; random catalog baseline'a göre yaklaşık 116x | Satış veya sepet artışı ölçülmedi |
-| Executive analytics marts | Credit card payment share %78.34; month-1 retention %5.20; 2,970 seller SLA rows; 93,358 segmented customers; top category health_beauty | Operasyonel müdahale sonrası değişim ölçülmedi |
+| Executive analytics marts | Credit card payment share %78.34; month-1 retention %5.20; 2,970 seller SLA rows; 93,358 segmented customers; top category health_beauty; top lane SP->SP | Operasyonel müdahale sonrası değişim ölçülmedi |
 | Segmentation | 93,358 müşteri segmentlendi; ARI 1.000, silhouette 0.479 | Segment bazlı kampanya dönüşümü ölçülmedi |
-| Cohort/payment/seller/category analytics | SQL martlarla retention, payment mix, seller SLA ve category performance ölçüldü | Operasyonel müdahale sonrası değişim ölçülmedi |
+| Cohort/payment/seller/category/location analytics | SQL martlarla retention, payment mix, seller SLA, category performance ve location service ölçüldü | Operasyonel müdahale sonrası değişim ölçülmedi |
 
 ## Source Coverage
 
@@ -195,7 +195,7 @@ Technical diagnostics:
 
 | Alan | Sonuç |
 | --- | ---: |
-| SQL views applied | 9 |
+| SQL views applied | 10 |
 | Month-1 average cohort retention | 5.20% |
 | Month-2 average cohort retention | 0.33% |
 | Seller SLA rows | 2,970 sellers |
@@ -207,6 +207,14 @@ Technical diagnostics:
 | Top category revenue share | 9.33% |
 | Top category average review score | 4.23 / 5 |
 | Top category late-delivery rate | 7.51% |
+| Location service lanes | 412 lanes |
+| Same-state order share | 35.90% |
+| Cross-state order share | 64.10% |
+| Cross-state late-delivery rate | 7.95% |
+| Top state lane | SP->SP, 30,829 orders |
+| Top state lane late-delivery rate | 4.59% |
+| Customer ZIP geolocation coverage | 99.72% |
+| Seller ZIP geolocation coverage | 99.78% |
 | Generated logistics prediction rows | 96,470 |
 | Generated customer segment rows | 93,358 |
 | Largest segment | Developing, 49,290 customers |

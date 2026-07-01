@@ -41,7 +41,7 @@ iyileşme değil, modelleme uygunluk kapısı raporlanır.
 | Repeat purchase | %3.00 repeat customer; %97.00 one-time customer | Churn/retention uplift ölçülmedi | Cohort retention daha güvenilir davranış metriği |
 | Churn gate | Risk etiketi %99.40; sınıf dağılımı aşırı dengesiz | Model evaluation gate failed | Decision-ready churn modeli olarak sunulmaz |
 | Recommender | Random hit@10 %0.03 | SVD hit@10 %3.51, 115.7x random baseline | Ranking benchmark'ı var; satış uplift'i yok |
-| Executive analytics | Credit card payment share %78.34; month-1 retention %5.20 | 2,970 seller SLA rows; 93,358 segmented customers; top category health_beauty | SQL mart/generated-output kanıtı var; impact iddiası yok |
+| Executive analytics | Credit card payment share %78.34; month-1 retention %5.20 | 2,970 seller SLA rows; 93,358 segmented customers; top category health_beauty; top lane SP->SP | SQL mart/generated-output kanıtı var; impact iddiası yok |
 | Scenario hedefi | %6.77 geç teslimat | %6.10 geç teslimat, 653 geç sipariş önleme varsayımı | Gelecek deney hedefi, gerçekleşmiş impact değil |
 
 Kod tarafında aynı ayrım `scripts/evaluate_olist_results.py` içindeki
@@ -124,7 +124,7 @@ pytest tests/ -v --tb=short
 |--------|-----------------------|
 | **Raw data** | Kaggle Olist CSV dosyaları (`data/raw/` önerilir, `olist-dataset/` legacy fallback; Git'e dahil değil) |
 | **Ingestion** | `src/ml/ingest.py` ile CSV -> SQLite/Postgres uyumlu tablo akışı |
-| **Analytics model** | `sql/views/` altında revenue, delivery quality, payment, cohort, seller, category ve segment view'ları |
+| **Analytics model** | `sql/views/` altında revenue, delivery quality, payment, cohort, seller, category, location ve segment view'ları |
 | **ML workflow** | Notebooklar ve `src/ml/` altında lojistik tahmin, repeat-purchase uygunluk kapısı ve öneri prototipleri |
 | **Serving** | FastAPI endpointleri ve SQL mart destekli Streamlit dashboard |
 | **Quality checks** | Pytest, schema contract, data-quality checks ve GitHub Actions CI |
@@ -192,7 +192,7 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 ### Data Quality
 *   **Schema contract:** Kaggle Olist'in 9 CSV / 52 kolon beklentisi `src/data_contract.py` altında tanımlıdır.
 *   **DB kalite kontrolleri:** Boş tablo, duplicate key, orphan foreign key, kabul edilen status/payment değerleri, negatif ödeme/fiyat ve imkansız teslimat tarihleri kontrol edilir.
-*   **Analytics marts:** Payment mix, review-delivery driver, seller SLA, category performance ve cohort retention view'ları yönetici dashboard akışında kullanılır.
+*   **Analytics marts:** Payment mix, review-delivery driver, seller SLA, category performance, location service ve cohort retention view'ları yönetici dashboard akışında kullanılır.
 
 ### Dashboard Kaynak Eşlemesi
 
@@ -204,6 +204,7 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 | Customer cohort retention | `customer_cohort_retention` |
 | Seller SLA watchlist | `seller_sla_summary` |
 | Category revenue and quality | `category_performance_summary` |
+| Location service levels | `location_service_level_summary` |
 
 ---
 

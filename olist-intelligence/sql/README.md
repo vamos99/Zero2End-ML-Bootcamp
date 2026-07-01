@@ -15,6 +15,8 @@ Postgres-like environments.
 - `seller_sla_summary.sql`: seller-level SLA, revenue, item and review metrics.
 - `category_performance_summary.sql`: category revenue, review, and delivery
   quality metrics.
+- `location_service_level_summary.sql`: customer-state/seller-state service
+  lanes and ZIP geolocation coverage.
 - `customer_cohort_retention.sql`: monthly cohort retention using
   `customer_unique_id`.
 - `customer_segment_summary.sql`: RFM segment summary after the segmentation

@@ -52,10 +52,26 @@ def _seed_metric_fixture(database_url: str):
             CREATE TABLE customers (
                 customer_id TEXT,
                 customer_unique_id TEXT,
+                customer_zip_code_prefix INTEGER,
                 customer_state TEXT
             )
         """))
-        conn.execute(text("CREATE TABLE sellers (seller_id TEXT, seller_state TEXT)"))
+        conn.execute(text("""
+            CREATE TABLE sellers (
+                seller_id TEXT,
+                seller_zip_code_prefix INTEGER,
+                seller_state TEXT
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE geolocation (
+                geolocation_zip_code_prefix INTEGER,
+                geolocation_lat REAL,
+                geolocation_lng REAL,
+                geolocation_city TEXT,
+                geolocation_state TEXT
+            )
+        """))
         conn.execute(text("""
             CREATE TABLE customer_segments (
                 "Cluster" INTEGER,
@@ -96,13 +112,18 @@ def _seed_metric_fixture(database_url: str):
         """))
         conn.execute(text("""
             INSERT INTO customers VALUES
-                ('c1', 'u1', 'SP'),
-                ('c2', 'u2', 'RJ'),
-                ('c3', 'u1', 'SP'),
-                ('c4', 'u4', 'MG'),
-                ('c5', 'u5', 'SP')
+                ('c1', 'u1', 1000, 'SP'),
+                ('c2', 'u2', 2000, 'RJ'),
+                ('c3', 'u1', 1000, 'SP'),
+                ('c4', 'u4', 3000, 'MG'),
+                ('c5', 'u5', 1000, 'SP')
         """))
-        conn.execute(text("INSERT INTO sellers VALUES ('s1', 'SP')"))
+        conn.execute(text("INSERT INTO sellers VALUES ('s1', 1000, 'SP')"))
+        conn.execute(text("""
+            INSERT INTO geolocation VALUES
+                (1000, -23.5, -46.6, 'sao paulo', 'SP'),
+                (2000, -22.9, -43.2, 'rio de janeiro', 'RJ')
+        """))
         conn.execute(text("""
             INSERT INTO customer_segments VALUES
                 (1, 10.0, 2.0, 50.0),
@@ -129,6 +150,7 @@ def test_sql_views_reconcile_core_metrics(tmp_path):
         "customer_cohort_retention.sql",
         "delivery_quality.sql",
         "executive_order_summary.sql",
+        "location_service_level_summary.sql",
         "payment_mix_summary.sql",
         "review_delivery_drivers.sql",
         "seller_performance.sql",
@@ -185,6 +207,32 @@ def test_sql_views_reconcile_core_metrics(tmp_path):
     assert category["product_revenue"] == pytest.approx(50.0)
     assert category["avg_review_score"] == pytest.approx(2.0)
     assert category["late_delivery_rate"] == pytest.approx(100.0)
+
+    same_state_lane = pd.read_sql(
+        text("""
+            SELECT * FROM location_service_level_summary
+            WHERE customer_state = 'SP' AND seller_state = 'SP'
+        """),
+        engine,
+    ).iloc[0]
+    assert same_state_lane["lane_type"] == "same_state"
+    assert same_state_lane["orders"] == 1
+    assert same_state_lane["product_revenue"] == pytest.approx(100.0)
+    assert same_state_lane["late_delivery_rate"] == pytest.approx(0.0)
+    assert same_state_lane["customer_geo_coverage_pct"] == pytest.approx(100.0)
+    assert same_state_lane["seller_geo_coverage_pct"] == pytest.approx(100.0)
+
+    cross_state_lane = pd.read_sql(
+        text("""
+            SELECT * FROM location_service_level_summary
+            WHERE customer_state = 'RJ' AND seller_state = 'SP'
+        """),
+        engine,
+    ).iloc[0]
+    assert cross_state_lane["lane_type"] == "cross_state"
+    assert cross_state_lane["orders"] == 1
+    assert cross_state_lane["late_delivery_rate"] == pytest.approx(100.0)
+    assert cross_state_lane["customer_geo_coverage_pct"] == pytest.approx(100.0)
 
     segment = pd.read_sql(
         text("SELECT * FROM customer_segment_summary WHERE segment_id = 1"),

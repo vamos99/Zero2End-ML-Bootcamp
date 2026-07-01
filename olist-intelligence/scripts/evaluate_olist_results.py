@@ -247,6 +247,21 @@ def analytics_operating_signals() -> dict[str, Any]:
             FROM category_performance_summary
             ORDER BY product_revenue DESC
         """,
+        "location": """
+            SELECT
+                customer_state,
+                seller_state,
+                lane_type,
+                orders,
+                product_revenue,
+                avg_review_score,
+                avg_delivery_days,
+                late_delivery_rate,
+                customer_geo_coverage_pct,
+                seller_geo_coverage_pct
+            FROM location_service_level_summary
+            ORDER BY orders DESC
+        """,
         "generated": """
             SELECT 'logistics_predictions' AS table_name, COUNT(*) AS rows FROM logistics_predictions
             UNION ALL
@@ -272,6 +287,7 @@ def analytics_operating_signals() -> dict[str, Any]:
             cohort = pd.read_sql(text(queries["cohort"]), conn)
             seller = pd.read_sql(text(queries["seller"]), conn)
             category = pd.read_sql(text(queries["category"]), conn)
+            location = pd.read_sql(text(queries["location"]), conn)
             generated = pd.read_sql(text(queries["generated"]), conn)
             segments = pd.read_sql(text(queries["segments"]), conn)
     except Exception as exc:
@@ -312,6 +328,28 @@ def analytics_operating_signals() -> dict[str, Any]:
         if total_category_revenue
         else 0.0
     )
+    total_location_orders = float(location["orders"].sum()) if not location.empty else 0.0
+    same_state_orders = (
+        float(location.loc[location["lane_type"] == "same_state", "orders"].sum())
+        if not location.empty
+        else 0.0
+    )
+    cross_state_orders = (
+        float(location.loc[location["lane_type"] == "cross_state", "orders"].sum())
+        if not location.empty
+        else 0.0
+    )
+    cross_state_late_rate = (
+        float(
+            np.average(
+                location.loc[location["lane_type"] == "cross_state", "late_delivery_rate"],
+                weights=location.loc[location["lane_type"] == "cross_state", "orders"],
+            )
+        )
+        if cross_state_orders
+        else 0.0
+    )
+    top_location_lane = location.iloc[0].to_dict() if not location.empty else {}
 
     return {
         "available": True,
@@ -350,6 +388,39 @@ def analytics_operating_signals() -> dict[str, Any]:
             "top_category_late_delivery_rate_pct": float(
                 top_category.get("late_delivery_rate", 0.0)
             ),
+        },
+        "location_service": {
+            "lanes": int(len(location)),
+            "same_state_order_share_pct": (
+                same_state_orders / total_location_orders * 100
+                if total_location_orders
+                else 0.0
+            ),
+            "cross_state_order_share_pct": (
+                cross_state_orders / total_location_orders * 100
+                if total_location_orders
+                else 0.0
+            ),
+            "cross_state_late_delivery_rate_pct": cross_state_late_rate,
+            "top_lane": (
+                f"{top_location_lane.get('seller_state', '')}->{top_location_lane.get('customer_state', '')}"
+                if top_location_lane
+                else ""
+            ),
+            "top_lane_orders": int(top_location_lane.get("orders", 0)),
+            "top_lane_late_delivery_rate_pct": float(
+                top_location_lane.get("late_delivery_rate", 0.0)
+            ),
+            "customer_geo_coverage_pct": float(
+                np.average(location["customer_geo_coverage_pct"], weights=location["orders"])
+            )
+            if total_location_orders
+            else 0.0,
+            "seller_geo_coverage_pct": float(
+                np.average(location["seller_geo_coverage_pct"], weights=location["orders"])
+            )
+            if total_location_orders
+            else 0.0,
         },
         "generated_outputs": generated_counts,
         "segmentation": {
@@ -462,7 +533,8 @@ def build_evidence_rows(summary: dict[str, Any]) -> list[dict[str, str]]:
             "model_or_target_result": (
                 f"{analytics.get('seller_sla', {}).get('seller_rows', 0):,} seller SLA rows; "
                 f"{analytics.get('segmentation', {}).get('customers', 0):,} segmented customers; "
-                f"top category {analytics.get('category_performance', {}).get('top_category', '')}"
+                f"top category {analytics.get('category_performance', {}).get('top_category', '')}; "
+                f"top lane {analytics.get('location_service', {}).get('top_lane', '')}"
             ),
             "delta_or_lift": "No intervention delta measured",
             "safe_claim": "SQL marts and generated outputs support dashboard analysis, not impact claims.",
@@ -578,7 +650,8 @@ def build_outcome_scorecard(summary: dict[str, Any]) -> list[dict[str, str]]:
             f"{analytics.get('seller_sla', {}).get('seller_rows', 0):,} seller SLA rows; "
             f"{analytics.get('segmentation', {}).get('customers', 0):,} segmented customers; "
             f"month-1 retention {_fmt_pct(analytics.get('cohort_retention', {}).get('month_1_avg_retention_pct', 0.0))}; "
-            f"top category {analytics.get('category_performance', {}).get('top_category', '')}"
+            f"top category {analytics.get('category_performance', {}).get('top_category', '')}; "
+            f"top lane {analytics.get('location_service', {}).get('top_lane', '')}"
         )
 
     return [
