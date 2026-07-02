@@ -55,11 +55,9 @@ class TestRepository:
         from src.database.repository import get_top_products
         
         mock_df = pd.DataFrame({
-            'product_id': ['p1', 'p2'],
-            'product_category': ['cat1', 'cat2'], # Fixed key
-            'price': [100, 50],
-            'order_id': ['o1', 'o2'], # needed for nunique
-            'order_purchase_timestamp': ['2024-01-01', '2024-01-01'] # needed if date filter used (even if None defaulting logic checks cols)
+            'product_category': ['cat1', 'cat2'],
+            'order_count': [1, 1],
+            'total_sales': [100.0, 50.0],
         })
         
         with patch('pandas.read_sql', return_value=mock_df):
@@ -71,15 +69,14 @@ class TestRepository:
         """Test top sellers query."""
         from src.database.repository import get_top_sellers
         
-        # Create 5 orders for s1 to pass the >=5 order filter
         mock_df = pd.DataFrame({
-            'seller_id': ['s1'] * 6,
-            'price': [100.0] * 6,
-            'review_score': [5] * 6,
-            'order_id': [f'o{i}' for i in range(6)],
-            'order_delivered_customer_date': [pd.Timestamp('2024-01-05')] * 6,
-            'order_estimated_delivery_date': [pd.Timestamp('2024-01-10')] * 6,
-            'order_purchase_timestamp': [pd.Timestamp('2024-01-01')] * 6
+            'seller_id': ['s1'],
+            'order_count': [6],
+            'total_revenue': [600.0],
+            'avg_rating': [5.0],
+            'on_time_count': [6],
+            'total_rows': [6],
+            'on_time_rate': [100.0],
         })
         
         with patch('pandas.read_sql', return_value=mock_df):
