@@ -25,6 +25,9 @@ Aynı script içindeki `outcome_scorecard` alanı, okuyucuya doğrudan
 `plain_language_answers` alanı ise özellikle "teslim süresi ne kadar iyileşti?",
 "churn ne kadar azaldı?" ve "recommendation ne sağladı?" sorularını kısa
 cevap, sayısal kanıt, değişen şey ve iddia sınırı olarak ayrı ayrı döndürür.
+`executive_answer_cards` alanı ise bu cevabı daha sıkı bir tabloya çevirir:
+her satırda baseline, ölçülen veya hedef sonuç, sayısal delta ve claim sınırı
+zorunludur. Bu yüzden portfolio anlatımında önce bu kartlara bakılmalıdır.
 Bu yüzden teslimat veya churn için operasyonel iyileşme iddiası ancak
 `measured_change` alanında açıkça kanıt varsa yazılmalıdır.
 Dashboard ana sayfasındaki outcome scorecard da aynı ayrımı hafif servis
@@ -40,6 +43,22 @@ verisiyle gösterir; sayfa açılışında model benchmark'ı yeniden eğitmez.
 | Executive analytics marts | Credit card payment share %78.34; month-1 retention %5.20; 2,970 seller SLA rows; 93,358 segmented customers; top category health_beauty; top lane SP->SP | Operasyonel müdahale sonrası değişim ölçülmedi |
 | Segmentation | 93,358 müşteri segmentlendi; ARI 1.000, silhouette 0.479 | Segment bazlı kampanya dönüşümü ölçülmedi |
 | Cohort/payment/seller/category/location analytics | SQL martlarla retention, payment mix, seller SLA, category performance ve location service ölçüldü | Operasyonel müdahale sonrası değişim ölçülmedi |
+
+## Direct Executive Answer Cards
+
+Bu tablo, `scripts/evaluate_olist_results.py --pretty` çıktısındaki
+`executive_answer_cards` alanının insan-okur özetidir. Değerler local SQLite
+snapshot üzerinde yeniden hesaplandı.
+
+| Alan | Sonuç tipi | Baseline | Ölçülen / hedef sonuç | Delta veya değişim | Impact cevabı |
+| --- | --- | --- | --- | --- | --- |
+| Delivery operation | Source baseline | 12.56 gün ortalama teslimat; %6.77 geç teslimat; 6,534 geç sipariş | Post-model veya post-intervention dönem yok | Ölçülmüş teslim süresi düşüşü yok | Teslimatın hızlandığı kanıtlanmadı |
+| Delivery prediction | Offline benchmark | Train-mean MAE 7.68 gün; Olist estimated-date MAE 12.59 gün | CatBoost MAE 6.52 gün | MAE train mean'e göre %15.12, estimated-date baseline'a göre %48.20 düşük | Tahmin hatası iyileşti; operasyonel teslim süresi değil |
+| Delivery scenario | Planning scenario | %6.77 geç teslimat | %6.10 hedef geç teslimat | -0.68 pp; 653 daha az geç sipariş; 6,939 potansiyel gecikme günü | Hedef senaryo, gerçekleşmiş sonuç değil |
+| Repeat purchase / churn | Model gate | %3.00 repeat customer; %97.00 one-time customer | Gate failed; risk label share %99.40 | Ölçülmüş churn/retention uplift yok | Churn azalması iddia edilmez |
+| Repeat-purchase scenario | Planning scenario | %3.00 repeat customer | %4.00 hedef repeat customer | +1.0 pp; 934 ek repeat customer | Kampanya hedefi, ölçülmüş churn iyileşmesi değil |
+| Recommendation quality | Offline benchmark | Random catalog hit@10 %0.03 | SVD hit@10 %3.51 | 115.7x random baseline | Ranking iyileşti; satış/sepet uplift ölçülmedi |
+| Analytics coverage | Analytics signal | Reusable mart olmayan raw Kaggle tabloları | 2,970 seller SLA row; 74 category; 412 state lane; 93,358 segmented customer | Kanıt kapsamı genişledi, iş etkisi değil | Proje business state'i daha iyi açıklar; intervention başarısı kanıtlamaz |
 
 ## Source Coverage
 

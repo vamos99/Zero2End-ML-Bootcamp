@@ -32,12 +32,14 @@ REQUIRED_BY_NOTEBOOK = {
         "evidence_rows": "source baseline / benchmark / scenario evidence table",
         "outcome_scorecard": "plain-language before/current/result scorecard",
         "plain_language_answers": "direct answers for improvement vs impact questions",
+        "executive_answer_cards": "strict numeric answer cards for baseline/result/delta questions",
     },
     "6_executive_pipeline.ipynb": {
         "build_summary": "shared measured-results summary builder",
         "evidence_rows": "source baseline / benchmark / scenario evidence table",
         "outcome_scorecard": "plain-language before/current/result scorecard",
         "plain_language_answers": "direct answers for improvement vs impact questions",
+        "executive_answer_cards": "strict numeric answer cards for baseline/result/delta questions",
     },
 }
 

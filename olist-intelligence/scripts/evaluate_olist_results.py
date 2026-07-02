@@ -819,6 +819,128 @@ def build_plain_language_answers(summary: dict[str, Any]) -> list[dict[str, str]
     ]
 
 
+def build_executive_answer_cards(summary: dict[str, Any]) -> list[dict[str, str]]:
+    """
+    Return concrete answer cards for "what changed and by how much?" reviews.
+
+    These cards are intentionally stricter than the narrative docs: every row
+    has a result type, baseline, measured or target result, numeric delta, and
+    an explicit impact boundary. This keeps true operating impact separate from
+    offline model gains and assumption-based planning scenarios.
+    """
+    source = summary["source_business_baselines"]
+    delivery_source = source["delivery"]
+    repeat_source = source["repeat_purchase"]
+    delivery_model = summary["delivery_prediction"]
+    repeat_gate = summary["repeat_purchase_candidate"]
+    recommender = summary["recommender"]
+    analytics = summary["analytics_operating_signals"]
+    delivery_10pct = summary["intervention_scenarios"]["delivery"][0]
+    repeat_1pp = summary["intervention_scenarios"]["repeat_purchase"][1]
+
+    analytics_available = analytics.get("available") is not False
+    analytics_result = (
+        (
+            f"{analytics.get('seller_sla', {}).get('seller_rows', 0):,} seller SLA rows; "
+            f"{analytics.get('category_performance', {}).get('top_categories_ranked', 0):,} categories; "
+            f"{analytics.get('location_service', {}).get('lanes', 0):,} state lanes; "
+            f"{analytics.get('segmentation', {}).get('customers', 0):,} segmented customers"
+        )
+        if analytics_available
+        else "SQL mart/generated-output signals unavailable"
+    )
+
+    return [
+        {
+            "area": "Delivery operation",
+            "result_type": "observed_source_baseline",
+            "baseline": (
+                f"{_fmt_days(delivery_source['avg_actual_delivery_days'])} average delivery; "
+                f"{_fmt_pct(delivery_source['late_delivery_rate_pct'])} late rate; "
+                f"{delivery_source['late_orders']:,} late orders"
+            ),
+            "measured_result": "No post-model or post-intervention delivery period exists in Olist.",
+            "delta_or_change": "No measured delivery-time reduction.",
+            "impact_answer": "Delivery speed did not get proven faster in this dataset.",
+            "next_measurement": "Measure late-rate and average-delivery change after an intervention or holdout policy.",
+        },
+        {
+            "area": "Delivery prediction",
+            "result_type": "offline_model_benchmark",
+            "baseline": (
+                f"Train-mean MAE {_fmt_days(delivery_model['train_mean_baseline_mae_days'])}; "
+                f"Olist estimated-date MAE {_fmt_days(delivery_model['source_estimate_mae_days'])}"
+            ),
+            "measured_result": f"CatBoost MAE {_fmt_days(delivery_model['mae_days'])}.",
+            "delta_or_change": (
+                f"{_fmt_pct(delivery_model['mae_improvement_vs_baseline_pct'])} lower MAE vs train mean; "
+                f"{_fmt_pct(delivery_model['mae_improvement_vs_source_estimate_pct'])} lower MAE vs estimated-date baseline."
+            ),
+            "impact_answer": "Prediction error improved; operational delivery time did not.",
+            "next_measurement": "Add calibration and evaluate whether earlier risk flags reduce late deliveries.",
+        },
+        {
+            "area": "Delivery scenario",
+            "result_type": "planning_scenario",
+            "baseline": _fmt_pct(delivery_10pct["baseline_late_rate_pct"]),
+            "measured_result": _fmt_pct(delivery_10pct["projected_late_rate_pct"]),
+            "delta_or_change": (
+                f"{delivery_10pct['late_rate_delta_pp']:.2f} pp target; "
+                f"{delivery_10pct['prevented_late_orders']:.0f} fewer late orders; "
+                f"{delivery_10pct['potential_late_days_avoided']:.0f} potential late-days avoided."
+            ),
+            "impact_answer": "This is a target scenario, not a result already achieved.",
+            "next_measurement": "Validate with operations logs, an A/B test, or a holdout triage group.",
+        },
+        {
+            "area": "Repeat purchase / churn",
+            "result_type": "model_readiness_gate",
+            "baseline": (
+                f"{_fmt_pct(repeat_source['repeat_customer_rate_pct'])} repeat customers; "
+                f"{_fmt_pct(repeat_source['one_time_customer_rate_pct'])} one-time customers"
+            ),
+            "measured_result": (
+                "Model gate passed"
+                if repeat_gate["usable_for_model_eval"]
+                else f"Model gate failed; risk label share {_fmt_pct(repeat_gate['risk_label_share_pct'])}."
+            ),
+            "delta_or_change": "No measured churn or retention uplift.",
+            "impact_answer": "Do not claim churn reduction from the current prototype.",
+            "next_measurement": "Use cohort retention plus a campaign/control design before claiming uplift.",
+        },
+        {
+            "area": "Repeat-purchase scenario",
+            "result_type": "planning_scenario",
+            "baseline": _fmt_pct(repeat_1pp["baseline_repeat_rate_pct"]),
+            "measured_result": _fmt_pct(repeat_1pp["projected_repeat_rate_pct"]),
+            "delta_or_change": (
+                f"+{repeat_1pp['repeat_rate_delta_pp']:.1f} pp target; "
+                f"{repeat_1pp['additional_repeat_customers']:.0f} additional repeat customers."
+            ),
+            "impact_answer": "This is a campaign target, not measured churn improvement.",
+            "next_measurement": "Track exposed vs holdout repeat purchase in a fixed future window.",
+        },
+        {
+            "area": "Recommendation quality",
+            "result_type": "offline_model_benchmark",
+            "baseline": f"Random catalog hit@10 {_fmt_pct(recommender['random_catalog_hit_rate_at_k'] * 100)}",
+            "measured_result": f"SVD hit@10 {_fmt_pct(recommender['hit_rate_at_k'] * 100)}.",
+            "delta_or_change": f"{recommender['lift_vs_random_catalog']:.1f}x random baseline.",
+            "impact_answer": "Ranking improved offline; sales, basket, and conversion uplift were not measured.",
+            "next_measurement": "Add recommendation exposure logs or offline temporal ranking evaluation by cohort.",
+        },
+        {
+            "area": "Analytics coverage",
+            "result_type": "analytics_feature_signal",
+            "baseline": "Raw Kaggle tables without reusable dashboard marts.",
+            "measured_result": analytics_result,
+            "delta_or_change": "Coverage improved as analytical evidence, not as business impact.",
+            "impact_answer": "The project now explains more of the business state, but does not prove an intervention worked.",
+            "next_measurement": "Keep mart reconciliation tests and add feature-specific business experiments later.",
+        },
+    ]
+
+
 def build_summary() -> dict[str, Any]:
     baselines = source_business_baselines()
     summary = {
@@ -836,6 +958,7 @@ def build_summary() -> dict[str, Any]:
     summary["evidence_rows"] = build_evidence_rows(summary)
     summary["outcome_scorecard"] = build_outcome_scorecard(summary)
     summary["plain_language_answers"] = build_plain_language_answers(summary)
+    summary["executive_answer_cards"] = build_executive_answer_cards(summary)
     return summary
 
 
