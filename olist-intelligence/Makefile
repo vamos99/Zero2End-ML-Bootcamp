@@ -3,7 +3,7 @@ PIP ?= $(PYTHON) -m pip
 STREAMLIT ?= streamlit
 UVICORN ?= uvicorn
 
-.PHONY: help setup compile lint test notebooks schema-contract validate validate-data service-config ci demo-build api dashboard
+.PHONY: help setup compile lint test notebooks schema-contract validate validate-data reconcile-ingest service-config ci demo-build api dashboard
 
 help:
 	@echo "Common Olist Intelligence commands:"
@@ -11,6 +11,7 @@ help:
 	@echo "  make test            Run the pytest suite"
 	@echo "  make validate        Run no-data validation checks"
 	@echo "  make validate-data   Validate local Kaggle CSV, DB, quality, and generated tables"
+	@echo "  make reconcile-ingest Compare ingestion manifest with DB row counts"
 	@echo "  make demo-build      Build deterministic local dashboard outputs"
 	@echo "  make api             Start the local FastAPI app"
 	@echo "  make dashboard       Start the local Streamlit dashboard"
@@ -39,6 +40,9 @@ validate: compile notebooks schema-contract
 
 validate-data:
 	$(PYTHON) scripts/validate_olist_schema.py --target all
+
+reconcile-ingest:
+	$(PYTHON) scripts/reconcile_ingestion_manifest.py
 
 service-config:
 	API_KEY=$${API_KEY:-ci-placeholder-key} KAGGLE_USERNAME=$${KAGGLE_USERNAME:-ci-placeholder-user} KAGGLE_KEY=$${KAGGLE_KEY:-ci-placeholder-key} docker compose config --quiet
