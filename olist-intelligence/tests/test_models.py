@@ -95,6 +95,52 @@ class TestBenchmarkModels:
         assert "source_estimate_mae" in result["baselines"]
         assert not (tmp_path / "models" / "logistics_model.pkl").exists()
 
+    def test_late_delivery_classification_reports_decision_metrics(self, tmp_path, monkeypatch):
+        """Late-delivery benchmark should use classification metrics, not accuracy-only reporting."""
+        from src.ml import benchmark
+
+        class ProbabilityClassifier:
+            def fit(self, _x, _y):
+                return self
+
+            def predict_proba(self, x):
+                proba = np.asarray(x["freight_value"], dtype=float)
+                proba = proba / proba.max()
+                return np.column_stack([1 - proba, proba])
+
+            def predict(self, x):
+                return (self.predict_proba(x)[:, 1] >= 0.5).astype(int)
+
+        features = pd.DataFrame(
+            {
+                "freight_value": [1, 2, 8, 9, 1, 2, 8, 9, 1, 2],
+                "price": [10] * 10,
+            }
+        )
+        actual_days = pd.Series([3, 3, 8, 9, 3, 3, 8, 9, 3, 8], name="actual_days")
+        estimated_days = pd.Series([5, 5, 5, 5, 5, 5, 5, 5, 5, 5], name="estimated_days")
+        timestamps = pd.Series(pd.date_range("2018-01-01", periods=10, freq="D"))
+
+        monkeypatch.setattr(benchmark, "MODELS_PATH", tmp_path / "models")
+        monkeypatch.setattr(
+            benchmark,
+            "get_logistics_data",
+            lambda **_kwargs: (features, actual_days, timestamps, estimated_days),
+        )
+        monkeypatch.setattr(benchmark, "LogisticRegression", lambda **_kwargs: ProbabilityClassifier())
+        monkeypatch.setattr(benchmark, "RandomForestClassifier", lambda **_kwargs: ProbabilityClassifier())
+        monkeypatch.setattr(benchmark, "CatBoostClassifier", lambda **_kwargs: ProbabilityClassifier())
+
+        result = benchmark.benchmark_late_delivery_classification(limit=10)
+
+        assert result["target"] == "order_delivered_customer_date > order_estimated_delivery_date"
+        assert result["split"] == "time_based_holdout"
+        assert "accuracy" not in result["LogisticRegression"]
+        assert {"roc_auc", "pr_auc", "precision", "recall", "f1", "confusion_matrix"} <= set(
+            result["LogisticRegression"]
+        )
+        assert not (tmp_path / "models" / "late_delivery_classifier.pkl").exists()
+
 
 class TestFeatureEngineering:
     """Test feature engineering quality."""

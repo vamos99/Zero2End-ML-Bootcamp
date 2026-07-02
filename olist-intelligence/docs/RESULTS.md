@@ -136,6 +136,34 @@ by 28.0% and MAE by 48.2%. The safer portfolio framing is "delivery-risk
 prototype that improves offline prediction baselines but still needs better
 calibration", not "delivery time improved by X%".
 
+## Late-Delivery Classification Benchmark
+
+This benchmark asks a narrower decision question: "will this delivered order be
+late against Olist's estimated delivery date?" It is an offline priority-signal
+benchmark, not an API-serving model and not proof that late deliveries were
+reduced.
+
+Run command:
+
+```bash
+python -m src.ml.benchmark --only-late-classification --late-limit 50000
+```
+
+| Metric | LogisticRegression | RandomForest | CatBoost |
+| --- | ---: | ---: | ---: |
+| ROC-AUC | 0.656 | 0.634 | 0.609 |
+| PR-AUC | 0.207 | 0.207 | 0.206 |
+| Precision | 0.223 | 0.239 | 0.233 |
+| Recall | 0.403 | 0.220 | 0.268 |
+| F1 | 0.287 | 0.229 | 0.250 |
+| Confusion matrix | TN 6,864 / FP 1,701 / FN 720 / TP 487 | TN 7,719 / FP 846 / FN 942 / TP 265 | TN 7,500 / FP 1,065 / FN 883 / TP 324 |
+
+Holdout setup: time-based split, 39,087 train rows and 9,772 test rows. The
+train late rate is 4.94%; the test late rate is 12.35%, so this is an
+imbalanced and distribution-shifted classification problem. Accuracy is not
+used as the success metric because a mostly "not late" classifier can look
+good while missing the operationally important late orders.
+
 ## Repeat-Purchase / Churn Candidate
 
 The current repeat-purchase target is a modeling suitability check, not a
