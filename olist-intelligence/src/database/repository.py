@@ -98,6 +98,16 @@ def get_seller_sla_watchlist(limit=10, min_orders=20):
     return executive_repository.get_seller_sla_watchlist(limit, min_orders)
 
 
+def get_category_performance_summary(limit=10, min_orders=100):
+    """Backward-compatible facade for category performance mart rows."""
+    return executive_repository.get_category_performance_summary(limit, min_orders)
+
+
+def get_location_service_levels(limit=12, min_orders=100):
+    """Backward-compatible facade for location service-level mart rows."""
+    return executive_repository.get_location_service_levels(limit, min_orders)
+
+
 def get_logistics_metrics(start_date, end_date):
     """Backward-compatible facade for logistics metrics."""
     return logistics_repository.get_logistics_metrics(start_date, end_date)

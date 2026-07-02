@@ -5,7 +5,9 @@ from src.database.dataframe_factory import empty_frame
 from src.database.db_client import get_db_connection
 from src.database.query_limits import clamp_limit
 from src.database.repository_columns import (
+    CATEGORY_PERFORMANCE_MART_COLUMNS,
     COHORT_RETENTION_COLUMNS,
+    LOCATION_SERVICE_LEVEL_COLUMNS,
     PAYMENT_MIX_COLUMNS,
     REVENUE_BY_STATE_COLUMNS,
     REVIEW_DELIVERY_MATRIX_COLUMNS,
@@ -319,3 +321,58 @@ def get_seller_sla_watchlist(limit=10, min_orders=20):
         return pd.read_sql(query, engine, params={"limit": limit, "min_orders": min_orders})
     except Exception:
         return empty_frame(SELLER_SLA_COLUMNS)
+
+
+def get_category_performance_summary(limit=10, min_orders=100):
+    """Returns category revenue and quality rows from the category mart."""
+    limit = clamp_limit(limit, default=10)
+    query = text("""
+    SELECT
+        category,
+        orders,
+        items,
+        product_revenue,
+        freight_revenue,
+        avg_review_score,
+        avg_delivery_days,
+        late_delivery_rate
+    FROM category_performance_summary
+    WHERE orders >= :min_orders
+    ORDER BY product_revenue DESC
+    LIMIT :limit
+    """)
+
+    try:
+        return pd.read_sql(query, engine, params={"limit": limit, "min_orders": min_orders})
+    except Exception:
+        return empty_frame(CATEGORY_PERFORMANCE_MART_COLUMNS)
+
+
+def get_location_service_levels(limit=12, min_orders=100):
+    """Returns state-lane service-level rows from the location mart."""
+    limit = clamp_limit(limit, default=12)
+    query = text("""
+    SELECT
+        customer_state,
+        seller_state,
+        lane_type,
+        orders,
+        sellers,
+        items,
+        product_revenue,
+        freight_revenue,
+        avg_review_score,
+        avg_delivery_days,
+        late_delivery_rate,
+        customer_geo_coverage_pct,
+        seller_geo_coverage_pct
+    FROM location_service_level_summary
+    WHERE orders >= :min_orders
+    ORDER BY orders DESC
+    LIMIT :limit
+    """)
+
+    try:
+        return pd.read_sql(query, engine, params={"limit": limit, "min_orders": min_orders})
+    except Exception:
+        return empty_frame(LOCATION_SERVICE_LEVEL_COLUMNS)
