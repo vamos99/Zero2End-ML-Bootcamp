@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 
 API_KEY = os.getenv("API_KEY")
 api_key_header = APIKeyHeader(name="X-API-KEY", auto_error=False)
+REPEAT_PURCHASE_RISK_TYPE = "repeat_purchase_risk"
+REPEAT_PURCHASE_RISK_CLAIM_BOUNDARY = (
+    "Offline repeat-purchase risk candidate; not measured churn reduction "
+    "or retention uplift."
+)
 
 async def verify_api_key(api_key: str = Security(api_key_header)):
     """Verify API key for protected endpoints."""
@@ -93,7 +98,7 @@ async def lifespan(app: FastAPI):
 # FastAPI App
 app = FastAPI(
     title="Olist Intelligence API",
-    description="API for Logistics Predictions and Customer Churn Risk",
+    description="API for logistics predictions, repeat-purchase risk, and recommendations.",
     version="2.0.0",
     lifespan=lifespan
 )
@@ -116,6 +121,61 @@ class ChurnInput(BaseModel):
     frequency: float
     monetary: float
 
+
+def _repeat_purchase_model_missing_response():
+    raise HTTPException(
+        status_code=503,
+        detail={
+            "message": "Repeat-purchase risk model is not loaded.",
+            "prediction_type": REPEAT_PURCHASE_RISK_TYPE,
+            "model_available": False,
+            "claim_boundary": REPEAT_PURCHASE_RISK_CLAIM_BOUNDARY,
+        },
+    )
+
+
+def _risk_level(probability: float) -> str:
+    if probability > 0.7:
+        return "Critical"
+    if probability > 0.4:
+        return "Medium"
+    return "Low"
+
+
+def _predict_repeat_purchase_risk(data: ChurnInput, include_legacy_fields: bool = False):
+    if "churn" not in models:
+        _repeat_purchase_model_missing_response()
+
+    try:
+        df = pd.DataFrame([{
+            "recency": data.days_since_last_order,
+            "frequency": data.frequency,
+            "monetary": data.monetary,
+        }])
+        df = df[["recency", "frequency", "monetary"]]
+
+        prediction = models["churn"].predict(df)[0]
+        probability = float(models["churn"].predict_proba(df)[0][1])
+
+        response = {
+            "prediction_type": REPEAT_PURCHASE_RISK_TYPE,
+            "model_available": True,
+            "repeat_purchase_risk": bool(prediction),
+            "repeat_purchase_risk_probability": probability,
+            "risk_level": _risk_level(probability),
+            "claim_boundary": REPEAT_PURCHASE_RISK_CLAIM_BOUNDARY,
+        }
+        if include_legacy_fields:
+            response.update({
+                "is_churn_risk": bool(prediction),
+                "churn_probability": probability,
+                "legacy_endpoint": True,
+            })
+        return response
+    except Exception as e:
+        logger.exception("Repeat-purchase risk prediction failed: %s", e)
+        raise HTTPException(status_code=500, detail="Prediction Error")
+
 @app.post("/predict/delivery")
 def predict_delivery(data: DeliveryInput, _api_key: str = Depends(verify_api_key)):
     """
@@ -135,37 +195,20 @@ def predict_delivery(data: DeliveryInput, _api_key: str = Depends(verify_api_key
         "risk_level": "High" if prediction > 10 else "Low"
     }
 
+@app.post("/predict/repeat-purchase-risk")
+def predict_repeat_purchase_risk(data: ChurnInput, _api_key: str = Depends(verify_api_key)):
+    """
+    Repeat-purchase risk candidate prediction.
+    """
+    return _predict_repeat_purchase_risk(data)
+
+
 @app.post("/predict/churn")
 def predict_churn(data: ChurnInput, _api_key: str = Depends(verify_api_key)):
     """
-    Real-time churn risk prediction.
+    Legacy alias for repeat-purchase risk prediction.
     """
-    if "churn" not in models:
-        raise HTTPException(status_code=503, detail="Model not loaded")
-    
-    try:
-        # Prepare DataFrame with correct Feature Names and ORDER (LOWERCASE based on error)
-        df = pd.DataFrame([{
-            "recency": data.days_since_last_order,
-            "frequency": data.frequency,
-            "monetary": data.monetary
-        }])
-        
-        # Ensure column order matches training (recency, frequency, monetary)
-        df = df[['recency', 'frequency', 'monetary']]
-        
-        # Predict Class (1 = Risk)
-        prediction = models["churn"].predict(df)[0]
-        prob = models["churn"].predict_proba(df)[0][1]
-        
-        return {
-            "is_churn_risk": bool(prediction),
-            "churn_probability": float(prob),
-            "risk_level": "Critical" if prob > 0.7 else "Medium" if prob > 0.4 else "Low"
-        }
-    except Exception as e:
-        logger.exception("Churn prediction failed: %s", e)
-        raise HTTPException(status_code=500, detail="Prediction Error")
+    return _predict_repeat_purchase_risk(data, include_legacy_fields=True)
 
 class LogisticsPrediction(BaseModel):
     order_id: str

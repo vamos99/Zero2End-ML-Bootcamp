@@ -21,14 +21,14 @@ class APIClient:
         self.last_error: Optional[Dict] = None
 
     @staticmethod
-    def _extract_error_detail(response) -> str:
+    def _extract_error_detail(response):
         try:
             body = response.json()
         except ValueError:
             return response.text or response.reason
 
         detail = body.get("detail")
-        if isinstance(detail, str):
+        if isinstance(detail, (dict, list, str)):
             return detail
         return str(detail or body)
     
@@ -77,8 +77,26 @@ class APIClient:
             timeout=5
         )
     
+    def predict_repeat_purchase_risk(
+        self,
+        days_since: int,
+        frequency: int,
+        monetary: float,
+    ) -> Optional[Dict]:
+        """Predict repeat-purchase risk using the canonical API endpoint."""
+        return self._handle_request(
+            "POST",
+            "/predict/repeat-purchase-risk",
+            json={
+                "days_since_last_order": days_since,
+                "frequency": frequency,
+                "monetary": monetary
+            },
+            timeout=5
+        )
+
     def predict_churn(self, days_since: int, frequency: int, monetary: float) -> Optional[Dict]:
-        """Predict churn probability for a customer."""
+        """Legacy alias kept for older dashboard/API callers."""
         return self._handle_request(
             "POST",
             "/predict/churn",

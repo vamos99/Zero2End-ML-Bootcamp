@@ -84,7 +84,7 @@ def test_protected_inference_endpoint_rejects_missing_api_key(monkeypatch):
     import src.app as api_app
     monkeypatch.setattr(api_app, "API_KEY", "test-key")
     response = client.post(
-        "/predict/churn",
+        "/predict/repeat-purchase-risk",
         json={"days_since_last_order": 10, "frequency": 5, "monetary": 1000},
     )
     assert response.status_code == 401
@@ -162,7 +162,59 @@ def test_predict_churn_real(monkeypatch):
         assert response.status_code == 200
         data = response.json()
         assert data["churn_probability"] is not None
+        assert data["prediction_type"] == "repeat_purchase_risk"
+        assert data["model_available"] is True
+        assert data["legacy_endpoint"] is True
+        assert "claim_boundary" in data
         assert "risk_level" in data
+
+
+def test_predict_repeat_purchase_risk_real(monkeypatch):
+    import src.app as api_app
+    monkeypatch.setattr(api_app, "API_KEY", "test-key")
+    with patch("src.app.models") as mock_models:
+        mock_churn = MagicMock()
+        mock_churn.predict.return_value = [1]
+        mock_churn.predict_proba.return_value = [[0.2, 0.8]]
+        mock_models.__getitem__.side_effect = lambda k: mock_churn if k == "churn" else None
+        mock_models.__contains__.side_effect = lambda k: k == "churn"
+        payload = {
+            "days_since_last_order": 10,
+            "frequency": 5,
+            "monetary": 1000
+        }
+        response = client.post(
+            "/predict/repeat-purchase-risk",
+            json=payload,
+            headers=API_HEADERS,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["prediction_type"] == "repeat_purchase_risk"
+        assert data["model_available"] is True
+        assert data["repeat_purchase_risk"] is True
+        assert data["repeat_purchase_risk_probability"] == 0.8
+        assert "churn_probability" not in data
+        assert "claim_boundary" in data
+
+
+def test_repeat_purchase_risk_model_missing_returns_contract(monkeypatch):
+    import src.app as api_app
+    monkeypatch.setattr(api_app, "API_KEY", "test-key")
+    monkeypatch.setattr(api_app, "models", {})
+
+    response = client.post(
+        "/predict/repeat-purchase-risk",
+        json={"days_since_last_order": 10, "frequency": 5, "monetary": 1000},
+        headers=API_HEADERS,
+    )
+
+    assert response.status_code == 503
+    detail = response.json()["detail"]
+    assert detail["prediction_type"] == "repeat_purchase_risk"
+    assert detail["model_available"] is False
+    assert "Repeat-purchase risk model is not loaded" in detail["message"]
+    assert "claim_boundary" in detail
 
 
 def test_recommend_products(monkeypatch):
