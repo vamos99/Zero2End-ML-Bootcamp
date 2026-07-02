@@ -77,6 +77,59 @@ def test_build_dashboard_outcome_scorecard_separates_impact_from_targets():
     )
 
 
+def test_build_dashboard_answer_cards_make_deltas_explicit():
+    impact_summary = {
+        "delivery_scenario": {
+            "baseline_late_rate_pct": 10.0,
+            "projected_late_rate_pct": 9.0,
+            "late_rate_delta_pp": -1.0,
+            "prevented_late_orders": 100.0,
+            "potential_late_days_avoided": 500.0,
+        },
+        "repeat_purchase_scenario": {
+            "baseline_repeat_rate_pct": 3.0,
+            "projected_repeat_rate_pct": 4.0,
+            "additional_repeat_customers": 900.0,
+        },
+    }
+    outcome_scorecard = [
+        {
+            "area": "Actual delivery operation",
+            "baseline": "10.00% late rate",
+            "current_or_target": "No post-intervention delivery period",
+            "measured_change": "No actual delivery-time improvement measured",
+        },
+        {
+            "area": "Repeat purchase / churn",
+            "baseline": "3.00% repeat; 97.00% one-time",
+            "current_or_target": "No measured campaign result",
+            "measured_change": "No churn or retention uplift measured",
+        },
+        {
+            "area": "Executive analytics coverage",
+            "baseline": "Raw Olist tables",
+            "current_or_target": "2 payment methods; 1 cohort rows",
+            "measured_change": "Dashboard evidence coverage improved, not business outcome",
+        },
+    ]
+
+    result = analytics_service.build_dashboard_answer_cards(impact_summary, outcome_scorecard)
+
+    delivery = next(row for row in result if row["area"] == "Delivery operation")
+    assert delivery["delta_or_change"] == "No actual delivery-time improvement measured"
+    assert "not been proven faster" in delivery["boundary"]
+
+    scenario = next(row for row in result if row["area"] == "Delivery scenario")
+    assert scenario["baseline"] == "10.00% late rate"
+    assert scenario["current_or_target"] == "9.00% late rate"
+    assert "100 fewer late orders" in scenario["delta_or_change"]
+    assert "500 potential late-days" in scenario["delta_or_change"]
+    assert scenario["result_type"] == "planning_scenario"
+
+    churn = next(row for row in result if row["area"] == "Repeat purchase / churn")
+    assert churn["delta_or_change"] == "No churn or retention uplift measured"
+
+
 @patch('src.services.analytics_service.repository')
 def test_get_daily_pulse(mock_repository):
     """Test get_daily_pulse aggregation."""
@@ -153,6 +206,7 @@ def test_get_executive_dashboard_data(mock_repository):
     assert result["location_service_levels"].equals(location_df)
     assert result["impact_summary"]["delivery_scenario"]["projected_late_rate_pct"] == 9.0
     assert result["outcome_scorecard"][0]["area"] == "Actual delivery operation"
+    assert result["dashboard_answer_cards"][0]["area"] == "Delivery operation"
 
 @patch('src.services.analytics_service.repository')
 def test_get_logistics_data(mock_repository):

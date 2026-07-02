@@ -1,6 +1,11 @@
 import pandas as pd
 
-from src.views.home_view import _category_signal_table, _location_lane_table, _scorecard_markdown
+from src.views.home_view import (
+    _answer_cards_table,
+    _category_signal_table,
+    _location_lane_table,
+    _scorecard_markdown,
+)
 
 
 def test_scorecard_markdown_keeps_measured_change_visible():
@@ -19,6 +24,32 @@ def test_scorecard_markdown_keeps_measured_change_visible():
     assert "Actual delivery operation" in result
     assert "No actual delivery-time improvement measured" in result
     assert "Source baseline only" in result
+
+
+def test_answer_cards_table_keeps_claim_boundary_visible():
+    rows = [
+        {
+            "area": "Delivery scenario",
+            "result_type": "planning_scenario",
+            "baseline": "6.77% late rate",
+            "current_or_target": "6.10% late rate",
+            "delta_or_change": "-0.68 pp target; 653 fewer late orders",
+            "boundary": "Scenario target only; validate before calling it impact.",
+        }
+    ]
+
+    result = _answer_cards_table(rows)
+
+    assert result == [
+        {
+            "Area": "Delivery scenario",
+            "Type": "planning_scenario",
+            "Baseline": "6.77% late rate",
+            "Current / target": "6.10% late rate",
+            "Delta / change": "-0.68 pp target; 653 fewer late orders",
+            "Boundary": "Scenario target only; validate before calling it impact.",
+        }
+    ]
 
 
 def test_category_signal_table_uses_reader_friendly_columns():
