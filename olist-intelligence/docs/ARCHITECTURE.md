@@ -42,6 +42,7 @@ The existing rendered overview remains available at
 | `scripts/validate_olist_schema.py` | CLI validation entry point |
 | `scripts/build_local_demo.py` | Deterministic local dashboard-output build |
 | `scripts/export_bi_marts.py` | Local SQL mart export for BI tools |
+| `docs/CLOUD_OPTIONAL.md` | Optional BigQuery / Looker Studio handoff notes |
 | `sql/views/` | Reusable analytics marts/views |
 | `src/database/db_client.py` | Database engine creation |
 | `src/database/repository.py` | Backward-compatible repository facade and remaining legacy functions |
