@@ -10,6 +10,7 @@ from src.database.repository_columns import (
     PAYMENT_MIX_COLUMNS,
     REVENUE_BY_STATE_COLUMNS,
     REVIEW_DELIVERY_MATRIX_COLUMNS,
+    SELLER_RISK_SCORECARD_COLUMNS,
     SELLER_SLA_COLUMNS,
     TARGET_AUDIENCE_COLUMNS,
 )
@@ -118,6 +119,7 @@ class TestRepository:
             get_category_performance_summary,
             get_location_service_levels,
             get_revenue_by_state,
+            get_seller_risk_scorecard,
             get_source_business_baselines,
         )
 
@@ -160,6 +162,16 @@ class TestRepository:
 
         assert result is locations
         get_location_impl.assert_called_once_with(6, 75)
+
+        seller_risk = pd.DataFrame({"seller_id": ["s1"], "risk_score": [42.0]})
+        with patch(
+            "src.database.repository.executive_repository.get_seller_risk_scorecard",
+            return_value=seller_risk,
+        ) as get_seller_risk_impl:
+            result = get_seller_risk_scorecard(limit=5, min_orders=20)
+
+        assert result is seller_risk
+        get_seller_risk_impl.assert_called_once_with(5, 20)
 
     def test_logistics_facade_delegates_without_breaking_dashboard_imports(self):
         """Logistics dashboard imports continue through the repository facade."""
@@ -408,30 +420,62 @@ class TestRepository:
             assert result.iloc[0]['late_delivery_rate'] == 42.0
 
     @patch('src.database.repository.engine')
+    def test_get_seller_risk_scorecard(self, mock_engine):
+        """Test seller risk scorecard mart retrieval."""
+        from src.database.repository import get_seller_risk_scorecard
+
+        mock_df = pd.DataFrame({
+            'seller_id': ['s1'],
+            'seller_state': ['SP'],
+            'orders': [40],
+            'delivered_orders': [38],
+            'items': [42],
+            'product_revenue': [1000.0],
+            'freight_revenue': [120.0],
+            'avg_review_score': [3.5],
+            'late_delivery_rate': [30.0],
+            'low_review_rate': [15.0],
+            'canceled_unavailable_rate': [5.0],
+            'cross_state_rate': [60.0],
+            'risk_score': [45.25],
+            'risk_level': ['medium'],
+        })
+
+        with patch('pandas.read_sql', return_value=mock_df):
+            result = get_seller_risk_scorecard()
+
+            assert result.iloc[0]['risk_score'] == 45.25
+            assert result.iloc[0]['risk_level'] == 'medium'
+
+    @patch('src.database.repository.engine')
     def test_remaining_repository_limits_and_fallbacks_use_contracts(self, mock_engine):
         """Seller, mart, logistics, and audience queries use bounded limits and stable schemas."""
         from src.database.repository import (
             get_category_performance_summary,
             get_location_service_levels,
             get_logistics_details,
+            get_seller_risk_scorecard,
             get_seller_sla_watchlist,
             get_target_audience,
         )
 
         with patch('pandas.read_sql', side_effect=RuntimeError('db unavailable')) as read_sql:
             sellers = get_seller_sla_watchlist(limit=500)
+            seller_risk = get_seller_risk_scorecard(limit=500)
             categories = get_category_performance_summary(limit=500)
             locations = get_location_service_levels(limit='invalid')
             logistics = get_logistics_details('2024-01-01', '2024-01-31', limit='invalid')
             audience = get_target_audience(limit=5000)
 
         assert sellers.columns.tolist() == SELLER_SLA_COLUMNS
+        assert seller_risk.columns.tolist() == SELLER_RISK_SCORECARD_COLUMNS
         assert categories.columns.tolist() == CATEGORY_PERFORMANCE_MART_COLUMNS
         assert locations.columns.tolist() == LOCATION_SERVICE_LEVEL_COLUMNS
         assert logistics.columns.tolist() == LOGISTICS_DETAILS_COLUMNS
         assert audience.columns.tolist() == TARGET_AUDIENCE_COLUMNS
         assert read_sql.call_args_list[0].kwargs['params']['limit'] == 100
         assert read_sql.call_args_list[1].kwargs['params']['limit'] == 100
-        assert read_sql.call_args_list[2].kwargs['params']['limit'] == 12
-        assert read_sql.call_args_list[3].kwargs['params']['limit'] == 10
-        assert read_sql.call_args_list[4].kwargs['params']['limit'] == 500
+        assert read_sql.call_args_list[2].kwargs['params']['limit'] == 100
+        assert read_sql.call_args_list[3].kwargs['params']['limit'] == 12
+        assert read_sql.call_args_list[4].kwargs['params']['limit'] == 10
+        assert read_sql.call_args_list[5].kwargs['params']['limit'] == 500

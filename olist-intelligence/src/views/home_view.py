@@ -398,6 +398,55 @@ def render_home_view(metrics, executive_data=None):
     else:
         st.info("Seller SLA watchlist is available after SQL views are applied to the local database.")
 
+    seller_risk_scorecard = executive_data.get("seller_risk_scorecard")
+    st.markdown("**Seller risk scorecard**")
+    if seller_risk_scorecard is not None and not seller_risk_scorecard.empty:
+        display_columns = [
+            "seller_label",
+            "seller_state",
+            "orders",
+            "risk_score",
+            "risk_level",
+            "late_delivery_rate",
+            "low_review_rate",
+            "canceled_unavailable_rate",
+            "cross_state_rate",
+        ]
+        st.dataframe(
+            seller_risk_scorecard[display_columns]
+            .rename(
+                columns={
+                    "seller_label": "Seller",
+                    "seller_state": "State",
+                    "orders": "Orders",
+                    "risk_score": "Risk score",
+                    "risk_level": "Risk level",
+                    "late_delivery_rate": "Late delivery",
+                    "low_review_rate": "Low review",
+                    "canceled_unavailable_rate": "Canceled/unavailable",
+                    "cross_state_rate": "Cross-state",
+                }
+            )
+            .style.format(
+                {
+                    "Orders": "{:,.0f}",
+                    "Risk score": "{:.1f}",
+                    "Late delivery": _format_pct,
+                    "Low review": _format_pct,
+                    "Canceled/unavailable": _format_pct,
+                    "Cross-state": _format_pct,
+                }
+            ),
+            width="stretch",
+            hide_index=True,
+        )
+        st.caption(
+            "Risk score is a prioritization score from late delivery, low review, "
+            "canceled/unavailable, cross-state, and volume signals; it is not measured impact."
+        )
+    else:
+        st.info("Seller risk scorecard is available after SQL views are applied to the local database.")
+
     st.markdown("**Category and location service signals**")
     category_signal_col, location_signal_col = st.columns(2)
 

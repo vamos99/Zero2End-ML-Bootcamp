@@ -42,7 +42,7 @@ iyileşme değil, modelleme uygunluk kapısı raporlanır.
 | Repeat purchase | %3.00 repeat customer; %97.00 one-time customer | Churn/retention uplift ölçülmedi | Cohort retention daha güvenilir davranış metriği |
 | Churn gate | Risk etiketi %99.40; sınıf dağılımı aşırı dengesiz | Model evaluation gate failed | Decision-ready churn modeli olarak sunulmaz |
 | Recommender | Random hit@10 %0.03 | SVD hit@10 %3.51, 115.7x random baseline | Ranking benchmark'ı var; satış uplift'i yok |
-| Executive analytics | Credit card payment share %78.34; month-1 retention %5.20 | 2,970 seller SLA rows; 93,358 segmented customers; top category health_beauty; top lane SP->SP | SQL mart/generated-output kanıtı var; impact iddiası yok |
+| Executive analytics | Credit card payment share %78.34; month-1 retention %5.20 | 2,970 seller SLA rows; 3,095 seller risk rows; 93,358 segmented customers; top category health_beauty | SQL mart/generated-output kanıtı var; impact iddiası yok |
 | Scenario hedefi | %6.77 geç teslimat | %6.10 geç teslimat, 653 geç sipariş önleme varsayımı | Gelecek deney hedefi, gerçekleşmiş impact değil |
 
 Kod tarafında aynı ayrım `scripts/evaluate_olist_results.py` içindeki
@@ -191,7 +191,7 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 
 ### Dashboard
 *   **5 Sayfa:** Executive overview, Operasyon, Müşteri, Segmentasyon, Ranking
-*   **Executive signals:** Payment mix, cohort retention, seller SLA ve baseline/scenario kartları SQL martlardan veya hızlı DB sorgularından beslenir
+*   **Executive signals:** Payment mix, cohort retention, seller SLA/risk ve baseline/scenario kartları SQL martlardan veya hızlı DB sorgularından beslenir
 *   **Aksiyon hipotezleri:** Kampanya fikirleri ölçülmüş ROI değil, deney backlog'udur
 
 ### API
@@ -204,7 +204,7 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 ### Data Quality
 *   **Schema contract:** Kaggle Olist'in 9 CSV / 52 kolon beklentisi `src/data_contract.py` altında tanımlıdır.
 *   **DB kalite kontrolleri:** Boş tablo, duplicate key, orphan foreign key, kabul edilen status/payment değerleri, negatif ödeme/fiyat ve imkansız teslimat tarihleri kontrol edilir.
-*   **Analytics marts:** Payment mix, review-delivery driver, seller SLA, category performance, location service ve cohort retention view'ları yönetici dashboard akışında kullanılır.
+*   **Analytics marts:** Payment mix, review-delivery driver, seller SLA/risk, category performance, location service ve cohort retention view'ları yönetici dashboard akışında kullanılır.
 
 ### Dashboard Kaynak Eşlemesi
 
@@ -215,6 +215,7 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 | Payment mix | `payment_mix_summary` |
 | Customer cohort retention | `customer_cohort_retention` |
 | Seller SLA watchlist | `seller_sla_summary` |
+| Seller risk scorecard | `seller_risk_scorecard` |
 | Category revenue and quality | `category_performance_summary` |
 | Location service levels | `location_service_level_summary` |
 

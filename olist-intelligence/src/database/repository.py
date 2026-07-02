@@ -98,6 +98,11 @@ def get_seller_sla_watchlist(limit=10, min_orders=20):
     return executive_repository.get_seller_sla_watchlist(limit, min_orders)
 
 
+def get_seller_risk_scorecard(limit=10, min_orders=20):
+    """Backward-compatible facade for seller risk scorecard rows."""
+    return executive_repository.get_seller_risk_scorecard(limit, min_orders)
+
+
 def get_category_performance_summary(limit=10, min_orders=100):
     """Backward-compatible facade for category performance mart rows."""
     return executive_repository.get_category_performance_summary(limit, min_orders)
