@@ -58,6 +58,11 @@ def test_build_summary_includes_source_baselines(monkeypatch):
         "build_plain_language_answers",
         lambda summary: [{"answer": True}],
     )
+    monkeypatch.setattr(
+        evaluate_olist_results,
+        "build_executive_answer_cards",
+        lambda summary: [{"card": True}],
+    )
 
     result = evaluate_olist_results.build_summary()
 
@@ -66,6 +71,7 @@ def test_build_summary_includes_source_baselines(monkeypatch):
     assert result["evidence_rows"] == [{"ok": True}]
     assert result["outcome_scorecard"] == [{"score": True}]
     assert result["plain_language_answers"] == [{"answer": True}]
+    assert result["executive_answer_cards"] == [{"card": True}]
     assert result["analytics_operating_signals"] == {"analytics": True}
     assert "not measured business impact" in result["important_boundary"]
 
@@ -455,3 +461,85 @@ def test_intervention_scenarios_are_explicit_assumption_based():
     assert one_point_repeat["projected_repeat_rate_pct"] == 4.0
     assert one_point_repeat["additional_repeat_customers"] == 20.0
     assert "Assumption-based" in result["boundary"]
+
+
+def test_executive_answer_cards_make_numeric_boundaries_explicit():
+    summary = {
+        "source_business_baselines": {
+            "delivery": {
+                "avg_actual_delivery_days": 12.5,
+                "late_delivery_rate_pct": 10.0,
+                "late_orders": 100,
+            },
+            "repeat_purchase": {
+                "repeat_customer_rate_pct": 3.0,
+                "one_time_customer_rate_pct": 97.0,
+            },
+        },
+        "delivery_prediction": {
+            "train_mean_baseline_mae_days": 8.0,
+            "source_estimate_mae_days": 12.0,
+            "mae_days": 6.0,
+            "mae_improvement_vs_baseline_pct": 25.0,
+            "mae_improvement_vs_source_estimate_pct": 50.0,
+        },
+        "repeat_purchase_candidate": {
+            "risk_label_share_pct": 99.0,
+            "usable_for_model_eval": False,
+        },
+        "recommender": {
+            "random_catalog_hit_rate_at_k": 0.001,
+            "hit_rate_at_k": 0.02,
+            "lift_vs_random_catalog": 20.0,
+        },
+        "analytics_operating_signals": {
+            "available": True,
+            "seller_sla": {"seller_rows": 10},
+            "category_performance": {"top_categories_ranked": 5},
+            "location_service": {"lanes": 4},
+            "segmentation": {"customers": 100},
+        },
+        "intervention_scenarios": {
+            "delivery": [
+                {
+                    "baseline_late_rate_pct": 10.0,
+                    "projected_late_rate_pct": 9.0,
+                    "late_rate_delta_pp": -1.0,
+                    "prevented_late_orders": 10,
+                    "potential_late_days_avoided": 50,
+                }
+            ],
+            "repeat_purchase": [
+                {"unused": True},
+                {
+                    "baseline_repeat_rate_pct": 3.0,
+                    "projected_repeat_rate_pct": 4.0,
+                    "repeat_rate_delta_pp": 1.0,
+                    "additional_repeat_customers": 20,
+                },
+            ],
+        },
+    }
+
+    cards = evaluate_olist_results.build_executive_answer_cards(summary)
+
+    delivery_operation = next(card for card in cards if card["area"] == "Delivery operation")
+    assert delivery_operation["delta_or_change"] == "No measured delivery-time reduction."
+    assert "did not get proven faster" in delivery_operation["impact_answer"]
+
+    delivery_prediction = next(card for card in cards if card["area"] == "Delivery prediction")
+    assert "50.00% lower MAE vs estimated-date baseline" in delivery_prediction["delta_or_change"]
+    assert delivery_prediction["result_type"] == "offline_model_benchmark"
+
+    delivery_scenario = next(card for card in cards if card["area"] == "Delivery scenario")
+    assert delivery_scenario["baseline"] == "10.00%"
+    assert delivery_scenario["measured_result"] == "9.00%"
+    assert "10 fewer late orders" in delivery_scenario["delta_or_change"]
+    assert "not a result already achieved" in delivery_scenario["impact_answer"]
+
+    churn = next(card for card in cards if card["area"] == "Repeat purchase / churn")
+    assert churn["delta_or_change"] == "No measured churn or retention uplift."
+
+    analytics = next(card for card in cards if card["area"] == "Analytics coverage")
+    assert "10 seller SLA rows" in analytics["measured_result"]
+    assert analytics["result_type"] == "analytics_feature_signal"
