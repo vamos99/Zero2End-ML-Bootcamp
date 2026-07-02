@@ -27,6 +27,9 @@ REPEAT_PURCHASE_RISK_CLAIM_BOUNDARY = (
     "Offline repeat-purchase risk candidate; not measured churn reduction "
     "or retention uplift."
 )
+RECOMMENDATION_CLAIM_BOUNDARY = (
+    "Offline recommendation prototype; not measured sales uplift or conversion impact."
+)
 
 async def verify_api_key(api_key: str = Security(api_key_header)):
     """Verify API key for protected endpoints."""
@@ -228,6 +231,31 @@ class RecommendationInput(BaseModel):
     customer_id: str
     top_k: int = Field(default=5, ge=1, le=20)
 
+
+def _recommendation_items(values: list[str], item_type: str) -> list[dict]:
+    return [
+        {"rank": rank, "id": str(value), "item_type": item_type}
+        for rank, value in enumerate(values, start=1)
+    ]
+
+
+def _recommendation_response(
+    customer_id: str,
+    recommendations: list[str],
+    method: str,
+    item_type: str,
+    personalization_level: str,
+):
+    return {
+        "customer_id": customer_id,
+        "recommendations": recommendations,
+        "items": _recommendation_items(recommendations, item_type),
+        "method": method,
+        "item_type": item_type,
+        "personalization_level": personalization_level,
+        "claim_boundary": RECOMMENDATION_CLAIM_BOUNDARY,
+    }
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Olist Intelligence API "}
@@ -343,11 +371,13 @@ def recommend_products(
                 top_k=data.top_k,
             )
             if final_recommendations:
-                return {
-                    "method": "personalized_svd",
-                    "item_type": "product_id",
-                    "recommendations": final_recommendations
-                }
+                return _recommendation_response(
+                    customer_id=data.customer_id,
+                    recommendations=final_recommendations,
+                    method="personalized_svd",
+                    item_type="product_id",
+                    personalization_level="personalized",
+                )
         except Exception as e:
             logger.warning("SVD recommendation failed; using popularity fallback: %s", e)
             # Fallback to popularity
@@ -367,18 +397,22 @@ def recommend_products(
             """)
             result = db.execute(query, {"limit": data.top_k}).fetchall()
             recommendations = [row[0] for row in result if row[0]]
+            personalization_level = "category_popularity_fallback"
             
             # If still empty (e.g. empty DB), use generic fallback
             if not recommendations:
                 recommendations = ["relogios_presentes", "cama_mesa_banho", "esporte_lazer", "informatica_acessorios", "moveis_decoracao"]
+                personalization_level = "static_category_fallback"
                 
         except Exception as e:
             logger.warning("Popularity recommendation query failed; using static fallback: %s", e)
             recommendations = ["relogios_presentes", "cama_mesa_banho", "esporte_lazer"]
+            personalization_level = "static_category_fallback"
     
-    return {
-        "customer_id": data.customer_id,
-        "recommendations": recommendations,
-        "method": method,
-        "item_type": "product_category",
-    }
+    return _recommendation_response(
+        customer_id=data.customer_id,
+        recommendations=recommendations,
+        method=method,
+        item_type="product_category",
+        personalization_level=personalization_level,
+    )

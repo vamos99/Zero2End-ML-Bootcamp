@@ -238,8 +238,22 @@ def test_recommend_products(monkeypatch):
         data = response.json()
         assert data["method"] == "personalized_svd"
         assert data["recommendations"] == ["PROD_A", "PROD_C"]
+        assert data["item_type"] == "product_id"
+        assert data["personalization_level"] == "personalized"
+        assert data["items"] == [
+            {"rank": 1, "id": "PROD_A", "item_type": "product_id"},
+            {"rank": 2, "id": "PROD_C", "item_type": "product_id"},
+        ]
+        assert "claim_boundary" in data
         payload = {"customer_id": "UNKNOWN_USER", "top_k": 5}
         response = client.post("/recommend", json=payload, headers=API_HEADERS)
         assert response.status_code == 200
         data = response.json()
         assert "popularity_fallback" in data["method"]
+        assert data["item_type"] == "product_category"
+        assert data["personalization_level"] in {
+            "category_popularity_fallback",
+            "static_category_fallback",
+        }
+        assert data["items"][0]["item_type"] == "product_category"
+        assert "recommendations" in data

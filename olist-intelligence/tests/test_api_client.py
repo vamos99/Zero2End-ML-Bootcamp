@@ -47,8 +47,11 @@ def test_get_recommendation_response_preserves_metadata(monkeypatch):
     mock_response = MagicMock()
     mock_response.json.return_value = {
         "recommendations": ["cama_mesa_banho"],
+        "items": [{"rank": 1, "id": "cama_mesa_banho", "item_type": "product_category"}],
         "method": "popularity_fallback (User Unknown)",
         "item_type": "product_category",
+        "personalization_level": "category_popularity_fallback",
+        "claim_boundary": "Offline recommendation prototype.",
     }
     mock_response.raise_for_status.return_value = None
 
@@ -58,8 +61,11 @@ def test_get_recommendation_response_preserves_metadata(monkeypatch):
     result = client.get_recommendation_response("USER_1", n=1)
 
     assert result["recommendations"] == ["cama_mesa_banho"]
+    assert result["items"][0]["id"] == "cama_mesa_banho"
     assert result["method"] == "popularity_fallback (User Unknown)"
     assert result["item_type"] == "product_category"
+    assert result["personalization_level"] == "category_popularity_fallback"
+    assert "claim_boundary" in result
 
 
 def test_api_client_stores_structured_error_detail(monkeypatch):
