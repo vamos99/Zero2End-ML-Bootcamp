@@ -154,6 +154,7 @@ def test_sql_views_reconcile_core_metrics(tmp_path):
         "payment_mix_summary.sql",
         "review_delivery_drivers.sql",
         "seller_performance.sql",
+        "seller_risk_scorecard.sql",
         "seller_sla_summary.sql",
     }
 
@@ -197,6 +198,15 @@ def test_sql_views_reconcile_core_metrics(tmp_path):
     assert seller_sla["items"] == 2
     assert seller_sla["product_revenue"] == pytest.approx(150.0)
     assert seller_sla["late_delivery_rate"] == pytest.approx(50.0)
+
+    seller_risk = pd.read_sql(text("SELECT * FROM seller_risk_scorecard"), engine).iloc[0]
+    assert seller_risk["orders"] == 2
+    assert seller_risk["delivered_orders"] == 2
+    assert seller_risk["late_delivery_rate"] == pytest.approx(50.0)
+    assert seller_risk["low_review_rate"] == pytest.approx(50.0)
+    assert seller_risk["cross_state_rate"] == pytest.approx(50.0)
+    assert seller_risk["risk_score"] == pytest.approx(35.0)
+    assert seller_risk["risk_level"] == "medium"
 
     category = pd.read_sql(
         text("SELECT * FROM category_performance_summary WHERE category = 'category_b'"),

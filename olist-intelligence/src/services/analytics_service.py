@@ -214,6 +214,7 @@ def get_executive_dashboard_data(start_date, end_date):
     payment_mix = repository.get_payment_mix_summary(start_date, end_date)
     cohort_retention = repository.get_cohort_retention_matrix(start_date, end_date)
     seller_sla_watchlist = repository.get_seller_sla_watchlist()
+    seller_risk_scorecard = repository.get_seller_risk_scorecard()
     category_performance = repository.get_category_performance_summary()
     location_service_levels = repository.get_location_service_levels()
     impact_summary = build_impact_scenario_summary(repository.get_source_business_baselines())
@@ -221,6 +222,11 @@ def get_executive_dashboard_data(start_date, end_date):
     if not seller_sla_watchlist.empty and "seller_id" in seller_sla_watchlist.columns:
         seller_sla_watchlist = seller_sla_watchlist.copy()
         seller_sla_watchlist["seller_label"] = seller_sla_watchlist["seller_id"].apply(
+            lambda value: f"Seller {str(value)[:8]}..."
+        )
+    if not seller_risk_scorecard.empty and "seller_id" in seller_risk_scorecard.columns:
+        seller_risk_scorecard = seller_risk_scorecard.copy()
+        seller_risk_scorecard["seller_label"] = seller_risk_scorecard["seller_id"].apply(
             lambda value: f"Seller {str(value)[:8]}..."
         )
     outcome_scorecard = build_dashboard_outcome_scorecard(
@@ -239,6 +245,7 @@ def get_executive_dashboard_data(start_date, end_date):
         "payment_mix": payment_mix,
         "cohort_retention": cohort_retention,
         "seller_sla_watchlist": seller_sla_watchlist,
+        "seller_risk_scorecard": seller_risk_scorecard,
         "category_performance": category_performance,
         "location_service_levels": location_service_levels,
         "impact_summary": impact_summary,

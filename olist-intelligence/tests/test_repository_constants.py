@@ -6,6 +6,7 @@ from src.database.repository_columns import (
     PAYMENT_MIX_COLUMNS,
     REVENUE_BY_STATE_COLUMNS,
     REVIEW_DELIVERY_MATRIX_COLUMNS,
+    SELLER_RISK_SCORECARD_COLUMNS,
     SELLER_SLA_COLUMNS,
     TARGET_AUDIENCE_COLUMNS,
 )
@@ -23,6 +24,7 @@ def test_repository_column_contracts_are_defined():
     assert REVENUE_BY_STATE_COLUMNS == ["customer_state", "order_count", "revenue"]
     assert REVIEW_DELIVERY_MATRIX_COLUMNS[-1] == "late_delivery_rate"
     assert SELLER_SLA_COLUMNS[0] == "seller_id"
+    assert "risk_score" in SELLER_RISK_SCORECARD_COLUMNS
     assert CATEGORY_PERFORMANCE_MART_COLUMNS[0] == "category"
     assert LOCATION_SERVICE_LEVEL_COLUMNS[2] == "lane_type"
     assert LOGISTICS_DETAILS_COLUMNS[-1] == "order_purchase_timestamp"

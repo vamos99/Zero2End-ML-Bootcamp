@@ -32,6 +32,23 @@ SELLER_SLA_COLUMNS = [
     "late_delivery_rate",
 ]
 
+SELLER_RISK_SCORECARD_COLUMNS = [
+    "seller_id",
+    "seller_state",
+    "orders",
+    "delivered_orders",
+    "items",
+    "product_revenue",
+    "freight_revenue",
+    "avg_review_score",
+    "late_delivery_rate",
+    "low_review_rate",
+    "canceled_unavailable_rate",
+    "cross_state_rate",
+    "risk_score",
+    "risk_level",
+]
+
 CATEGORY_PERFORMANCE_MART_COLUMNS = [
     "category",
     "orders",

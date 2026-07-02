@@ -74,6 +74,24 @@ so duplicate review rows do not create fractional score categories.
 This view aggregates to seller-order grain before seller-level grouping, which
 prevents multi-item orders from inflating order counts.
 
+## `seller_risk_scorecard`
+
+| Metric | Definition | Source |
+| --- | --- | --- |
+| `orders` | Distinct orders handled by the seller, including delivered and non-delivered statuses | `order_items`, `orders` |
+| `delivered_orders` | Seller orders with `order_status = 'delivered'` | `orders.order_status` |
+| `product_revenue` | Sum of seller item prices | `order_items.price` |
+| `freight_revenue` | Sum of seller freight values | `order_items.freight_value` |
+| `late_delivery_rate` | Average delivered-order late flag multiplied by 100 | `orders` date columns |
+| `low_review_rate` | Share of seller orders with average review score less than or equal to 2, multiplied by 100 | `order_reviews.review_score` |
+| `canceled_unavailable_rate` | Share of seller orders with `canceled` or `unavailable` status, multiplied by 100 | `orders.order_status` |
+| `cross_state_rate` | Share of seller orders where seller state differs from customer state, multiplied by 100 | `sellers`, `customers` |
+| `risk_score` | Weighted priority score from late delivery, low review, canceled/unavailable, cross-state and order-volume signals, capped at 100 | Derived |
+| `risk_level` | `high`, `medium`, or `low` bucket from `risk_score` | Derived |
+
+This scorecard is an operating-priority heuristic, not measured intervention
+impact. It is designed to help decide which sellers deserve review first.
+
 ## `category_performance_summary`
 
 | Metric | Definition | Source |
@@ -144,8 +162,8 @@ cohort and repeat-purchase calculation.
 `tests/test_sql_views.py` builds a small SQLite fixture, applies every SQL view
 with `scripts/apply_sql_views.py`, and checks expected revenue, review,
 late-delivery, payment mix, seller SLA, category performance, location service
-levels, customer cohort retention and segment aggregates. This keeps the SQL
-layer testable without requiring the full Kaggle dataset.
+levels, seller risk scoring, customer cohort retention and segment aggregates.
+This keeps the SQL layer testable without requiring the full Kaggle dataset.
 
 `tests/test_data_contract.py` validates the expected Kaggle source contract:
 9 CSV files, 52 source columns, the repository's CSV-to-table naming convention,

@@ -11,6 +11,7 @@ from src.database.repository_columns import (
     PAYMENT_MIX_COLUMNS,
     REVENUE_BY_STATE_COLUMNS,
     REVIEW_DELIVERY_MATRIX_COLUMNS,
+    SELLER_RISK_SCORECARD_COLUMNS,
     SELLER_SLA_COLUMNS,
 )
 from src.database.repository_defaults import (
@@ -321,6 +322,37 @@ def get_seller_sla_watchlist(limit=10, min_orders=20):
         return pd.read_sql(query, engine, params={"limit": limit, "min_orders": min_orders})
     except Exception:
         return empty_frame(SELLER_SLA_COLUMNS)
+
+
+def get_seller_risk_scorecard(limit=10, min_orders=20):
+    """Returns a seller risk priority scorecard from reusable SQL marts."""
+    limit = clamp_limit(limit, default=10)
+    query = text("""
+    SELECT
+        seller_id,
+        seller_state,
+        orders,
+        delivered_orders,
+        items,
+        product_revenue,
+        freight_revenue,
+        avg_review_score,
+        late_delivery_rate,
+        low_review_rate,
+        canceled_unavailable_rate,
+        cross_state_rate,
+        risk_score,
+        risk_level
+    FROM seller_risk_scorecard
+    WHERE orders >= :min_orders
+    ORDER BY risk_score DESC, product_revenue DESC
+    LIMIT :limit
+    """)
+
+    try:
+        return pd.read_sql(query, engine, params={"limit": limit, "min_orders": min_orders})
+    except Exception:
+        return empty_frame(SELLER_RISK_SCORECARD_COLUMNS)
 
 
 def get_category_performance_summary(limit=10, min_orders=100):

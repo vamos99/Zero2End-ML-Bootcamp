@@ -242,12 +242,16 @@ Technical diagnostics:
 
 | Alan | Sonuç |
 | --- | ---: |
-| SQL views applied | 10 |
+| SQL views applied | 11 |
 | Month-1 average cohort retention | 5.20% |
 | Month-2 average cohort retention | 0.33% |
 | Seller SLA rows | 2,970 sellers |
 | Average seller late-delivery rate | 6.91% |
 | Max seller late-delivery rate | 100.00% |
+| Seller risk scorecard rows | 3,095 sellers |
+| High-risk sellers | 32 sellers |
+| Medium-risk sellers | 163 sellers |
+| Max seller risk score | 80.00 / 100 |
 | Category performance rows | 74 categories |
 | Top category | health_beauty |
 | Top category product revenue | 1,233,131.72 BRL |

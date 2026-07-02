@@ -13,6 +13,8 @@ Postgres-like environments.
 - `payment_mix_summary.sql`: payment type, installment and payment-value mix.
 - `review_delivery_drivers.sql`: review-score buckets versus delivery quality.
 - `seller_sla_summary.sql`: seller-level SLA, revenue, item and review metrics.
+- `seller_risk_scorecard.sql`: seller priority score from late delivery,
+  low-review, canceled/unavailable, cross-state, and volume signals.
 - `category_performance_summary.sql`: category revenue, review, and delivery
   quality metrics.
 - `location_service_level_summary.sql`: customer-state/seller-state service
