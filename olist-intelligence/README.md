@@ -307,6 +307,13 @@ python scripts/apply_sql_views.py --replace
 
 Bu adımlar geçince ham Olist tabloları ve SQL analitik view'ları yerel
 veritabanında hazır olur.
+Ingest tamamlandığında `data/processed/ingestion_manifest.json` üretilir; bu
+dosya Git'e dahil edilmez ve CSV kaynak satırları ile DB tablo satırlarını
+reconcile etmek için kullanılır.
+
+```bash
+make reconcile-ingest
+```
 
 **Runtime readiness kontrolü:**
 
