@@ -82,6 +82,56 @@ def test_api_client_stores_structured_error_detail(monkeypatch):
     }
 
 
+def test_predict_repeat_purchase_risk_uses_canonical_endpoint(monkeypatch):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "prediction_type": "repeat_purchase_risk",
+        "model_available": True,
+        "repeat_purchase_risk_probability": 0.42,
+    }
+    mock_response.raise_for_status.return_value = None
+
+    request_mock = MagicMock(return_value=mock_response)
+    monkeypatch.setattr("src.services.api_client.requests.request", request_mock)
+
+    client = APIClient(base_url="http://example.test", api_key="test-key")
+    result = client.predict_repeat_purchase_risk(days_since=30, frequency=2, monetary=250)
+
+    assert result["prediction_type"] == "repeat_purchase_risk"
+    request_mock.assert_called_once_with(
+        "POST",
+        "http://example.test/predict/repeat-purchase-risk",
+        headers={"X-API-KEY": "test-key"},
+        json={"days_since_last_order": 30, "frequency": 2, "monetary": 250},
+        timeout=5,
+    )
+
+
+def test_api_client_preserves_structured_error_detail(monkeypatch):
+    detail = {
+        "message": "Repeat-purchase risk model is not loaded.",
+        "prediction_type": "repeat_purchase_risk",
+        "model_available": False,
+    }
+    mock_response = MagicMock()
+    mock_response.status_code = 503
+    mock_response.json.return_value = {"detail": detail}
+    mock_response.__bool__.return_value = False
+    mock_response.raise_for_status.side_effect = requests.HTTPError(response=mock_response)
+
+    monkeypatch.setattr("src.services.api_client.requests.request", MagicMock(return_value=mock_response))
+
+    client = APIClient(base_url="http://example.test", api_key="test-key")
+    result = client.predict_repeat_purchase_risk(days_since=30, frequency=2, monetary=250)
+
+    assert result is None
+    assert client.last_error == {
+        "endpoint": "/predict/repeat-purchase-risk",
+        "status_code": 503,
+        "detail": detail,
+    }
+
+
 def test_get_readiness_uses_public_ready_endpoint(monkeypatch):
     mock_response = MagicMock()
     mock_response.json.return_value = {

@@ -131,12 +131,11 @@ def render_customer_view(metrics):
 
     st.markdown("---")
     
-    # NEW: Churn Calculator
-    st.markdown("### 🔥 Repeat-Purchase Model Sandbox")
+    st.markdown("### Repeat-Purchase Risk Sandbox")
     
     with st.expander("👤 Tekil Müşteri Analizi Yap", expanded=False):
         st.caption("Yalnızca değerlendirme eşiğini geçen yerel model artefact'ı yüklüyse sonuç üretir.")
-        with st.form("churn_prediction_form"):
+        with st.form("repeat_purchase_risk_form"):
             c1, c2, c3 = st.columns(3)
             
             with c1:
@@ -146,21 +145,24 @@ def render_customer_view(metrics):
             with c3:
                 money = st.number_input("Toplam Harcama (BRL)", value=100.0, step=10.0)
                 
-            submitted = st.form_submit_button("Risk Hesapla 🚨")
+            submitted = st.form_submit_button("Risk Hesapla")
             
         if submitted:
             with st.spinner("Model tahmin yapıyor..."):
-                result = api_client.predict_churn(
+                result = api_client.predict_repeat_purchase_risk(
                     days_since=recency,
                     frequency=freq,
                     monetary=money
                 )
                 
             if result:
-                prob = result.get('churn_probability', 0)
+                prob = result.get(
+                    "repeat_purchase_risk_probability",
+                    result.get("churn_probability", 0),
+                )
                 risk = result.get('risk_level', 'Unknown')
                 
-                st.write(f"**Churn İhtimali:** %{prob*100:.1f}")
+                st.write(f"**Tekrar satın alma risk olasılığı:** %{prob*100:.1f}")
                 
                 if prob > 0.7:
                     st.error(f"Risk Seviyesi: {risk} (Çok Yüksek)")
@@ -170,7 +172,10 @@ def render_customer_view(metrics):
                     st.success(f"Risk Seviyesi: {risk} (Düşük)")
             else:
                 detail = (api_client.last_error or {}).get("detail")
-                if detail == "Model not loaded":
+                if isinstance(detail, dict) and detail.get("model_available") is False:
+                    st.warning(detail.get("message", "Repeat-purchase modeli yüklü değil."))
+                    st.caption(detail.get("claim_boundary", ""))
+                elif detail == "Model not loaded":
                     st.warning("Repeat-purchase modeli yüklü değil. Bu yerel snapshot model eşiğini geçmediyse sandbox sonuç üretmez.")
                 else:
-                    st.error(f"Churn tahmini alınamadı: {detail or 'API yanıtı yok.'}")
+                    st.error(f"Repeat-purchase risk tahmini alınamadı: {detail or 'API yanıtı yok.'}")
