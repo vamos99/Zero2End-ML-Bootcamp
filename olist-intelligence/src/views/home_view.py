@@ -35,6 +35,25 @@ def _scorecard_markdown(rows):
     )
 
 
+def _answer_cards_table(rows):
+    if not rows:
+        return None
+
+    display_rows = []
+    for row in rows:
+        display_rows.append(
+            {
+                "Area": row.get("area", ""),
+                "Type": row.get("result_type", ""),
+                "Baseline": row.get("baseline", ""),
+                "Current / target": row.get("current_or_target", ""),
+                "Delta / change": row.get("delta_or_change", ""),
+                "Boundary": row.get("boundary", ""),
+            }
+        )
+    return display_rows
+
+
 def _category_signal_table(category_performance):
     if category_performance is None or category_performance.empty:
         return None
@@ -180,6 +199,23 @@ def render_home_view(metrics, executive_data=None):
             )
 
         outcome_scorecard = executive_data.get("outcome_scorecard", [])
+        answer_cards = _answer_cards_table(executive_data.get("dashboard_answer_cards", []))
+        if answer_cards:
+            st.markdown("**Direct outcome answer cards**")
+            st.caption(
+                "Baseline, current or target value, numeric delta, and claim boundary. "
+                "Rows marked as scenario are targets, not completed improvements."
+            )
+            st.dataframe(
+                answer_cards,
+                width="stretch",
+                hide_index=True,
+                column_config={
+                    "Boundary": st.column_config.TextColumn(width="large"),
+                    "Delta / change": st.column_config.TextColumn(width="medium"),
+                },
+            )
+
         if outcome_scorecard:
             st.markdown("**Measured outcome scorecard**")
             st.caption(

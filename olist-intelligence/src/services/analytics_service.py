@@ -119,6 +119,76 @@ def build_dashboard_outcome_scorecard(
     ]
 
 
+def build_dashboard_answer_cards(impact_summary, outcome_scorecard):
+    """Build dashboard-safe baseline/result/delta rows for executive readers."""
+    delivery_scenario = impact_summary.get("delivery_scenario", {})
+    repeat_scenario = impact_summary.get("repeat_purchase_scenario", {})
+    rows_by_area = {row.get("area"): row for row in outcome_scorecard}
+
+    delivery_actual = rows_by_area.get("Actual delivery operation", {})
+    churn = rows_by_area.get("Repeat purchase / churn", {})
+    analytics = rows_by_area.get("Executive analytics coverage", {})
+
+    return [
+        {
+            "area": "Delivery operation",
+            "result_type": "source_baseline",
+            "baseline": delivery_actual.get("baseline", "0.00% late rate"),
+            "current_or_target": delivery_actual.get(
+                "current_or_target",
+                "No post-intervention delivery period",
+            ),
+            "delta_or_change": delivery_actual.get(
+                "measured_change",
+                "No actual delivery-time improvement measured",
+            ),
+            "boundary": "Delivery speed has not been proven faster from this dataset.",
+        },
+        {
+            "area": "Delivery scenario",
+            "result_type": "planning_scenario",
+            "baseline": f"{delivery_scenario.get('baseline_late_rate_pct', 0.0):.2f}% late rate",
+            "current_or_target": f"{delivery_scenario.get('projected_late_rate_pct', 0.0):.2f}% late rate",
+            "delta_or_change": (
+                f"{delivery_scenario.get('late_rate_delta_pp', 0.0):.2f} pp target; "
+                f"{delivery_scenario.get('prevented_late_orders', 0.0):,.0f} fewer late orders; "
+                f"{delivery_scenario.get('potential_late_days_avoided', 0.0):,.0f} potential late-days"
+            ),
+            "boundary": "Scenario target only; validate before calling it impact.",
+        },
+        {
+            "area": "Repeat purchase / churn",
+            "result_type": "source_baseline",
+            "baseline": churn.get("baseline", "0.00% repeat; 0.00% one-time"),
+            "current_or_target": churn.get("current_or_target", "No measured campaign result"),
+            "delta_or_change": churn.get("measured_change", "No churn or retention uplift measured"),
+            "boundary": "Use cohort retention and experiments before claiming churn reduction.",
+        },
+        {
+            "area": "Repeat-purchase scenario",
+            "result_type": "planning_scenario",
+            "baseline": f"{repeat_scenario.get('baseline_repeat_rate_pct', 0.0):.2f}% repeat",
+            "current_or_target": f"{repeat_scenario.get('projected_repeat_rate_pct', 0.0):.2f}% repeat",
+            "delta_or_change": (
+                f"+{repeat_scenario.get('projected_repeat_rate_pct', 0.0) - repeat_scenario.get('baseline_repeat_rate_pct', 0.0):.1f} pp target; "
+                f"{repeat_scenario.get('additional_repeat_customers', 0.0):,.0f} additional repeat customers"
+            ),
+            "boundary": "Campaign target only; not measured churn improvement.",
+        },
+        {
+            "area": "Analytics coverage",
+            "result_type": "analytics_signal",
+            "baseline": analytics.get("baseline", "Raw Olist tables"),
+            "current_or_target": analytics.get("current_or_target", "No dashboard marts available"),
+            "delta_or_change": analytics.get(
+                "measured_change",
+                "Dashboard evidence coverage improved, not business outcome",
+            ),
+            "boundary": "Coverage helps explain business state; it is not intervention impact.",
+        },
+    ]
+
+
 def get_daily_pulse(start_date, end_date):
     """Aggregates key metrics for the Home Page."""
     total_orders = repository.get_total_orders(start_date, end_date)
@@ -161,6 +231,7 @@ def get_executive_dashboard_data(start_date, end_date):
         category_performance=category_performance,
         location_service_levels=location_service_levels,
     )
+    dashboard_answer_cards = build_dashboard_answer_cards(impact_summary, outcome_scorecard)
 
     return {
         "revenue_by_state": revenue_by_state,
@@ -172,6 +243,7 @@ def get_executive_dashboard_data(start_date, end_date):
         "location_service_levels": location_service_levels,
         "impact_summary": impact_summary,
         "outcome_scorecard": outcome_scorecard,
+        "dashboard_answer_cards": dashboard_answer_cards,
     }
 
 def get_logistics_data(start_date, end_date):
