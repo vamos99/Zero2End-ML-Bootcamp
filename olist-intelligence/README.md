@@ -38,6 +38,7 @@ iyileşme değil, modelleme uygunluk kapısı raporlanır.
 | --- | ---: | ---: | --- |
 | Delivery source | %6.77 geç teslimat; ortalama 12.56 gün teslimat | Müdahale sonrası ölçüm yok | Lojistik fırsat büyüklüğü |
 | Delivery prediction | Train-mean MAE 7.68 gün; Olist estimated-date MAE 12.59 gün | CatBoost MAE 6.52 gün | Tahmin hatası %15.1 / %48.2 düştü; teslimat süresi düştü demek değildir |
+| Late delivery classification | Test late rate %12.35 | LogisticRegression ROC-AUC 0.656; PR-AUC 0.207; recall 0.403 | Offline priority signal; geç teslimat azaltma kanıtı değildir |
 | Repeat purchase | %3.00 repeat customer; %97.00 one-time customer | Churn/retention uplift ölçülmedi | Cohort retention daha güvenilir davranış metriği |
 | Churn gate | Risk etiketi %99.40; sınıf dağılımı aşırı dengesiz | Model evaluation gate failed | Decision-ready churn modeli olarak sunulmaz |
 | Recommender | Random hit@10 %0.03 | SVD hit@10 %3.51, 115.7x random baseline | Ranking benchmark'ı var; satış uplift'i yok |

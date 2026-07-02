@@ -5,7 +5,10 @@ import pickle
 from sklearn.base import clone
 from sklearn.model_selection import TimeSeriesSplit, train_test_split, cross_val_score
 from sklearn.metrics import (
+    average_precision_score,
     balanced_accuracy_score,
+    confusion_matrix,
+    precision_recall_fscore_support,
     mean_absolute_error,
     mean_squared_error,
     roc_auc_score,
@@ -38,6 +41,29 @@ def _mae(actual, predicted):
 
 def _improvement_pct(baseline_error, model_error):
     return float((baseline_error - model_error) / baseline_error * 100)
+
+
+def _binary_classification_metrics(y_true, prediction, probability):
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        y_true,
+        prediction,
+        average="binary",
+        zero_division=0,
+    )
+    tn, fp, fn, tp = confusion_matrix(y_true, prediction, labels=[0, 1]).ravel()
+    return {
+        "roc_auc": float(roc_auc_score(y_true, probability)),
+        "pr_auc": float(average_precision_score(y_true, probability)),
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
+        "confusion_matrix": {
+            "true_negative": int(tn),
+            "false_positive": int(fp),
+            "false_negative": int(fn),
+            "true_positive": int(tp),
+        },
+    }
 
 
 def _maybe_save_pickle(model, path, save_artifacts):
@@ -234,6 +260,94 @@ def benchmark_logistics(limit=20000, optimize=True, save_artifacts=False):
     return results
 
 
+def benchmark_late_delivery_classification(limit=50000, save_artifacts=False):
+    """Run offline late-delivery classification with a time-based holdout."""
+    print("\n⏱️ --- Late Delivery Classification Benchmark ---")
+    X, actual_days, timestamps, estimated_days = get_logistics_data(
+        limit=limit,
+        include_timestamps=True,
+        include_estimates=True,
+    )
+    y = (actual_days > estimated_days).astype(int)
+    features = X.copy()
+    features["estimated_delivery_days"] = estimated_days.to_numpy()
+
+    target_frame = y.to_frame(name="is_late")
+    X_train, X_test, y_train_frame, y_test_frame = temporal_train_test_split(
+        features,
+        target_frame,
+        timestamps,
+        test_size=0.2,
+    )
+    y_train = y_train_frame["is_late"]
+    y_test = y_test_frame["is_late"]
+
+    print(
+        "Late-delivery data: "
+        f"{len(features)} orders, train late rate={y_train.mean()*100:.2f}%, "
+        f"test late rate={y_test.mean()*100:.2f}%"
+    )
+    if y_train.nunique() < 2 or y_test.nunique() < 2:
+        print("⚠️ Benchmark skipped: train/test split does not contain both classes.")
+        return {}
+
+    models = {
+        "LogisticRegression": LogisticRegression(
+            max_iter=1000,
+            class_weight="balanced",
+            random_state=42,
+            solver="liblinear",
+        ),
+        "RandomForest": RandomForestClassifier(
+            n_estimators=100,
+            max_depth=10,
+            class_weight="balanced",
+            random_state=42,
+            n_jobs=-1,
+        ),
+        "CatBoost": CatBoostClassifier(
+            iterations=200,
+            depth=6,
+            verbose=0,
+            random_seed=42,
+            auto_class_weights="Balanced",
+        ),
+    }
+
+    results = {
+        "target": "order_delivered_customer_date > order_estimated_delivery_date",
+        "split": "time_based_holdout",
+        "train_rows": int(len(y_train)),
+        "test_rows": int(len(y_test)),
+        "train_late_rate_pct": float(y_train.mean() * 100),
+        "test_late_rate_pct": float(y_test.mean() * 100),
+    }
+    for name, model in models.items():
+        model.fit(X_train, y_train)
+        prediction = model.predict(X_test)
+        probability = model.predict_proba(X_test)[:, 1]
+        results[name] = {
+            **_binary_classification_metrics(y_test, prediction, probability),
+            "model": model,
+        }
+        print(
+            f"👉 {name}: "
+            f"ROC-AUC={results[name]['roc_auc']:.4f}, "
+            f"PR-AUC={results[name]['pr_auc']:.4f}, "
+            f"F1={results[name]['f1']:.4f}, "
+            f"Recall={results[name]['recall']:.4f}"
+        )
+
+    winner = max(models, key=lambda key: results[key]["pr_auc"])
+    print(f"🏆 Winner by PR-AUC: {winner}")
+    _maybe_save_pickle(
+        results[winner]["model"],
+        MODELS_PATH / "late_delivery_classifier.pkl",
+        save_artifacts,
+    )
+    return results
+
+
 def benchmark_churn(limit=50000, save_artifacts=False):
     """Run churn model benchmark without writing model artifacts by default."""
     print("\n🔥 --- Churn Model Benchmark ---")
@@ -302,11 +416,27 @@ if __name__ == "__main__":
     parser.add_argument("--skip-optuna", action="store_true", help="Skip the Optuna optimization phase.")
     parser.add_argument("--logistics-limit", type=int, default=20000)
     parser.add_argument("--churn-limit", type=int, default=50000)
+    parser.add_argument("--late-limit", type=int, default=50000)
+    parser.add_argument(
+        "--only-late-classification",
+        action="store_true",
+        help="Run only the late-delivery classification benchmark.",
+    )
     args = parser.parse_args()
 
-    benchmark_logistics(
-        limit=args.logistics_limit,
-        optimize=not args.skip_optuna,
-        save_artifacts=args.save_artifacts,
-    )
-    benchmark_churn(limit=args.churn_limit, save_artifacts=args.save_artifacts)
+    if args.only_late_classification:
+        benchmark_late_delivery_classification(
+            limit=args.late_limit,
+            save_artifacts=args.save_artifacts,
+        )
+    else:
+        benchmark_logistics(
+            limit=args.logistics_limit,
+            optimize=not args.skip_optuna,
+            save_artifacts=args.save_artifacts,
+        )
+        benchmark_late_delivery_classification(
+            limit=args.late_limit,
+            save_artifacts=args.save_artifacts,
+        )
+        benchmark_churn(limit=args.churn_limit, save_artifacts=args.save_artifacts)
