@@ -197,6 +197,7 @@ Raw CSV veya `olist.db` yoksa bu komutların fail vermesi beklenen davranıştı
 *   **Liveness/readiness:** `/health`, `/ready`
 *   **Serving:** `/predict/delivery`, `/predict/repeat-purchase-risk`, `/recommend`, `/segments`
 *   **Legacy compatibility:** `/predict/churn` korunur; yeni anlatımda repeat-purchase risk adayı olarak konumlanır
+*   **Recommendation contract:** `/recommend` eski `recommendations` listesini korur; ayrıca `items`, `personalization_level` ve `claim_boundary` döner
 *   **Güvenlik:** X-API-KEY koruması
 
 ### Data Quality
