@@ -35,16 +35,15 @@ jobs:
       
       - name: Run tests
         # Tests use mocks, no DB required
-        run: |
-          pytest tests/ -v --tb=short
-          python scripts/validate_notebooks.py
+        run: make test
+
+      - name: Validate notebooks and schema contracts
+        run: make validate
 
       - name: Validate local service configuration
         env:
           API_KEY: ci-placeholder-key
-        run: |
-          docker compose config --quiet
-          bash -n run_local.sh
+        run: make service-config
 
   lint:
     runs-on: ubuntu-latest
@@ -62,5 +61,4 @@ jobs:
       - name: Check syntax
         run: |
           pip install flake8
-          python -m compileall -q src scripts
-          flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          make lint

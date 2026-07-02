@@ -121,8 +121,13 @@ Testler raw dataset veya aktif API anahtarı gerektirmeyen mock/fixture
 sözleşmeleriyle CI üzerinde çalışır:
 
 ```bash
-pytest tests/ -v --tb=short
+make test
+make validate
 ```
+
+`make validate` raw Kaggle CSV veya `olist.db` gerektirmeyen statik kontrolleri
+çalıştırır. Local dataset ve veritabanı hazırlandıktan sonra tam veri kontrolü
+için `make validate-data` kullanılır.
 
 | Katman | Bu Projede Karşılığı |
 |--------|-----------------------|
@@ -241,6 +246,7 @@ source venv/bin/activate
 
 # Kütüphaneleri Yükle
 pip install -r requirements.txt
+# Alternatif: make setup
 
 # Kernel'i Notebook'a Tanıt (ÖNEMLİ)
 python -m ipykernel install --user --name=venv --display-name "Python (Olist Project)"
@@ -328,6 +334,13 @@ python scripts/build_local_demo.py
 python scripts/validate_olist_schema.py --target generated
 ```
 
+Makefile ile aynı akışın kısa karşılığı:
+
+```bash
+make demo-build
+make validate-data
+```
+
 Bu build, Notebook 4 ile aynı göreli RFM segment mantığını ve Olist estimated
 delivery tarihine dayanan şeffaf bir lojistik baseline'ını oluşturur. Lojistik
 baseline, eğitilmiş ML modeli değildir ve dashboard'da bu şekilde etiketlenir.
@@ -373,12 +386,12 @@ Eğer her servisi ayrı terminalde görmek isterseniz:
 
 2. **Terminal 2: API**
    ```bash
-   uvicorn src.app:app --reload
+   make api
    ```
 
 3. **Terminal 3: Dashboard**
    ```bash
-   streamlit run src/dashboard.py
+   make dashboard
    ```
 
 ---
