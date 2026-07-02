@@ -35,6 +35,55 @@ def _scorecard_markdown(rows):
     )
 
 
+def _category_signal_table(category_performance):
+    if category_performance is None or category_performance.empty:
+        return None
+
+    display_columns = [
+        "category",
+        "orders",
+        "product_revenue",
+        "avg_review_score",
+        "late_delivery_rate",
+    ]
+    return category_performance[display_columns].rename(
+        columns={
+            "category": "Category",
+            "orders": "Orders",
+            "product_revenue": "Product revenue",
+            "avg_review_score": "Avg. review",
+            "late_delivery_rate": "Late delivery",
+        }
+    )
+
+
+def _location_lane_table(location_service_levels):
+    if location_service_levels is None or location_service_levels.empty:
+        return None
+
+    display_df = location_service_levels.copy()
+    display_df["Lane"] = (
+        display_df["seller_state"].astype(str) + " -> " + display_df["customer_state"].astype(str)
+    )
+    display_columns = [
+        "Lane",
+        "lane_type",
+        "orders",
+        "product_revenue",
+        "avg_delivery_days",
+        "late_delivery_rate",
+    ]
+    return display_df[display_columns].rename(
+        columns={
+            "lane_type": "Lane type",
+            "orders": "Orders",
+            "product_revenue": "Product revenue",
+            "avg_delivery_days": "Avg. delivery days",
+            "late_delivery_rate": "Late delivery",
+        }
+    )
+
+
 def render_home_view(metrics, executive_data=None):
     executive_data = executive_data or {}
 
@@ -313,6 +362,76 @@ def render_home_view(metrics, executive_data=None):
     else:
         st.info("Seller SLA watchlist is available after SQL views are applied to the local database.")
 
+    st.markdown("**Category and location service signals**")
+    category_signal_col, location_signal_col = st.columns(2)
+
+    category_performance = executive_data.get("category_performance")
+    with category_signal_col:
+        st.markdown("**Category revenue and quality**")
+        category_table = _category_signal_table(category_performance)
+        if category_table is not None:
+            fig = px.bar(
+                category_performance,
+                x="category",
+                y="product_revenue",
+                color="late_delivery_rate",
+                labels={
+                    "category": "Category",
+                    "product_revenue": "Product revenue (BRL)",
+                    "late_delivery_rate": "Late delivery (%)",
+                },
+                title="Top categories by product revenue",
+            )
+            st.plotly_chart(fig, width="stretch")
+            st.dataframe(
+                category_table.style.format(
+                    {
+                        "Orders": "{:,.0f}",
+                        "Product revenue": "{:,.0f} BRL",
+                        "Avg. review": "{:.2f}",
+                        "Late delivery": _format_pct,
+                    }
+                ),
+                width="stretch",
+                hide_index=True,
+            )
+        else:
+            st.info("Category performance is available after SQL views are applied to the local database.")
+
+    location_service_levels = executive_data.get("location_service_levels")
+    with location_signal_col:
+        st.markdown("**Location service lanes**")
+        location_table = _location_lane_table(location_service_levels)
+        if location_table is not None:
+            lane_chart = location_table.copy()
+            fig = px.bar(
+                lane_chart,
+                x="Lane",
+                y="Orders",
+                color="Late delivery",
+                labels={
+                    "Lane": "Seller -> customer state",
+                    "Orders": "Delivered orders",
+                    "Late delivery": "Late delivery (%)",
+                },
+                title="Highest-volume state lanes",
+            )
+            st.plotly_chart(fig, width="stretch")
+            st.dataframe(
+                location_table.style.format(
+                    {
+                        "Orders": "{:,.0f}",
+                        "Product revenue": "{:,.0f} BRL",
+                        "Avg. delivery days": "{:.1f}",
+                        "Late delivery": _format_pct,
+                    }
+                ),
+                width="stretch",
+                hide_index=True,
+            )
+        else:
+            st.info("Location service lanes are available after SQL views are applied to the local database.")
+
     with st.expander("Dashboard data sources"):
         st.markdown(
             """
@@ -323,6 +442,8 @@ def render_home_view(metrics, executive_data=None):
             | Payment mix | `payment_mix_summary` |
             | Customer cohort retention | `customer_cohort_retention` |
             | Seller SLA watchlist | `seller_sla_summary` |
+            | Category revenue and quality | `category_performance_summary` |
+            | Location service lanes | `location_service_level_summary` |
             """
         )
 
