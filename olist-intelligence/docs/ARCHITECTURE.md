@@ -41,6 +41,7 @@ The existing rendered overview remains available at
 | `src/ml/ingest.py` | Local CSV-to-database ingestion |
 | `scripts/validate_olist_schema.py` | CLI validation entry point |
 | `scripts/build_local_demo.py` | Deterministic local dashboard-output build |
+| `scripts/export_bi_marts.py` | Local SQL mart export for BI tools |
 | `sql/views/` | Reusable analytics marts/views |
 | `src/database/db_client.py` | Database engine creation |
 | `src/database/repository.py` | Backward-compatible repository facade and remaining legacy functions |

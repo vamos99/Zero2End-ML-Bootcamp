@@ -31,6 +31,7 @@ python scripts/build_local_demo.py
 python scripts/validate_olist_schema.py --target generated
 make validate-data
 make reconcile-ingest
+make bi-export
 ```
 
 `--target generated` validates `logistics_predictions` and
@@ -40,6 +41,10 @@ generated-output contracts fail.
 `make reconcile-ingest` compares `data/processed/ingestion_manifest.json`
 against the current database row counts. The manifest is created by
 `python -m src.ml.ingest` and stays local because `data/` is Git-ignored.
+
+`make bi-export` applies SQL views and writes BI-ready CSV files plus
+`manifest.json` under `data/exports/bi/`. Those outputs are local artifacts, not
+committed portfolio files.
 
 The CLI prints the selected check group in the success line. This matters
 because raw CSV validation, database schema validation, generated table

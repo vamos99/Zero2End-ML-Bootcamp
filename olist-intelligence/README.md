@@ -135,6 +135,7 @@ için `make validate-data` kullanılır.
 | **Raw data** | Kaggle Olist CSV dosyaları (`data/raw/` önerilir, `olist-dataset/` legacy fallback; Git'e dahil değil) |
 | **Ingestion** | `src/ml/ingest.py` ile CSV -> SQLite/Postgres uyumlu tablo akışı |
 | **Analytics model** | `sql/views/` altında revenue, delivery quality, payment, cohort, seller, category, location ve segment view'ları |
+| **BI export** | SQL martlarını Tableau, Looker Studio veya Power BI için local CSV dosyalarına aktarır |
 | **ML workflow** | Notebooklar ve `src/ml/` altında lojistik tahmin, repeat-purchase uygunluk kapısı ve öneri prototipleri |
 | **Serving** | FastAPI endpointleri ve SQL mart destekli Streamlit dashboard |
 | **Quality checks** | Pytest, schema contract, data-quality checks ve GitHub Actions CI |
@@ -148,6 +149,16 @@ python scripts/apply_sql_views.py --replace
 ```
 
 Bu komut, lokal `olist.db` veya `DATABASE_URL` ile tanımlanmış veritabanı üzerinde `sql/views/` altındaki view'ları uygular.
+
+BI araçlarında kullanmak için SQL martlarını local CSV olarak export etmek:
+
+```bash
+make bi-export
+```
+
+Bu komut view'ları yeniden uygular ve CSV + manifest çıktısını `data/exports/bi/`
+altına yazar. `data/` Git'e dahil edilmediği için export dosyaları repoya
+yüklenmez.
 
 Veri ve tablo kalitesini kontrol etmek için:
 
