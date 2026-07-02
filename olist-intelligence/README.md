@@ -160,6 +160,10 @@ Bu komut view'ları yeniden uygular ve CSV + manifest çıktısını `data/expor
 altına yazar. `data/` Git'e dahil edilmediği için export dosyaları repoya
 yüklenmez.
 
+Opsiyonel BigQuery / Looker Studio aktarımı için bkz.
+[`docs/CLOUD_OPTIONAL.md`](docs/CLOUD_OPTIONAL.md). Bu yol local-first akışın
+yerine geçmez ve cloud deployment iddiası taşımaz.
+
 Veri ve tablo kalitesini kontrol etmek için:
 
 ```bash
